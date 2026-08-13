@@ -1,0 +1,17 @@
+br\com\adminpool\controller\ProdutoController.class
+br\com\adminpool\AdminPoolApplication.class
+br\com\adminpool\service\CobrancaService.class
+br\com\adminpool\model\Usuario.class
+br\com\adminpool\service\ImportadorClientes.class
+br\com\adminpool\model\Perfil.class
+br\com\adminpool\repository\ClienteRepository.class
+br\com\adminpool\model\Produto.class
+br\com\adminpool\controller\CobrancaController.class
+br\com\adminpool\model\Cliente.class
+br\com\adminpool\model\StatusCobranca.class
+br\com\adminpool\controller\ClienteController.class
+br\com\adminpool\model\PedidoProduto.class
+br\com\adminpool\model\Funcionario.class
+br\com\adminpool\model\CobrancaMensal.class
+br\com\adminpool\repository\ProdutoRepository.class
+br\com\adminpool\repository\CobrancaRepository.class
