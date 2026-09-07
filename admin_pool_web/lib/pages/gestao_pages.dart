@@ -1,5 +1,13 @@
 part of '../main.dart';
 
+class _ResumoFuncionario extends StatelessWidget {
+  const _ResumoFuncionario();
+  Future<List<dynamic>> _lista(String rota) async { final r=await apiService.get(rota); return r.statusCode==200 ? jsonDecode(r.body) as List<dynamic> : const []; }
+  @override Widget build(BuildContext context)=>FutureBuilder<List<List<dynamic>>>(future:Future.wait([_lista('/api/clientes'),_lista('/api/ordens-servico'),_lista('/api/pedidos-produto'),_lista('/api/salarios')]),builder:(_,s){final d=s.data??const [[],[],[],[]];final hoje=DateTime.now().toIso8601String().substring(0,10);final servicos=d[1].where((x)=>x['dataServico']==hoje).length;final pedidos=d[2].where((x)=>x['status']=='SOLICITADO').length;final salario=d[3].isEmpty?0:(d[3].first['salario'] as num);return Wrap(spacing:16,runSpacing:16,children:[_Indicador('Meus clientes','${d[0].length}',Icons.people_outline,const Color(0xFF1565C0)),_Indicador('Serviços hoje','$servicos',Icons.build_outlined,const Color(0xFFF4A261)),_Indicador('Pedidos em aberto','$pedidos',Icons.shopping_cart_outlined,const Color(0xFFE76F51)),_Indicador('Salário previsto',formatarMoeda(salario),Icons.payments_outlined,const Color(0xFF1976D2))]);});
+}
+
+class _ProximosServicosFuncionario extends StatelessWidget { const _ProximosServicosFuncionario(); @override Widget build(BuildContext context)=>FutureBuilder<http.Response>(future:apiService.get('/api/ordens-servico'),builder:(_,s){if(!s.hasData)return const Card(child:Padding(padding:EdgeInsets.all(20),child:Center(child:CircularProgressIndicator())));if(s.data!.statusCode!=200)return const Card(child:ListTile(title:Text('Nenhum serviço disponível.')));final itens=jsonDecode(s.data!.body) as List<dynamic>;if(itens.isEmpty)return const Card(child:ListTile(leading:Icon(Icons.pool_outlined),title:Text('Nenhum serviço nas piscinas vinculadas.')));return Card(child:ListView.separated(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:itens.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(_,i){final o=itens[i] as Map<String,dynamic>;final p=o['piscina']??{};return ListTile(leading:const CircleAvatar(child:Icon(Icons.pool)),title:Text('${(o['cliente']??{})['nome']??''} — ${p['nome']??'Piscina'}'),subtitle:Text('${o['dataServico']} • ${o['descricao']}'));}));});}
+
 class _FuncionariosPage extends StatefulWidget { const _FuncionariosPage(); @override State<_FuncionariosPage> createState()=>_FuncionariosPageState(); }
 class _FuncionariosPageState extends State<_FuncionariosPage> {
  late Future<List<dynamic>> dados; @override void initState(){super.initState();dados=carregar();}

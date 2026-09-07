@@ -188,7 +188,7 @@ class _PageContent extends StatelessWidget {
   Widget build(BuildContext context) {
     if (inicio) return _Dashboard(perfil: perfil);
     if (titulo == 'Clientes' || titulo == 'Meus clientes') {
-      return const _ListaClientes();
+      return _ListaClientes(gestor: perfil == Perfil.gestor);
     }
     if (titulo == 'Produtos')
       return _ProdutosGerenciamentoPage(gestor: perfil == Perfil.gestor);
@@ -956,7 +956,8 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
 }
 
 class _ListaClientes extends StatefulWidget {
-  const _ListaClientes();
+  const _ListaClientes({required this.gestor});
+  final bool gestor;
   @override
   State<_ListaClientes> createState() => _ListaClientesState();
 }
@@ -1400,7 +1401,7 @@ class _ListaClientesState extends State<_ListaClientes> {
               ),
             ),
             const SizedBox(width: 16),
-            FilledButton.icon(
+            if (widget.gestor) FilledButton.icon(
               onPressed: cadastrar,
               icon: const Icon(Icons.person_add_alt_1),
               label: const Text('Novo cliente'),
@@ -1489,11 +1490,11 @@ class _ListaClientesState extends State<_ListaClientes> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              IconButton(
+                              if (widget.gestor) IconButton(
                                 icon: const Icon(Icons.edit_outlined),
                                 onPressed: () => editar(cliente),
                               ),
-                              IconButton(
+                              if (widget.gestor) IconButton(
                                 icon: const Icon(
                                   Icons.delete_outline,
                                   color: Colors.red,
@@ -1588,32 +1589,7 @@ class _Dashboard extends StatelessWidget {
                     tipo: _TipoNotificacao.ordemServico,
                   ),
                 ]
-              : [
-                  _Indicador(
-                    'Meus clientes',
-                    '10',
-                    Icons.people_outline,
-                    Color(0xFF1565C0),
-                  ),
-                  _Indicador(
-                    'Serviços hoje',
-                    '3',
-                    Icons.build_outlined,
-                    Color(0xFFF4A261),
-                  ),
-                  _Indicador(
-                    'Pedidos em aberto',
-                    '2',
-                    Icons.shopping_cart_outlined,
-                    Color(0xFFE76F51),
-                  ),
-                  _Indicador(
-                    'Salário previsto',
-                    'R\$ 1.875,00',
-                    Icons.payments_outlined,
-                    Color(0xFF1976D2),
-                  ),
-                ],
+              : const [_ResumoFuncionario()],
         ),
         const SizedBox(height: 32),
         Text(
@@ -1622,53 +1598,7 @@ class _Dashboard extends StatelessWidget {
               ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
-        gestor
-            ? const _CobrancasDoMes()
-            : Card(
-                child: Column(
-                  children: gestor
-                      ? const [
-                          ListTile(
-                            leading: CircleAvatar(child: Icon(Icons.person)),
-                            title: Text('Condomínio Jardim'),
-                            subtitle: Text('Referência: Julho/2026'),
-                            trailing: Text(
-                              'R\$ 480,00\nPendente',
-                              textAlign: TextAlign.end,
-                            ),
-                          ),
-                          Divider(height: 1),
-                          ListTile(
-                            leading: CircleAvatar(child: Icon(Icons.person)),
-                            title: Text('Residência Oliveira'),
-                            subtitle: Text('Referência: Julho/2026'),
-                            trailing: Text(
-                              'R\$ 250,00\nPago',
-                              textAlign: TextAlign.end,
-                            ),
-                          ),
-                        ]
-                      : const [
-                          ListTile(
-                            leading: CircleAvatar(child: Icon(Icons.pool)),
-                            title: Text('Condomínio Jardim — Piscina adulto'),
-                            subtitle: Text(
-                              'Hoje, 08:00 • Manutenção preventiva',
-                            ),
-                            trailing: Icon(Icons.chevron_right),
-                          ),
-                          Divider(height: 1),
-                          ListTile(
-                            leading: CircleAvatar(child: Icon(Icons.pool)),
-                            title: Text(
-                              'Residência Oliveira — Piscina principal',
-                            ),
-                            subtitle: Text('Hoje, 14:00 • Limpeza e análise'),
-                            trailing: Icon(Icons.chevron_right),
-                          ),
-                        ],
-                ),
-              ),
+        gestor ? const _CobrancasDoMes() : const _ProximosServicosFuncionario(),
       ],
     );
   }
