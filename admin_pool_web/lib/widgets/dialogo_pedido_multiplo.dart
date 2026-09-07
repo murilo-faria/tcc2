@@ -7,10 +7,12 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
   required BuildContext context,
   required List<dynamic> produtos,
   required List<dynamic> clientes,
+  required List<dynamic> piscinas,
   int? clienteFixo,
   required String titulo,
 }) async {
   int clienteId = clienteFixo ?? clientes.first['id'] as int;
+  int? piscinaId;
   final itens = <Map<String, int>>[
     {'produtoId': produtos.first['id'] as int, 'quantidade': 1},
   ];
@@ -48,9 +50,18 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                           )
                           .toList(),
                       onChanged: (valor) {
-                        setLocal(() => clienteId = valor!);
+                        setLocal(() { clienteId = valor!; piscinaId = null; });
                       },
                     ),
+                  DropdownButtonFormField<int>(
+                    key: ValueKey('piscina-$clienteId'),
+                    initialValue: piscinaId,
+                    decoration: const InputDecoration(labelText: 'Piscina *'),
+                    items: piscinas.where((p) => p['cliente']['id'] == clienteId).map<DropdownMenuItem<int>>(
+                      (p) => DropdownMenuItem(value: p['id'] as int, child: Text('${p['nome']} — ${p['endereco'] ?? ''}')),
+                    ).toList(),
+                    onChanged: (valor) => setLocal(() => piscinaId = valor),
+                  ),
                   const SizedBox(height: 8),
                   ...List.generate(itens.length, (indice) {
                     final item = itens[indice];
@@ -149,8 +160,8 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(context, {
-                'clienteId': clienteId,
+              onPressed: piscinaId == null ? null : () => Navigator.pop(context, {
+                'clienteId': clienteId, 'piscinaId': piscinaId,
                 'itens': itens,
               }),
               child: const Text('Salvar pedido'),

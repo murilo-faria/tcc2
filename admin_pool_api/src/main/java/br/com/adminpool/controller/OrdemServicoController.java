@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/ordens-servico")
@@ -36,8 +37,8 @@ public class OrdemServicoController {
     }
 
     @GetMapping
-    public List<OrdemServico> listarTodas() {
-        return ordens.findAllByOrderByDataServicoDesc();
+    public List<OrdemServico> listarTodas(Authentication auth) {
+        return gestor(auth)?ordens.findAllByOrderByDataServicoDesc():ordens.findByPiscinaResponsavelUsuarioLoginIgnoreCaseOrderByDataServicoDesc(auth.getName());
     }
 
     @GetMapping("/cliente/{clienteId}")
@@ -65,13 +66,15 @@ public class OrdemServicoController {
     }
 
     @PostMapping
-    public ResponseEntity<OrdemServico> criar(@RequestBody NovaOrdemServicoRequest requisicao) {
+    public ResponseEntity<OrdemServico> criar(@RequestBody NovaOrdemServicoRequest requisicao, Authentication auth) {
         OrdemServico ordem = new OrdemServico();
-        ordem.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
+        var cliente=clientes.findById(requisicao.clienteId()).orElseThrow(); ordem.setCliente(cliente);
 
-        if (requisicao.piscinaId() != null) {
-            ordem.setPiscina(piscinas.findById(requisicao.piscinaId()).orElseThrow());
-        }
+        if (requisicao.piscinaId() == null) throw new IllegalArgumentException("Selecione a piscina da ordem.");
+        var piscina=piscinas.findById(requisicao.piscinaId()).orElseThrow();
+        if(!piscina.getCliente().getId().equals(cliente.getId())) throw new IllegalArgumentException("A piscina não pertence ao cliente.");
+        if(!gestor(auth)&&(piscina.getResponsavel()==null||!piscina.getResponsavel().getUsuario().getLogin().equalsIgnoreCase(auth.getName()))) throw new org.springframework.security.access.AccessDeniedException("Piscina não vinculada ao funcionário.");
+        ordem.setPiscina(piscina);
 
         ordem.setDescricao(requisicao.descricao());
         ordem.setDataServico(
@@ -86,4 +89,5 @@ public class OrdemServicoController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(ordemSalva);
     }
+    private boolean gestor(Authentication a){return a.getAuthorities().stream().anyMatch(x->x.getAuthority().equals("ROLE_GESTOR"));}
 }

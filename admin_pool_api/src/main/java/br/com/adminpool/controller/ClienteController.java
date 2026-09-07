@@ -6,6 +6,7 @@ import br.com.adminpool.service.CobrancaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -24,8 +25,9 @@ public class ClienteController {
     }
 
     @GetMapping
-    public List<Cliente> listar() {
-        return clientes.findAll();
+    public List<Cliente> listar(Authentication auth) {
+        boolean gestor=auth.getAuthorities().stream().anyMatch(a->a.getAuthority().equals("ROLE_GESTOR"));
+        return gestor ? clientes.findAll() : clientes.findResponsaveisPorLogin(auth.getName());
     }
 
     @PostMapping

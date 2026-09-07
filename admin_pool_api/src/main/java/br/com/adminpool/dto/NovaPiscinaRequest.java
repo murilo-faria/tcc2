@@ -6,5 +6,7 @@ public record NovaPiscinaRequest(
         String nome,
         String tipo,
         Integer volumeLitros,
+        String endereco,
+        Long responsavelId,
         String observacoes) {
 }

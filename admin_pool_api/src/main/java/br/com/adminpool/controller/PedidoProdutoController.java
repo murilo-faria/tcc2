@@ -7,6 +7,8 @@ import br.com.adminpool.model.Produto;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.repository.ProdutoRepository;
+import br.com.adminpool.repository.PiscinaRepository;
+import org.springframework.security.core.Authentication;
 import br.com.adminpool.service.LancamentoCobrancaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,22 +25,24 @@ public class PedidoProdutoController {
     private final PedidoProdutoRepository pedidos;
     private final ClienteRepository clientes;
     private final ProdutoRepository produtos;
+    private final PiscinaRepository piscinas;
     private final LancamentoCobrancaService lancamentos;
 
     public PedidoProdutoController(
             PedidoProdutoRepository pedidos,
             ClienteRepository clientes,
-            ProdutoRepository produtos,
+            ProdutoRepository produtos, PiscinaRepository piscinas,
             LancamentoCobrancaService lancamentos) {
         this.pedidos = pedidos;
         this.clientes = clientes;
         this.produtos = produtos;
+        this.piscinas = piscinas;
         this.lancamentos = lancamentos;
     }
 
     @GetMapping
-    public List<PedidoProduto> listarTodos() {
-        return pedidos.findAllByOrderByDataPedidoDesc();
+    public List<PedidoProduto> listarTodos(Authentication auth) {
+        return gestor(auth)?pedidos.findAllByOrderByDataPedidoDesc():pedidos.findByPiscinaResponsavelUsuarioLoginIgnoreCaseOrderByDataPedidoDesc(auth.getName());
     }
 
     @GetMapping("/cliente/{clienteId}")
@@ -60,11 +64,16 @@ public class PedidoProdutoController {
     }
 
     @PostMapping
-    public ResponseEntity<PedidoProduto> criar(@RequestBody NovoPedidoRequest requisicao) {
+    public ResponseEntity<PedidoProduto> criar(@RequestBody NovoPedidoRequest requisicao, Authentication auth) {
         Produto produto = produtos.findById(requisicao.produtoId()).orElseThrow();
 
         PedidoProduto pedido = new PedidoProduto();
-        pedido.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
+        var cliente=clientes.findById(requisicao.clienteId()).orElseThrow(); pedido.setCliente(cliente);
+        if(requisicao.piscinaId()==null) throw new IllegalArgumentException("Selecione a piscina do pedido.");
+        var piscina=piscinas.findById(requisicao.piscinaId()).orElseThrow();
+        if(!piscina.getCliente().getId().equals(cliente.getId())) throw new IllegalArgumentException("A piscina não pertence ao cliente.");
+        if(!gestor(auth) && (piscina.getResponsavel()==null || !piscina.getResponsavel().getUsuario().getLogin().equalsIgnoreCase(auth.getName()))) throw new org.springframework.security.access.AccessDeniedException("Piscina não vinculada ao funcionário.");
+        pedido.setPiscina(piscina);
         pedido.setProduto(produto);
         pedido.setQuantidade(requisicao.quantidade());
         pedido.setValorUnitario(produto.getPrecoVenda());
@@ -78,14 +87,15 @@ public class PedidoProdutoController {
     }
 
     @PostMapping("/lote")
-    public ResponseEntity<List<PedidoProduto>> criarLote(@RequestBody NovoPedidoLoteRequest requisicao) {
+    public ResponseEntity<List<PedidoProduto>> criarLote(@RequestBody NovoPedidoLoteRequest requisicao, Authentication auth) {
         List<PedidoProduto> pedidosSalvos = requisicao.itens().stream()
                 .map(item -> criar(new NovoPedidoRequest(
-                        requisicao.clienteId(),
+                        requisicao.clienteId(), requisicao.piscinaId(),
                         item.produtoId(),
-                        item.quantidade())).getBody())
+                        item.quantidade()), auth).getBody())
                 .toList();
 
         return ResponseEntity.status(HttpStatus.CREATED).body(pedidosSalvos);
     }
+    private boolean gestor(Authentication a){return a.getAuthorities().stream().anyMatch(x->x.getAuthority().equals("ROLE_GESTOR"));}
 }

@@ -10,6 +10,7 @@ import 'services/api_service.dart';
 import 'widgets/dialogo_pedido_multiplo.dart';
 
 part 'pages/login_page.dart';
+part 'pages/gestao_pages.dart';
 
 void main() => runApp(const AdminPoolApp());
 
@@ -191,6 +192,10 @@ class _PageContent extends StatelessWidget {
     }
     if (titulo == 'Produtos')
       return _ProdutosGerenciamentoPage(gestor: perfil == Perfil.gestor);
+    if (titulo == 'Funcionários') return const _FuncionariosPage();
+    if (titulo == 'Piscinas') return _PiscinasPage(gestor: perfil == Perfil.gestor);
+    if (titulo == 'Cobranças') return const _CobrancasPage();
+    if (titulo == 'Salários' || titulo == 'Meu salário') return _SalariosPage(gestor: perfil == Perfil.gestor);
     if (titulo == 'Pedidos') return const _PedidosPage();
     if (titulo == 'Ordens de serviço') return const _OrdensServicoPage();
     return Padding(
@@ -251,9 +256,6 @@ class _ProdutosGerenciamentoPageState
     final venda = TextEditingController(
       text: produto?['precoVenda']?.toString() ?? '',
     );
-    final estoque = TextEditingController(
-      text: produto?['estoque']?.toString() ?? '0',
-    );
     final salvar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -281,11 +283,6 @@ class _ProdutosGerenciamentoPageState
                 ),
                 decoration: const InputDecoration(labelText: 'Preço de venda'),
               ),
-              TextField(
-                controller: estoque,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Estoque'),
-              ),
             ],
           ),
         ),
@@ -306,7 +303,7 @@ class _ProdutosGerenciamentoPageState
       'nome': nome.text.trim(),
       'precoCompra': double.tryParse(compra.text.replaceAll(',', '.')) ?? 0,
       'precoVenda': double.tryParse(venda.text.replaceAll(',', '.')) ?? 0,
-      'estoque': int.tryParse(estoque.text) ?? 0,
+      'estoque': 0,
     });
     final rota = '/api/produtos${produto == null ? '' : '/${produto['id']}'}';
     final r = produto == null
@@ -360,7 +357,7 @@ class _ProdutosGerenciamentoPageState
                   ),
                   Text(
                     widget.gestor
-                        ? 'Controle de preços e estoque.'
+                        ? 'Nome e preços de compra e venda.'
                         : 'Produtos disponíveis para os clientes.',
                   ),
                 ],
@@ -413,7 +410,7 @@ class _ProdutosGerenciamentoPageState
                       ),
                       title: Text(p['nome']),
                       subtitle: Text(
-                        '${mangueira ? 'Venda por metro' : 'Estoque: ${p['estoque']}'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}',
+                        '${mangueira ? 'Venda por metro' : 'Preço de venda'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}',
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -552,11 +549,13 @@ class _PedidosPageState extends State<_PedidosPage> {
   Future<void> novoPedido() async {
     final clientes = await getLista('/api/clientes');
     final produtos = await getLista('/api/produtos');
+    final piscinas = await getLista('/api/piscinas');
     if (clientes.isEmpty || produtos.isEmpty || !mounted) return;
     final pedido = await mostrarDialogPedidoMultiplo(
       context: context,
       produtos: produtos,
       clientes: clientes,
+      piscinas: piscinas,
       titulo: 'Novo pedido de produtos',
     );
     if (pedido != null) {
@@ -1349,11 +1348,13 @@ class _ListaClientesState extends State<_ListaClientes> {
 
   Future<void> abrirPedido(Map<String, dynamic> cliente) async {
     final produtos = await _buscar('/api/produtos');
+    final piscinas = await _buscar('/api/piscinas/cliente/${cliente['id']}');
     if (produtos.isEmpty || !mounted) return;
     final pedido = await mostrarDialogPedidoMultiplo(
       context: context,
       produtos: produtos,
       clientes: [cliente],
+      piscinas: piscinas,
       clienteFixo: cliente['id'] as int,
       titulo: 'Novo pedido — ${cliente['nome']}',
     );

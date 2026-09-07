@@ -7,10 +7,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import br.com.adminpool.repository.UsuarioRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -18,15 +19,17 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
     @Bean
-    UserDetailsService users(@Value("${APP_GESTOR_PASSWORD}") String gestor,
-                            @Value("${APP_FUNCIONARIO_PASSWORD}") String funcionario) {
-        if (gestor.length() < 10 || funcionario.length() < 10) {
-            throw new IllegalArgumentException("Configure senhas de acesso com pelo menos 10 caracteres.");
-        }
-        var encoder = new BCryptPasswordEncoder();
-        return new InMemoryUserDetailsManager(
-            User.withUsername("gestorMurilo").password("{bcrypt}" + encoder.encode(gestor)).roles("GESTOR").build(),
-            User.withUsername("funcionario1").password("{bcrypt}" + encoder.encode(funcionario)).roles("FUNCIONARIO").build());
+    PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    @Bean
+    UserDetailsService users(ObjectProvider<UsuarioRepository> provider, @Value("${APP_GESTOR_PASSWORD}") String gestor, @Value("${APP_FUNCIONARIO_PASSWORD}") String funcionario) {
+        return login -> {
+            var usuarios=provider.getIfAvailable();
+            if(usuarios!=null) return usuarios.findByLoginIgnoreCase(login).map(u -> org.springframework.security.core.userdetails.User.withUsername(u.getLogin()).password(u.getSenha()).roles(u.getPerfil().name()).disabled(!u.isAtivo()).build()).orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException(login));
+            String senha = login.equals("gestorMurilo") ? gestor : login.equals("funcionario1") ? funcionario : null;
+            if(senha==null) throw new org.springframework.security.core.userdetails.UsernameNotFoundException(login);
+            String papel=login.equals("gestorMurilo")?"GESTOR":"FUNCIONARIO";
+            return org.springframework.security.core.userdetails.User.withUsername(login).password(passwordEncoder().encode(senha)).roles(papel).build();
+        };
     }
 
     @Bean
@@ -43,10 +46,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(req -> !"AdminPool".equals(req.getHeader("X-Requested-With"))).denyAll()
                 .requestMatchers("/api/auth/me").authenticated()
-                .requestMatchers("/api/cobrancas/**", "/api/funcionarios/**", "/api/salarios/**").hasRole("GESTOR")
+                .requestMatchers("/api/cobrancas/**", "/api/funcionarios/**").hasRole("GESTOR")
                 .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("GESTOR")
-                .requestMatchers(HttpMethod.POST, "/api/clientes/**", "/api/produtos/**").hasRole("GESTOR")
-                .requestMatchers(HttpMethod.PUT, "/api/clientes/**", "/api/produtos/**").hasRole("GESTOR")
+                .requestMatchers(HttpMethod.POST, "/api/clientes/**", "/api/produtos/**", "/api/piscinas/**").hasRole("GESTOR")
+                .requestMatchers(HttpMethod.PUT, "/api/clientes/**", "/api/produtos/**", "/api/piscinas/**").hasRole("GESTOR")
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll())
             .build();
