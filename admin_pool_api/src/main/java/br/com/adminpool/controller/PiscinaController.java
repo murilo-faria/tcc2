@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 import java.util.List;
 
@@ -57,5 +59,16 @@ public class PiscinaController {
         Piscina piscinaSalva = piscinas.save(piscina);
         return ResponseEntity.status(HttpStatus.CREATED).body(piscinaSalva);
     }
+    @PutMapping("/{id}")
+    public Piscina atualizar(@PathVariable Long id, @RequestBody NovaPiscinaRequest requisicao, Authentication auth) {
+        if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar piscinas.");
+        Piscina piscina = piscinas.findById(id).orElseThrow();
+        piscina.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
+        piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); piscina.setVolumeLitros(requisicao.volumeLitros()); piscina.setEndereco(requisicao.endereco()); piscina.setObservacoes(requisicao.observacoes());
+        piscina.setResponsavel(requisicao.responsavelId()==null ? null : funcionarios.findById(requisicao.responsavelId()).orElseThrow());
+        return piscinas.save(piscina);
+    }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> excluir(@PathVariable Long id, Authentication auth) { if(!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem excluir piscinas."); piscinas.deleteById(id); return ResponseEntity.noContent().build(); }
     private boolean gestor(Authentication a){return a.getAuthorities().stream().anyMatch(x->x.getAuthority().equals("ROLE_GESTOR"));}
 }

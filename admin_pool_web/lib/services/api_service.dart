@@ -10,9 +10,11 @@ import '../core/api_config.dart';
 class ApiService {
   String? _authorization;
   DateTime? _expires;
+  String? nomeUsuario;
   void logout() {
     _authorization = null;
     _expires = null;
+    nomeUsuario = null;
   }
 
   Map<String, String> get _headers {
@@ -42,7 +44,9 @@ class ApiService {
     }
     if (response.statusCode != 200)
       throw Exception('Não foi possível acessar o sistema.');
-    final perfil = jsonDecode(response.body)['perfil'] as String;
+    final dados = jsonDecode(response.body) as Map<String, dynamic>;
+    final perfil = dados['perfil'] as String;
+    nomeUsuario = dados['nome'] as String? ?? usuario;
     _authorization = authorization;
     _expires = DateTime.now().add(const Duration(hours: 8));
     return perfil;

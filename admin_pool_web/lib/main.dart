@@ -1577,7 +1577,7 @@ class _Dashboard extends StatelessWidget {
       padding: const EdgeInsets.all(28),
       children: [
         Text(
-          'Olá, ${gestor ? 'Gestor' : 'João'}!',
+          'Olá, ${gestor ? 'Gestor' : (apiService.nomeUsuario ?? 'Funcionário')}!',
           style: Theme.of(context).textTheme.headlineMedium
               ?.copyWith(fontWeight: FontWeight.bold),
         ),

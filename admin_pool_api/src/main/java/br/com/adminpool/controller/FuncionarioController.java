@@ -2,6 +2,7 @@ package br.com.adminpool.controller;
 
 import br.com.adminpool.dto.NovoFuncionarioRequest;
 import br.com.adminpool.dto.RedefinirSenhaRequest;
+import br.com.adminpool.dto.AtualizarFuncionarioRequest;
 import br.com.adminpool.model.Funcionario;
 import br.com.adminpool.model.Perfil;
 import br.com.adminpool.model.Usuario;
@@ -27,6 +28,7 @@ public class FuncionarioController {
   Funcionario f=new Funcionario();f.setUsuario(u);f.setTelefone(r.telefone());f.setPercentualMensalidade(r.percentualMensalidade()==null?new BigDecimal("75.00"):r.percentualMensalidade());
   return ResponseEntity.status(HttpStatus.CREATED).body(funcionarios.save(f));
  }
+ @PutMapping("/{id}") public Funcionario atualizar(@PathVariable Long id, @RequestBody AtualizarFuncionarioRequest r, Authentication auth){gestor(auth);Funcionario f=funcionarios.findById(id).orElseThrow();if(r.nome()!=null&&!r.nome().isBlank())f.getUsuario().setNome(r.nome().trim());f.setTelefone(r.telefone());if(r.percentualMensalidade()!=null)f.setPercentualMensalidade(r.percentualMensalidade());if(r.novaSenha()!=null&&!r.novaSenha().isBlank()){if(r.novaSenha().length()<6)throw new IllegalArgumentException("A senha deve ter ao menos 6 caracteres.");f.getUsuario().setSenha(encoder.encode(r.novaSenha()));}usuarios.save(f.getUsuario());return funcionarios.save(f);}
  @PutMapping("/{id}/senha") public ResponseEntity<Void> redefinirSenha(@PathVariable Long id, @RequestBody RedefinirSenhaRequest r, Authentication auth){gestor(auth);if(r.novaSenha()==null||r.novaSenha().length()<6)throw new IllegalArgumentException("A senha deve ter ao menos 6 caracteres.");Funcionario f=funcionarios.findById(id).orElseThrow();f.getUsuario().setSenha(encoder.encode(r.novaSenha()));usuarios.save(f.getUsuario());return ResponseEntity.noContent().build();}
  private void gestor(Authentication auth){if(auth.getAuthorities().stream().noneMatch(a->a.getAuthority().equals("ROLE_GESTOR")))throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem administrar funcionários.");}
 }
