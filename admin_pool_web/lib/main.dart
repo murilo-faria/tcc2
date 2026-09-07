@@ -1495,7 +1495,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
+                              if (widget.gestor) Text(
                                 'R\$ $valor',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
