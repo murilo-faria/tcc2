@@ -11,31 +11,51 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   Perfil perfil = Perfil.gestor;
   bool ocultarSenha = true;
+  bool entrando = false;
   final usuarioController = TextEditingController();
   final senhaController = TextEditingController();
 
-  void entrar() {
+  Future<void> entrar() async {
+    if (entrando) return;
     final usuario = usuarioController.text.trim();
     final senha = senhaController.text;
-    final credenciaisValidas =
-        (perfil == Perfil.gestor &&
-            usuario == 'gestorMurilo' &&
-            senha == '1234') ||
-        (perfil == Perfil.funcionario &&
-            usuario == 'funcionario1' &&
-            senha == '1234');
-
-    if (!credenciaisValidas) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuário, senha ou perfil inválido.')),
+    setState(() => entrando = true);
+    try {
+      final recebido = await apiService.login(usuario, senha);
+      final perfilValidado = recebido == 'gestor'
+          ? Perfil.gestor
+          : Perfil.funcionario;
+      if (perfilValidado != perfil) {
+        apiService.logout();
+        throw Exception('Selecione o perfil correspondente ao usuário.');
+      }
+      if (!mounted) return;
+      senhaController.clear();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => HomePage(perfil: perfilValidado)),
       );
-      return;
+    } catch (erro) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            erro.toString().startsWith('Exception:')
+                ? erro.toString().replaceFirst('Exception: ', '')
+                : 'Não foi possível conectar. Verifique sua conexão e tente novamente.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => entrando = false);
     }
+  }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => HomePage(perfil: perfil)),
-    );
+  @override
+  void dispose() {
+    usuarioController.dispose();
+    senhaController.dispose();
+    super.dispose();
   }
 
   @override
@@ -122,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 24),
                     FilledButton.icon(
-                      onPressed: entrar,
+                      onPressed: entrando ? null : entrar,
                       icon: const Icon(Icons.login),
                       label: const Padding(
                         padding: EdgeInsets.all(12),

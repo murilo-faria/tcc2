@@ -16,7 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/ordens-servico")
-@CrossOrigin(originPatterns = "http://localhost:*")
+
 public class OrdemServicoController {
 
     private final OrdemServicoRepository ordens;

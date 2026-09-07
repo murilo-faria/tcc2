@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+
 import 'dart:convert';
 
 import 'core/atualizadores.dart';
@@ -90,11 +91,14 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             tooltip: 'Sair',
             icon: const Icon(Icons.logout),
-            onPressed: () => Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginPage()),
-              (_) => false,
-            ),
+            onPressed: () {
+              apiService.logout();
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (_) => false,
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],
@@ -196,9 +200,8 @@ class _PageContent extends StatelessWidget {
         children: [
           Text(
             titulo,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.headlineMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text('Módulo de $titulo do Admin Pool.'),
@@ -352,9 +355,8 @@ class _ProdutosGerenciamentoPageState
                 children: [
                   Text(
                     'Produtos',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   Text(
                     widget.gestor
@@ -475,9 +477,8 @@ class _ListaProdutosState extends State<_ListaProdutos> {
       children: [
         Text(
           'Produtos',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.headlineMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         const Text('Preço de venda para os clientes.'),
@@ -599,9 +600,8 @@ class _PedidosPageState extends State<_PedidosPage> {
                 children: [
                   Text(
                     'Pedidos de produtos',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const Text(
                     'Pedidos lançados nas cobranças mensais dos clientes.',
@@ -864,9 +864,8 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
                 children: [
                   Text(
                     'Ordens de serviço',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const Text('Acompanhe e registre os serviços dos clientes.'),
                 ],
@@ -1261,9 +1260,8 @@ class _ListaClientesState extends State<_ListaClientes> {
       );
       atualizacaoOperacional.value++;
       if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Piscina cadastrada.')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Piscina cadastrada.')));
     }
   }
 
@@ -1392,9 +1390,8 @@ class _ListaClientesState extends State<_ListaClientes> {
                 children: [
                   Text(
                     'Clientes',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   const Text('Clientes cadastrados no banco Admin_Poll.'),
@@ -1568,9 +1565,8 @@ class _Dashboard extends StatelessWidget {
       children: [
         Text(
           'Olá, ${gestor ? 'Gestor' : 'João'}!',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.headlineMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         const Text('Acompanhe o resumo deste mês.'),
@@ -1621,9 +1617,8 @@ class _Dashboard extends StatelessWidget {
         const SizedBox(height: 32),
         Text(
           gestor ? 'Cobranças do mês' : 'Próximos serviços',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(context).textTheme.titleLarge
+              ?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         gestor
@@ -2083,9 +2078,8 @@ class _Indicador extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     valor,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),

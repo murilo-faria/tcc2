@@ -18,7 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/piscinas")
-@CrossOrigin(originPatterns = "http://localhost:*")
+
 public class PiscinaController {
 
     private final PiscinaRepository piscinas;

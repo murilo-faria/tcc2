@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.YearMonth;
 
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="app.seed.enabled", havingValue="true")
 public class ImportadorClientes implements CommandLineRunner {
     private final ClienteRepository clientes;
     private final CobrancaRepository cobrancas;

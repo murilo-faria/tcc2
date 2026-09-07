@@ -17,7 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/pedidos-produto")
-@CrossOrigin(originPatterns = "http://localhost:*")
+
 public class PedidoProdutoController {
 
     private final PedidoProdutoRepository pedidos;

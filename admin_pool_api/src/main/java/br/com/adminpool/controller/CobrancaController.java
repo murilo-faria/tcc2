@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/cobrancas")
-@CrossOrigin(originPatterns = "http://localhost:*")
+
 public class CobrancaController {
 
     private final CobrancaService cobrancaService;
