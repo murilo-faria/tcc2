@@ -46,6 +46,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(req -> !"AdminPool".equals(req.getHeader("X-Requested-With"))).denyAll()
                 .requestMatchers("/api/auth/me").authenticated()
+                .requestMatchers("/api/piscinas/**", "/api/salarios/**", "/api/funcionarios/**").authenticated()
                 .requestMatchers("/api/cobrancas/**", "/api/funcionarios/**").hasRole("GESTOR")
                 .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("GESTOR")
                 .requestMatchers(HttpMethod.POST, "/api/clientes/**", "/api/produtos/**", "/api/piscinas/**").hasRole("GESTOR")

@@ -43,7 +43,8 @@ public class PiscinaController {
     }
 
     @PostMapping
-    public ResponseEntity<Piscina> criar(@RequestBody NovaPiscinaRequest requisicao) {
+    public ResponseEntity<Piscina> criar(@RequestBody NovaPiscinaRequest requisicao, Authentication auth) {
+        if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem cadastrar piscinas.");
         Piscina piscina = new Piscina();
         piscina.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
         piscina.setNome(requisicao.nome());
