@@ -20,8 +20,16 @@ public class CobrancaController {
     }
 
     @GetMapping
-    public List<CobrancaMensal> listar() {
-        return cobrancaService.listarMesAtual();
+    public List<CobrancaMensal> listar(@RequestParam(required = false) String referencia) {
+        return referencia == null || referencia.isBlank()
+                ? cobrancaService.listarMesAtual()
+                : cobrancaService.listarPorReferencia(referencia);
+    }
+
+    @GetMapping("/meses")
+    public List<String> listarMeses() {
+        cobrancaService.listarMesAtual();
+        return cobrancaService.listarReferencias();
     }
 
     @PostMapping("/gerar-mes-atual")

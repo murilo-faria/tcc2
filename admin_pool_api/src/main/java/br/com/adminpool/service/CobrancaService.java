@@ -32,7 +32,25 @@ public class CobrancaService {
     public List<CobrancaMensal> listarMesAtual() {
         YearMonth mesAtual = YearMonth.now();
         gerarMes(mesAtual);
+        // Mantém apenas uma previsão: o mês seguinte. Não antecipa o ano inteiro.
+        gerarMes(mesAtual.plusMonths(1));
         return cobrancas.findByReferenciaOrderByVencimentoAsc(mesAtual.toString());
+    }
+
+    /** Consulta um mês já gerado. Somente o mês vigente é criado automaticamente. */
+    public List<CobrancaMensal> listarPorReferencia(String referencia) {
+        YearMonth mes = YearMonth.parse(referencia);
+        if (mes.equals(YearMonth.now())) {
+            return listarMesAtual();
+        }
+        return cobrancas.findByReferenciaOrderByVencimentoAsc(mes.toString());
+    }
+
+    public List<String> listarReferencias() {
+        return cobrancas.findAllByOrderByReferenciaDescVencimentoAsc().stream()
+                .map(CobrancaMensal::getReferencia)
+                .distinct()
+                .toList();
     }
 
     public CobrancaMensal gerar(Cliente cliente, YearMonth mes) {
