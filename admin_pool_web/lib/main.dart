@@ -973,6 +973,17 @@ class _ListaClientesState extends State<_ListaClientes> {
   }
 
   Future<List<dynamic>> carregar() async {
+    if (!widget.gestor) {
+      final respostaPiscinas = await apiService.get('/api/piscinas');
+      if (respostaPiscinas.statusCode != 200) return const [];
+      final piscinas = jsonDecode(respostaPiscinas.body) as List<dynamic>;
+      final clientes = <int, dynamic>{};
+      for (final piscina in piscinas) {
+        final cliente = piscina['cliente'];
+        if (cliente != null) clientes[cliente['id'] as int] = cliente;
+      }
+      return clientes.values.toList();
+    }
     final resposta = await apiService.get('/api/clientes');
     if (resposta.statusCode != 200)
       throw Exception('Não foi possível carregar os clientes.');
