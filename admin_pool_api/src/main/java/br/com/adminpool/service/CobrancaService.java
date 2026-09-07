@@ -1,0 +1,82 @@
+package br.com.adminpool.service;
+
+import br.com.adminpool.model.Cliente;
+import br.com.adminpool.model.CobrancaMensal;
+import br.com.adminpool.model.StatusCobranca;
+import br.com.adminpool.repository.ClienteRepository;
+import br.com.adminpool.repository.CobrancaRepository;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.List;
+
+/** Regras de negócio relacionadas ao fechamento mensal dos clientes. */
+@Service
+public class CobrancaService {
+
+    private final CobrancaRepository cobrancas;
+    private final ClienteRepository clientes;
+
+    public CobrancaService(CobrancaRepository cobrancas, ClienteRepository clientes) {
+        this.cobrancas = cobrancas;
+        this.clientes = clientes;
+    }
+
+    public List<CobrancaMensal> listarPorVencimento() {
+        return cobrancas.findAllByOrderByVencimentoAsc();
+    }
+
+    public CobrancaMensal gerar(Cliente cliente, YearMonth mes) {
+        if (cliente.getDiaVencimento() == null) {
+            throw new IllegalArgumentException("Cliente sem dia de vencimento");
+        }
+
+        CobrancaMensal cobranca = new CobrancaMensal();
+        cobranca.setCliente(cliente);
+        cobranca.setReferencia(mes.toString());
+
+        int diaValido = Math.min(cliente.getDiaVencimento(), mes.lengthOfMonth());
+        cobranca.setVencimento(mes.atDay(diaValido));
+        cobranca.setMensalidade(cliente.getValorMensalidade());
+        cobranca.setProdutos(BigDecimal.ZERO);
+        cobranca.setServicos(BigDecimal.ZERO);
+        cobranca.setTotal(cliente.getValorMensalidade());
+
+        return cobrancas.save(cobranca);
+    }
+
+    public List<CobrancaMensal> gerarMesAtual() {
+        YearMonth mesAtual = YearMonth.now();
+        List<CobrancaMensal> resultado = new ArrayList<>();
+
+        for (Cliente cliente : clientes.findAll()) {
+            if (cliente.isAtivo() && cliente.getDiaVencimento() != null) {
+                resultado.add(gerar(cliente, mesAtual));
+            }
+        }
+        return resultado;
+    }
+
+    public CobrancaMensal darBaixa(Long id, BigDecimal valorPago) {
+        CobrancaMensal cobranca = cobrancas.findById(id).orElseThrow();
+        cobranca.setStatus(StatusCobranca.PAGO);
+        cobranca.setDataPagamento(LocalDate.now());
+        cobranca.setValorPago(valorPago);
+        return cobrancas.save(cobranca);
+    }
+
+    public CobrancaMensal reabrir(Long id) {
+        CobrancaMensal cobranca = cobrancas.findById(id).orElseThrow();
+        StatusCobranca novoStatus = cobranca.getVencimento().isBefore(LocalDate.now())
+                ? StatusCobranca.VENCIDO
+                : StatusCobranca.PENDENTE;
+
+        cobranca.setStatus(novoStatus);
+        cobranca.setDataPagamento(null);
+        cobranca.setValorPago(null);
+        return cobrancas.save(cobranca);
+    }
+}
