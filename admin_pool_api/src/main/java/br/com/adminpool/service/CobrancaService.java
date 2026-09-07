@@ -29,6 +29,12 @@ public class CobrancaService {
         return cobrancas.findAllByOrderByVencimentoAsc();
     }
 
+    public List<CobrancaMensal> listarMesAtual() {
+        YearMonth mesAtual = YearMonth.now();
+        gerarMes(mesAtual);
+        return cobrancas.findByReferenciaOrderByVencimentoAsc(mesAtual.toString());
+    }
+
     public CobrancaMensal gerar(Cliente cliente, YearMonth mes) {
         if (cliente.getDiaVencimento() == null) {
             throw new IllegalArgumentException("Cliente sem dia de vencimento");
@@ -49,11 +55,14 @@ public class CobrancaService {
     }
 
     public List<CobrancaMensal> gerarMesAtual() {
-        YearMonth mesAtual = YearMonth.now();
+        return gerarMes(YearMonth.now());
+    }
+
+    public List<CobrancaMensal> gerarMes(YearMonth mesAtual) {
         List<CobrancaMensal> resultado = new ArrayList<>();
 
         for (Cliente cliente : clientes.findAll()) {
-            if (cliente.isAtivo() && cliente.getDiaVencimento() != null) {
+            if (cliente.isAtivo() && cliente.getDiaVencimento() != null && !cobrancas.existsByClienteIdAndReferencia(cliente.getId(), mesAtual.toString())) {
                 resultado.add(gerar(cliente, mesAtual));
             }
         }

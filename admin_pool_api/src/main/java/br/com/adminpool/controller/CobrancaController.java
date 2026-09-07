@@ -21,7 +21,7 @@ public class CobrancaController {
 
     @GetMapping
     public List<CobrancaMensal> listar() {
-        return cobrancaService.listarPorVencimento();
+        return cobrancaService.listarMesAtual();
     }
 
     @PostMapping("/gerar-mes-atual")
