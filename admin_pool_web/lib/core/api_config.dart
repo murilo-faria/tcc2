@@ -6,7 +6,7 @@ class ApiConfig {
 
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:8081',
+    defaultValue: 'https://tcc2-production.up.railway.app',
   );
 
   static Uri uri(String caminho) => Uri.parse('$baseUrl$caminho');
