@@ -34,7 +34,8 @@ public class CobrancaService {
         gerarMes(mesAtual);
         // Mantém apenas uma previsão: o mês seguinte. Não antecipa o ano inteiro.
         gerarMes(mesAtual.plusMonths(1));
-        return cobrancas.findByReferenciaOrderByVencimentoAsc(mesAtual.toString());
+        atualizarAtrasos();
+        return cobrancas.findMesAtualComAtrasos(mesAtual.toString(), mesAtual.atDay(1));
     }
 
     /** Consulta um mês já gerado. Somente o mês vigente é criado automaticamente. */
@@ -51,6 +52,15 @@ public class CobrancaService {
                 .map(CobrancaMensal::getReferencia)
                 .distinct()
                 .toList();
+    }
+
+    private void atualizarAtrasos() {
+        LocalDate hoje = LocalDate.now();
+        List<CobrancaMensal> atrasadas = cobrancas.findAll().stream()
+                .filter(c -> c.getStatus() == StatusCobranca.PENDENTE && c.getVencimento().isBefore(hoje))
+                .toList();
+        atrasadas.forEach(c -> c.setStatus(StatusCobranca.VENCIDO));
+        cobrancas.saveAll(atrasadas);
     }
 
     public CobrancaMensal gerar(Cliente cliente, YearMonth mes) {

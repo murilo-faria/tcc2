@@ -11,6 +11,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
   late Future<List<String>> _meses;
   late Future<List<dynamic>> _cobrancas;
   String? _referencia;
+  String _busca = '';
 
   @override
   void initState() {
@@ -78,23 +79,27 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
             builder: (context, estado) {
               if (!estado.hasData) return const LinearProgressIndicator();
               final meses = estado.data!;
-              final selecionado = _referencia ?? (meses.isEmpty ? null : meses.first);
               return Row(
                 children: [
                   SizedBox(
                     width: 280,
                     child: DropdownButtonFormField<String>(
-                      value: selecionado,
+                      value: _referencia,
                       decoration: const InputDecoration(
                         labelText: 'Mês de referência',
                         border: OutlineInputBorder(),
                       ),
-                      items: meses.map((mes) => DropdownMenuItem(
-                        value: mes,
-                        child: Text(_tituloMes(mes)),
-                      )).toList(),
+                      items: [
+                        const DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('Mês atual e atrasos'),
+                        ),
+                        ...meses.map((mes) => DropdownMenuItem(
+                          value: mes,
+                          child: Text(_tituloMes(mes)),
+                        )),
+                      ],
                       onChanged: (mes) {
-                        if (mes == null) return;
                         setState(() {
                           _referencia = mes;
                           _cobrancas = _carregarCobrancas();
@@ -119,6 +124,15 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
             },
           ),
           const SizedBox(height: 14),
+          TextField(
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.search),
+              labelText: 'Pesquisar cliente',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (valor) => setState(() => _busca = valor.trim().toLowerCase()),
+          ),
+          const SizedBox(height: 12),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
               future: _cobrancas,
@@ -127,7 +141,10 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (estado.hasError) return Center(child: Text('${estado.error}'));
-                final itens = estado.data!;
+                final itens = estado.data!.where((item) {
+                  final nome = ((item['cliente'] ?? {})['nome'] ?? '').toString().toLowerCase();
+                  return nome.contains(_busca);
+                }).toList();
                 if (itens.isEmpty) {
                   return const Center(child: Text('Nenhuma cobrança neste mês.'));
                 }
