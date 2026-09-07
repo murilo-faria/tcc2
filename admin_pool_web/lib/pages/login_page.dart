@@ -149,6 +149,19 @@ class _LoginPageState extends State<LoginPage> {
                         child: Text('Entrar'),
                       ),
                     ),
+                    TextButton(
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('Recuperar senha'),
+                          content: const Text(
+                            'Peça ao gestor para redefinir sua senha no cadastro de funcionários. Por segurança, a senha não é enviada por e-mail nem exibida no sistema.',
+                          ),
+                          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendi'))],
+                        ),
+                      ),
+                      child: const Text('Esqueci minha senha'),
+                    ),
                     const SizedBox(height: 12),
                     const Text(
                       'Use o usuário correspondente ao perfil escolhido.',
