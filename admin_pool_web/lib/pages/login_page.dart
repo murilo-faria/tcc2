@@ -19,6 +19,7 @@ class _LoginPageState extends State<LoginPage> {
     if (entrando) return;
     final usuario = usuarioController.text.trim();
     final senha = senhaController.text;
+    TextInput.finishAutofillContext(shouldSave: true);
     setState(() => entrando = true);
     try {
       final recebido = await apiService.login(usuario, senha);
@@ -91,34 +92,44 @@ class _LoginPageState extends State<LoginPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
-                    TextField(
-                      controller: usuarioController,
-                      decoration: const InputDecoration(
-                        labelText: 'Usuário',
-                        prefixIcon: Icon(Icons.person_outline),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: senhaController,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => entrar(),
-                      obscureText: ocultarSenha,
-                      decoration: InputDecoration(
-                        labelText: 'Senha',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            ocultarSenha
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
+                    AutofillGroup(
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: usuarioController,
+                            autofillHints: const [AutofillHints.username],
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Usuário',
+                              prefixIcon: Icon(Icons.person_outline),
+                              border: OutlineInputBorder(),
+                            ),
                           ),
-                          onPressed: () {
-                            setState(() => ocultarSenha = !ocultarSenha);
-                          },
-                        ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: senhaController,
+                            autofillHints: const [AutofillHints.password],
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => entrar(),
+                            obscureText: ocultarSenha,
+                            decoration: InputDecoration(
+                              labelText: 'Senha',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              border: const OutlineInputBorder(),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  ocultarSenha
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                                onPressed: () {
+                                  setState(() => ocultarSenha = !ocultarSenha);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 18),
