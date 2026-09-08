@@ -117,8 +117,9 @@ class _HomePageState extends State<HomePage> {
               ),
             )
           : null,
-      body: Row(
-        children: [
+      body: SafeArea(
+        child: Row(
+          children: [
           if (!compacta)
             SizedBox(
               width: 248,
@@ -131,8 +132,9 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-          Expanded(child: conteudo),
-        ],
+            Expanded(child: conteudo),
+          ],
+        ),
       ),
     );
   }
@@ -176,6 +178,37 @@ class _Menu extends StatelessWidget {
   );
 }
 
+class _CabecalhoResponsivo extends StatelessWidget {
+  const _CabecalhoResponsivo({
+    required this.titulo,
+    required this.subtitulo,
+    this.acao,
+  });
+  final String titulo;
+  final String subtitulo;
+  final Widget? acao;
+
+  @override
+  Widget build(BuildContext context) {
+    final estreito = MediaQuery.of(context).size.width < 600;
+    final textos = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(titulo, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        Text(subtitulo),
+      ],
+    );
+    if (estreito) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [textos, if (acao != null) const SizedBox(height: 14), if (acao != null) Align(alignment: Alignment.centerLeft, child: acao!)],
+      );
+    }
+    return Row(children: [Expanded(child: textos), if (acao != null) acao!]);
+  }
+}
+
 class _PageContent extends StatelessWidget {
   const _PageContent({
     required this.titulo,
@@ -200,7 +233,7 @@ class _PageContent extends StatelessWidget {
     if (titulo == 'Pedidos') return const _PedidosPage();
     if (titulo == 'Ordens de serviço') return const _OrdensServicoPage();
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -341,36 +374,18 @@ class _ProdutosGerenciamentoPageState
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(28),
+    padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Produtos',
-                    style: Theme.of(context).textTheme.headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    widget.gestor
-                        ? 'Nome e preços de compra e venda.'
-                        : 'Produtos disponíveis para os clientes.',
-                  ),
-                ],
-              ),
-            ),
-            if (widget.gestor)
-              FilledButton.icon(
-                onPressed: () => formulario(),
-                icon: const Icon(Icons.add),
-                label: const Text('Novo produto'),
-              ),
-          ],
+        _CabecalhoResponsivo(
+          titulo: 'Produtos',
+          subtitulo: widget.gestor
+              ? 'Nome e preços de compra e venda.'
+              : 'Produtos disponíveis para os clientes.',
+          acao: widget.gestor
+              ? FilledButton.icon(onPressed: () => formulario(), icon: const Icon(Icons.add), label: const Text('Novo produto'))
+              : null,
         ),
         const SizedBox(height: 18),
         TextField(
@@ -588,33 +603,14 @@ class _PedidosPageState extends State<_PedidosPage> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(28),
+    padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pedidos de produtos',
-                    style: Theme.of(context).textTheme.headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const Text(
-                    'Pedidos lançados nas cobranças mensais dos clientes.',
-                  ),
-                ],
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: novoPedido,
-              icon: const Icon(Icons.add),
-              label: const Text('Novo pedido'),
-            ),
-          ],
+        _CabecalhoResponsivo(
+          titulo: 'Pedidos de produtos',
+          subtitulo: 'Pedidos lançados nas cobranças mensais dos clientes.',
+          acao: FilledButton.icon(onPressed: novoPedido, icon: const Icon(Icons.add), label: const Text('Novo pedido')),
         ),
         const SizedBox(height: 18),
         TextField(
@@ -852,31 +848,14 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(28),
+    padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Ordens de serviço',
-                    style: Theme.of(context).textTheme.headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const Text('Acompanhe e registre os serviços dos clientes.'),
-                ],
-              ),
-            ),
-            FilledButton.icon(
-              onPressed: novaOrdem,
-              icon: const Icon(Icons.add),
-              label: const Text('Nova OS'),
-            ),
-          ],
+        _CabecalhoResponsivo(
+          titulo: 'Ordens de serviço',
+          subtitulo: 'Acompanhe e registre os serviços dos clientes.',
+          acao: FilledButton.icon(onPressed: novaOrdem, icon: const Icon(Icons.add), label: const Text('Nova OS')),
         ),
         const SizedBox(height: 18),
         TextField(
@@ -1391,34 +1370,16 @@ class _ListaClientesState extends State<_ListaClientes> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(28),
+    padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Clientes',
-                    style: Theme.of(context).textTheme.headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('Clientes cadastrados no banco Admin_Poll.'),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            if (widget.gestor) FilledButton.icon(
-              onPressed: cadastrar,
-              icon: const Icon(Icons.person_add_alt_1),
-              label: const Text('Novo cliente'),
-            ),
-          ],
+        _CabecalhoResponsivo(
+          titulo: 'Clientes',
+          subtitulo: 'Clientes cadastrados no banco Admin_Poll.',
+          acao: widget.gestor
+              ? FilledButton.icon(onPressed: cadastrar, icon: const Icon(Icons.person_add_alt_1), label: const Text('Novo cliente'))
+              : null,
         ),
         const SizedBox(height: 18),
         TextField(
@@ -1575,7 +1536,7 @@ class _Dashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final gestor = perfil == Perfil.gestor;
     return ListView(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
       children: [
         Text(
           'Olá, ${gestor ? 'Gestor' : (apiService.nomeUsuario ?? 'Funcionário')}!',

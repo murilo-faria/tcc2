@@ -66,7 +66,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -79,7 +79,10 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
             builder: (context, estado) {
               if (!estado.hasData) return const LinearProgressIndicator();
               final meses = estado.data!;
-              return Row(
+              return Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 10,
                 children: [
                   SizedBox(
                     width: 280,
@@ -107,7 +110,6 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       },
                     ),
                   ),
-                  const SizedBox(width: 12),
                   TextButton.icon(
                     onPressed: () {
                       setState(() {
