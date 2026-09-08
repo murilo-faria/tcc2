@@ -142,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         ButtonSegment(
                           value: Perfil.funcionario,
-                          label: Text('Funcionário'),
+                          label: Text('Colaborador'),
                           icon: Icon(Icons.engineering_outlined),
                         ),
                       ],
@@ -166,7 +166,7 @@ class _LoginPageState extends State<LoginPage> {
                         builder: (_) => AlertDialog(
                           title: const Text('Recuperar senha'),
                           content: const Text(
-                            'Peça ao gestor para redefinir sua senha no cadastro de funcionários. Por segurança, a senha não é enviada por e-mail nem exibida no sistema.',
+                            'Peça ao gestor para redefinir sua senha no cadastro de colaboradores. Por segurança, a senha não é enviada por e-mail nem exibida no sistema.',
                           ),
                           actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendi'))],
                         ),

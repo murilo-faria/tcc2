@@ -23,7 +23,7 @@ class _FuncionariosPageNovaState extends State<_FuncionariosPageNova> {
     final telefone = TextEditingController(text: item?['telefone'] ?? '');
     final percentual = TextEditingController(text: '${item?['percentualMensalidade'] ?? 75}');
     final salvar = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: Text(item == null ? 'Novo funcionário' : 'Alterar funcionário'),
+      title: Text(item == null ? 'Novo colaborador' : 'Alterar colaborador'),
       content: SizedBox(width: 440, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         TextField(controller: nome, decoration: const InputDecoration(labelText: 'Nome *')),
         if (item == null) TextField(controller: login, decoration: const InputDecoration(labelText: 'Usuário de acesso *')),
@@ -45,7 +45,7 @@ class _FuncionariosPageNovaState extends State<_FuncionariosPageNova> {
 
   Future<void> _excluir(Map<String, dynamic> item) async {
     final usuario = item['usuario'] ?? {};
-    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Excluir funcionário?'), content: Text('As piscinas de ${usuario['nome']} ficarão sem responsável.'), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir'))]));
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Excluir colaborador?'), content: Text('As piscinas de ${usuario['nome']} ficarão sem responsável.'), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Excluir'))]));
     if (ok != true) return;
     final r = await apiService.delete('/api/funcionarios/${item['id']}');
     if (!mounted) return;
@@ -55,15 +55,15 @@ class _FuncionariosPageNovaState extends State<_FuncionariosPageNova> {
 
   @override Widget build(BuildContext context) {
     return Padding(padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _CabecalhoResponsivo(titulo: 'Funcionários', subtitulo: 'Cadastre os acessos e defina as piscinas de responsabilidade.', acao: FilledButton.icon(onPressed: () => _formulario(), icon: const Icon(Icons.add), label: const Text('Novo funcionário'))),
+      _CabecalhoResponsivo(titulo: 'Colaboradores', subtitulo: 'Cadastre os acessos e defina as piscinas de responsabilidade.', acao: FilledButton.icon(onPressed: () => _formulario(), icon: const Icon(Icons.add), label: const Text('Novo colaborador'))),
       const SizedBox(height: 18),
-      TextField(decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Pesquisar funcionário ou usuário', border: OutlineInputBorder()), onChanged: (v) => setState(() => _busca = v.toLowerCase())),
+      TextField(decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Pesquisar colaborador ou usuário', border: OutlineInputBorder()), onChanged: (v) => setState(() => _busca = v.toLowerCase())),
       const SizedBox(height: 12),
       Expanded(child: FutureBuilder<List<dynamic>>(future: _dados, builder: (context, estado) {
         if (estado.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
         if (estado.hasError) return Center(child: Text('${estado.error}'));
         final lista = estado.data!.where((f) { final u = f['usuario'] ?? {}; return '${u['nome']} ${u['login']}'.toLowerCase().contains(_busca); }).toList();
-        if (lista.isEmpty) return const Center(child: Text('Nenhum funcionário encontrado.'));
+        if (lista.isEmpty) return const Center(child: Text('Nenhum colaborador encontrado.'));
         return Card(child: ListView.separated(itemCount: lista.length, separatorBuilder: (_, __) => const Divider(height: 1), itemBuilder: (_, i) { final f = lista[i] as Map<String, dynamic>; final u = f['usuario'] ?? {}; return ListTile(leading: const CircleAvatar(child: Icon(Icons.person)), title: Text(u['nome'] ?? ''), subtitle: Text('Usuário: ${u['login'] ?? ''} • ${f['telefone'] ?? 'sem telefone'}'), trailing: Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [Text('${f['percentualMensalidade'] ?? 75}%'), IconButton(tooltip: 'Alterar', icon: const Icon(Icons.edit_outlined), onPressed: () => _formulario(f)), IconButton(tooltip: 'Excluir', icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _excluir(f))])); }));
       }))
     ]));

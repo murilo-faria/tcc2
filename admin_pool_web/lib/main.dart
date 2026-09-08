@@ -48,11 +48,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int pagina = 0;
   String get nomePerfil =>
-      widget.perfil == Perfil.gestor ? 'Gestor' : 'Funcionário';
+      widget.perfil == Perfil.gestor ? 'Gestor' : 'Colaborador';
   List<_MenuItem> get menu => widget.perfil == Perfil.gestor
       ? const [
           _MenuItem('Visão geral', Icons.dashboard_outlined),
-          _MenuItem('Funcionários', Icons.groups_outlined),
+          _MenuItem('Colaboradores', Icons.groups_outlined),
           _MenuItem('Clientes', Icons.people_outline),
           _MenuItem('Piscinas', Icons.pool_outlined),
           _MenuItem('Produtos', Icons.inventory_2_outlined),
@@ -63,7 +63,7 @@ class _HomePageState extends State<HomePage> {
         ]
       : const [
           _MenuItem('Visão geral', Icons.dashboard_outlined),
-          _MenuItem('Meus clientes', Icons.people_outline),
+          _MenuItem('Clientes', Icons.people_outline),
           _MenuItem('Piscinas', Icons.pool_outlined),
           _MenuItem('Produtos', Icons.inventory_2_outlined),
           _MenuItem('Pedidos', Icons.shopping_cart_outlined),
@@ -222,12 +222,12 @@ class _PageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (inicio) return _Dashboard(perfil: perfil);
-    if (titulo == 'Clientes' || titulo == 'Meus clientes') {
+    if (titulo == 'Clientes') {
       return _ListaClientes(gestor: perfil == Perfil.gestor);
     }
     if (titulo == 'Produtos')
       return _ProdutosGerenciamentoPage(gestor: perfil == Perfil.gestor);
-    if (titulo == 'Funcionários') return const _FuncionariosPageNova();
+    if (titulo == 'Colaboradores') return const _FuncionariosPageNova();
     if (titulo == 'Piscinas') return _PiscinasPage(gestor: perfil == Perfil.gestor);
     if (titulo == 'Cobranças') return const _CobrancasPageNova();
     if (titulo == 'Salários' || titulo == 'Meu salário') return _SalariosPage(gestor: perfil == Perfil.gestor);
@@ -1540,7 +1540,7 @@ class _Dashboard extends StatelessWidget {
       padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
       children: [
         Text(
-          'Olá, ${gestor ? 'Gestor' : (apiService.nomeUsuario ?? 'Funcionário')}!',
+          'Olá, ${gestor ? 'Gestor' : (apiService.nomeUsuario ?? 'Colaborador')}!',
           style: Theme.of(context).textTheme.headlineMedium
               ?.copyWith(fontWeight: FontWeight.bold),
         ),
