@@ -8,6 +8,7 @@ import br.com.adminpool.model.Perfil;
 import br.com.adminpool.model.Usuario;
 import br.com.adminpool.repository.FuncionarioRepository;
 import br.com.adminpool.repository.UsuarioRepository;
+import br.com.adminpool.repository.PiscinaRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -18,8 +19,8 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController @RequestMapping("/api/funcionarios")
 public class FuncionarioController {
- private final FuncionarioRepository funcionarios; private final UsuarioRepository usuarios; private final PasswordEncoder encoder;
- public FuncionarioController(FuncionarioRepository f, UsuarioRepository u, PasswordEncoder e){funcionarios=f;usuarios=u;encoder=e;}
+ private final FuncionarioRepository funcionarios; private final UsuarioRepository usuarios; private final PiscinaRepository piscinas; private final PasswordEncoder encoder;
+ public FuncionarioController(FuncionarioRepository f, UsuarioRepository u, PiscinaRepository p, PasswordEncoder e){funcionarios=f;usuarios=u;piscinas=p;encoder=e;}
  @GetMapping public List<Funcionario> listar(Authentication auth){gestor(auth);return funcionarios.findAll();}
  @PostMapping public ResponseEntity<Funcionario> criar(@RequestBody NovoFuncionarioRequest r, Authentication auth){gestor(auth);
   if(r.nome()==null||r.nome().isBlank()||r.login()==null||r.login().isBlank()||r.senha()==null||r.senha().length()<6) throw new IllegalArgumentException("Informe nome, usuário e uma senha com ao menos 6 caracteres.");
@@ -30,5 +31,6 @@ public class FuncionarioController {
  }
  @PutMapping("/{id}") public Funcionario atualizar(@PathVariable Long id, @RequestBody AtualizarFuncionarioRequest r, Authentication auth){gestor(auth);Funcionario f=funcionarios.findById(id).orElseThrow();if(r.nome()!=null&&!r.nome().isBlank())f.getUsuario().setNome(r.nome().trim());f.setTelefone(r.telefone());if(r.percentualMensalidade()!=null)f.setPercentualMensalidade(r.percentualMensalidade());if(r.novaSenha()!=null&&!r.novaSenha().isBlank()){if(r.novaSenha().length()<6)throw new IllegalArgumentException("A senha deve ter ao menos 6 caracteres.");f.getUsuario().setSenha(encoder.encode(r.novaSenha()));}usuarios.save(f.getUsuario());return funcionarios.save(f);}
  @PutMapping("/{id}/senha") public ResponseEntity<Void> redefinirSenha(@PathVariable Long id, @RequestBody RedefinirSenhaRequest r, Authentication auth){gestor(auth);if(r.novaSenha()==null||r.novaSenha().length()<6)throw new IllegalArgumentException("A senha deve ter ao menos 6 caracteres.");Funcionario f=funcionarios.findById(id).orElseThrow();f.getUsuario().setSenha(encoder.encode(r.novaSenha()));usuarios.save(f.getUsuario());return ResponseEntity.noContent().build();}
+ @DeleteMapping("/{id}") public ResponseEntity<Void> excluir(@PathVariable Long id, Authentication auth){gestor(auth);Funcionario f=funcionarios.findById(id).orElseThrow();List<br.com.adminpool.model.Piscina> vinculadas=piscinas.findByResponsavelId(id);vinculadas.forEach(p->p.setResponsavel(null));piscinas.saveAll(vinculadas);funcionarios.delete(f);usuarios.delete(f.getUsuario());return ResponseEntity.noContent().build();}
  private void gestor(Authentication auth){if(auth.getAuthorities().stream().noneMatch(a->a.getAuthority().equals("ROLE_GESTOR")))throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem administrar funcionários.");}
 }
