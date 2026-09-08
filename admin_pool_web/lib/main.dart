@@ -1442,7 +1442,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                           title: Text(cliente['nome'] ?? ''),
                           subtitle: Text(
                             [
-                              dia,
+                              if (widget.gestor) dia,
                               if ((cliente['telefone'] ?? '')
                                   .toString()
                                   .isNotEmpty)
