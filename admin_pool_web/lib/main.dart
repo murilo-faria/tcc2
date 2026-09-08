@@ -11,7 +11,6 @@ import 'widgets/dialogo_pedido_multiplo.dart';
 
 part 'pages/login_page.dart';
 part 'pages/gestao_pages.dart';
-part 'pages/cobrancas_page.dart';
 part 'pages/funcionarios_page.dart';
 
 void main() => runApp(const AdminPoolApp());
@@ -229,7 +228,7 @@ class _PageContent extends StatelessWidget {
       return _ProdutosGerenciamentoPage(gestor: perfil == Perfil.gestor);
     if (titulo == 'Colaboradores') return const _FuncionariosPageNova();
     if (titulo == 'Piscinas') return _PiscinasPage(gestor: perfil == Perfil.gestor);
-    if (titulo == 'Cobranças') return const _CobrancasPageNova();
+    if (titulo == 'Cobranças') return const _CobrancasPage();
     if (titulo == 'Salários' || titulo == 'Meu salário') return _SalariosPage(gestor: perfil == Perfil.gestor);
     if (titulo == 'Pedidos') return const _PedidosPage();
     if (titulo == 'Ordens de serviço') return const _OrdensServicoPage();
