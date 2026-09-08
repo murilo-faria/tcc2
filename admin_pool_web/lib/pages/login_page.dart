@@ -19,7 +19,6 @@ class _LoginPageState extends State<LoginPage> {
     if (entrando) return;
     final usuario = usuarioController.text.trim();
     final senha = senhaController.text;
-    TextInput.finishAutofillContext(shouldSave: true);
     setState(() => entrando = true);
     try {
       final recebido = await apiService.login(usuario, senha);
