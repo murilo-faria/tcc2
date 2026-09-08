@@ -662,8 +662,10 @@ class _PedidosPageState extends State<_PedidosPage> {
                       ),
                       title: Text(p['cliente']['nome']),
                       subtitle: Text(
-                        '${p['produto']['nome']} • Quantidade: ${p['quantidade']} • ${p['dataPedido']}',
+                        '${p['produto']['nome']} • Quantidade: ${p['quantidade']} • ${p['dataPedido']}\n'
+                        'Endereço: ${(p['piscina']?['endereco'] ?? p['cliente']?['endereco'] ?? 'A informar')}',
                       ),
+                      isThreeLine: true,
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -725,7 +727,6 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
     List<dynamic> piscinas = await buscar('/api/piscinas/cliente/$clienteId');
     int? piscinaId = piscinas.length == 1 ? piscinas.first['id'] as int : null;
     final descricao = TextEditingController();
-    final valor = TextEditingController(text: '0');
     final salvar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -773,20 +774,21 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
                         .toList(),
                     onChanged: (v) => setLocal(() => piscinaId = v),
                   ),
+                  if (piscinaId != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Endereço: ${(piscinas.firstWhere((p) => p['id'] == piscinaId)['endereco'] ?? 'A informar')}',
+                        ),
+                      ),
+                    ),
                   TextField(
                     controller: descricao,
                     maxLines: 4,
                     decoration: const InputDecoration(
                       labelText: 'Detalhes do serviço',
-                    ),
-                  ),
-                  TextField(
-                    controller: valor,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'Valor adicional',
                     ),
                   ),
                 ],
@@ -814,8 +816,6 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
           'piscinaId': piscinaId,
           'descricao': descricao.text.trim(),
           'dataServico': DateTime.now().toIso8601String().substring(0, 10),
-          'valorAdicional':
-              double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
         },
       );
       if (r.statusCode >= 200 && r.statusCode < 300) {
@@ -901,14 +901,12 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
                       ),
                       title: Text(cliente['nome']),
                       subtitle: Text(
-                        '${o['descricao']}\n${piscina == null ? 'Sem piscina' : piscina['nome']} • ${o['dataServico']}',
+                        '${o['descricao']}\n${piscina == null ? 'Sem piscina' : piscina['nome']} • ${o['dataServico']}\nEndereço: ${(piscina?['endereco'] ?? cliente['endereco'] ?? 'A informar')}',
                       ),
                       isThreeLine: true,
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(formatarMoeda(o['valorAdicional'] as num)),
-                          const SizedBox(width: 10),
                           Switch(
                             value: !aberta,
                             activeThumbColor: Colors.green,
@@ -1259,7 +1257,6 @@ class _ListaClientesState extends State<_ListaClientes> {
   Future<void> abrirOrdemServico(Map<String, dynamic> cliente) async {
     final piscinas = await _buscar('/api/piscinas/cliente/${cliente['id']}');
     final descricao = TextEditingController();
-    final valor = TextEditingController(text: '0');
     int? piscinaId = piscinas.length == 1 ? piscinas.first['id'] as int : null;
     if (!mounted) return;
     final salvar = await showDialog<bool>(
@@ -1285,20 +1282,21 @@ class _ListaClientesState extends State<_ListaClientes> {
                       .toList(),
                   onChanged: (v) => setLocal(() => piscinaId = v),
                 ),
+                if (piscinaId != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Endereço: ${(piscinas.firstWhere((p) => p['id'] == piscinaId)['endereco'] ?? cliente['endereco'] ?? 'A informar')}',
+                      ),
+                    ),
+                  ),
                 TextField(
                   controller: descricao,
                   maxLines: 4,
                   decoration: const InputDecoration(
                     labelText: 'O que deve ser feito',
-                  ),
-                ),
-                TextField(
-                  controller: valor,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Valor adicional',
                   ),
                 ),
               ],
@@ -1325,8 +1323,6 @@ class _ListaClientesState extends State<_ListaClientes> {
           'piscinaId': piscinaId,
           'descricao': descricao.text.trim(),
           'dataServico': DateTime.now().toIso8601String().substring(0, 10),
-          'valorAdicional':
-              double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
         },
       );
       atualizacaoOperacional.value++;

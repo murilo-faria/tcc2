@@ -68,6 +68,16 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                     ).toList(),
                     onChanged: (valor) => setLocal(() => piscinaId = valor),
                   ),
+                  if (piscinaId != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Endereço: ${(piscinas.firstWhere((p) => p['id'] == piscinaId)['endereco'] ?? 'A informar')}',
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   ...List.generate(itens.length, (indice) {
                     final item = itens[indice];
