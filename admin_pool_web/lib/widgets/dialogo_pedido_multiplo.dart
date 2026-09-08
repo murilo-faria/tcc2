@@ -12,7 +12,9 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
   required String titulo,
 }) async {
   int clienteId = clienteFixo ?? clientes.first['id'] as int;
-  int? piscinaId;
+  int? piscinaId = piscinas.where((p) => p['cliente']['id'] == clienteId).length == 1
+      ? piscinas.firstWhere((p) => p['cliente']['id'] == clienteId)['id'] as int
+      : null;
   final itens = <Map<String, int>>[
     {'produtoId': produtos.first['id'] as int, 'quantidade': 1},
   ];
@@ -50,7 +52,11 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                           )
                           .toList(),
                       onChanged: (valor) {
-                        setLocal(() { clienteId = valor!; piscinaId = null; });
+                        setLocal(() {
+                          clienteId = valor!;
+                          final disponiveis = piscinas.where((p) => p['cliente']['id'] == clienteId).toList();
+                          piscinaId = disponiveis.length == 1 ? disponiveis.first['id'] as int : null;
+                        });
                       },
                     ),
                   DropdownButtonFormField<int>(

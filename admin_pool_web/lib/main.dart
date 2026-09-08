@@ -723,7 +723,7 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
     if (clientes.isEmpty || !mounted) return;
     int clienteId = clientes.first['id'] as int;
     List<dynamic> piscinas = await buscar('/api/piscinas/cliente/$clienteId');
-    int? piscinaId = piscinas.isEmpty ? null : piscinas.first['id'] as int;
+    int? piscinaId = piscinas.length == 1 ? piscinas.first['id'] as int : null;
     final descricao = TextEditingController();
     final valor = TextEditingController(text: '0');
     final salvar = await showDialog<bool>(
@@ -753,7 +753,7 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
                       setLocal(() {
                         clienteId = v!;
                         piscinas = ps;
-                        piscinaId = ps.isEmpty ? null : ps.first['id'] as int;
+                        piscinaId = ps.length == 1 ? ps.first['id'] as int : null;
                       });
                     },
                   ),
@@ -1260,7 +1260,7 @@ class _ListaClientesState extends State<_ListaClientes> {
     final piscinas = await _buscar('/api/piscinas/cliente/${cliente['id']}');
     final descricao = TextEditingController();
     final valor = TextEditingController(text: '0');
-    int? piscinaId = piscinas.isEmpty ? null : piscinas.first['id'] as int;
+    int? piscinaId = piscinas.length == 1 ? piscinas.first['id'] as int : null;
     if (!mounted) return;
     final salvar = await showDialog<bool>(
       context: context,
