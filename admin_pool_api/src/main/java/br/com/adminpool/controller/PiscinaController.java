@@ -54,6 +54,7 @@ public class PiscinaController {
         piscina.setVolumeLitros(requisicao.volumeLitros());
         piscina.setEndereco(requisicao.endereco());
         if(requisicao.responsavelId()!=null) piscina.setResponsavel(funcionarios.findById(requisicao.responsavelId()).orElseThrow());
+        piscina.setDiaAtendimento(requisicao.diaAtendimento());
         piscina.setObservacoes(requisicao.observacoes());
 
         Piscina piscinaSalva = piscinas.save(piscina);
@@ -64,7 +65,7 @@ public class PiscinaController {
         if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar piscinas.");
         Piscina piscina = piscinas.findById(id).orElseThrow();
         piscina.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
-        piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); piscina.setVolumeLitros(requisicao.volumeLitros()); piscina.setEndereco(requisicao.endereco()); piscina.setObservacoes(requisicao.observacoes());
+        piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); piscina.setVolumeLitros(requisicao.volumeLitros()); piscina.setEndereco(requisicao.endereco()); piscina.setDiaAtendimento(requisicao.diaAtendimento()); piscina.setObservacoes(requisicao.observacoes());
         piscina.setResponsavel(requisicao.responsavelId()==null ? null : funcionarios.findById(requisicao.responsavelId()).orElseThrow());
         return piscinas.save(piscina);
     }
