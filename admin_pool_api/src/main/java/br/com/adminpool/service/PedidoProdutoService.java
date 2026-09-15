@@ -109,6 +109,27 @@ public class PedidoProdutoService {
     }
 
     @Transactional
+    public List<PedidoProduto> reabrir(Long codigo) {
+        List<PedidoProduto> itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
+        if (itens.isEmpty()) {
+            throw new IllegalArgumentException("Pedido não encontrado.");
+        }
+        if (itens.stream().anyMatch(item -> !item.isFinanceiroLancado() || !"CONCLUIDO".equals(item.getStatus()))) {
+            throw new IllegalStateException("Somente pedidos concluídos podem ser reabertos.");
+        }
+        if (itens.get(0).getPagador() == ResponsavelPagamento.EMPRESA) {
+            cobrancas.removerLancamento(TipoLancamentoCobranca.PEDIDO, codigo);
+        }
+        for (PedidoProduto item : itens) {
+            item.setPagador(null);
+            item.setFinanceiroLancado(false);
+            item.setDataConclusao(null);
+            item.setStatus("SOLICITADO");
+        }
+        return pedidos.saveAll(itens);
+    }
+
+    @Transactional
     public void alterarStatus(Long codigo, String status) {
         if (!STATUS_OPERACIONAIS.contains(status)) {
             throw new IllegalArgumentException("Situação do pedido inválida.");

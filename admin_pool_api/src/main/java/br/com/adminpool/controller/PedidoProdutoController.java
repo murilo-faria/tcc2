@@ -86,6 +86,14 @@ public class PedidoProdutoController {
         return servico.concluir(codigo, requisicao.pagoPor());
     }
 
+    @PutMapping("/codigo/{codigo}/reabrir")
+    public List<PedidoProduto> reabrir(@PathVariable Long codigo, Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem reabrir pedidos.");
+        }
+        return servico.reabrir(codigo);
+    }
+
     private boolean gestor(Authentication auth) {
         return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_GESTOR"));
     }

@@ -160,6 +160,19 @@ public class CobrancaService {
     }
 
     @Transactional
+    public void removerLancamento(TipoLancamentoCobranca tipo, Long origemId) {
+        ItemCobranca item = itens.findByTipoAndOrigemId(tipo, origemId)
+                .orElseThrow(() -> new IllegalArgumentException("Lançamento de cobrança não encontrado."));
+        if (item.getValorPago() != null && item.getValorPago().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Não é possível desfazer um pedido que já possui pagamento recebido.");
+        }
+        CobrancaMensal cobranca = item.getCobranca();
+        itens.delete(item);
+        itens.flush();
+        recalcular(cobranca);
+    }
+
+    @Transactional
     public ItemCobranca baixarItem(Long itemId, BigDecimal valor, String formaPagamento) {
         ItemCobranca item = itens.findById(itemId).orElseThrow();
         BigDecimal saldo = item.getSaldoPendente();
