@@ -215,16 +215,6 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     return grupos;
   }
 
-  String _nomeStatus(String status) =>
-      const {
-        'SOLICITADO': 'Solicitado',
-        'PEDIDO_REALIZADO': 'Pedido realizado',
-        'AGUARDANDO_ENTREGA': 'Aguardando entrega',
-        'ENTREGUE': 'Entregue',
-        'CONCLUIDO': 'Concluído',
-      }[status] ??
-      status;
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -297,7 +287,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                         leading: CircleAvatar(child: Text('#${grupo.key}')),
                         title: Text(primeiro['cliente']['nome']),
                         subtitle: Text(
-                          '${grupo.value.length} produto(s) • ${_nomeStatus(primeiro['status'])} • ${primeiro['dataPedido']}',
+                          '${grupo.value.length} produto(s) • ${primeiro['dataPedido']}',
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
