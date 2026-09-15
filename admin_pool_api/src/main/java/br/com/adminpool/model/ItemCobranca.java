@@ -19,7 +19,10 @@ public class ItemCobranca {
     @Enumerated(EnumType.STRING) @Column(nullable = false) private StatusItemCobranca status = StatusItemCobranca.PENDENTE;
     private LocalDate dataUltimoPagamento;
 
-    public BigDecimal getSaldoPendente(){return valorOriginal.subtract(valorPago == null ? BigDecimal.ZERO : valorPago).max(BigDecimal.ZERO);}
+    public BigDecimal getSaldoPendente(){
+        if(status==StatusItemCobranca.TRANSFERIDO||status==StatusItemCobranca.CANCELADO) return BigDecimal.ZERO;
+        return valorOriginal.subtract(valorPago == null ? BigDecimal.ZERO : valorPago).max(BigDecimal.ZERO);
+    }
     public String getReferencia(){return cobranca == null ? null : cobranca.getReferencia();}
     public LocalDate getVencimento(){return cobranca == null ? null : cobranca.getVencimento();}
     public Long getClienteId(){return cobranca == null ? null : cobranca.getCliente().getId();}
