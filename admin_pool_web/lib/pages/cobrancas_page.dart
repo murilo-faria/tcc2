@@ -8,59 +8,36 @@ class _CobrancasPageNova extends StatefulWidget {
 }
 
 class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
-  late Future<List<String>> _meses;
-  late Future<List<dynamic>> _cobrancas;
-  String? _referencia;
+  late Future<List<dynamic>> _clientes;
   String _busca = '';
 
   @override
   void initState() {
     super.initState();
-    _meses = _carregarMeses();
-    _cobrancas = _carregarCobrancas();
+    _clientes = _carregar();
   }
 
-  Future<List<String>> _carregarMeses() async {
-    final resposta = await apiService.get('/api/cobrancas/meses');
+  Future<List<dynamic>> _carregar() async {
+    final resposta = await apiService.get('/api/cobrancas/clientes');
     if (resposta.statusCode != 200) {
-      throw Exception('Não foi possível carregar os meses.');
-    }
-    return (jsonDecode(resposta.body) as List<dynamic>).cast<String>();
-  }
-
-  Future<List<dynamic>> _carregarCobrancas() async {
-    final sufixo = _referencia == null ? '' : '?referencia=$_referencia';
-    final resposta = await apiService.get('/api/cobrancas$sufixo');
-    if (resposta.statusCode != 200) {
-      throw Exception('Não foi possível carregar cobranças.');
+      throw Exception('Não foi possível carregar as cobranças.');
     }
     return jsonDecode(resposta.body) as List<dynamic>;
   }
 
-  String _tituloMes(String referencia) {
-    final partes = referencia.split('-');
-    const nomes = [
-      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-    ];
-    return '${nomes[int.parse(partes[1]) - 1]} de ${partes[0]}';
+  void _atualizar() {
+    atualizacaoFinanceira.value++;
+    setState(() => _clientes = _carregar());
   }
 
-  Future<void> _alterarPagamento(Map<String, dynamic> cobranca) async {
-    final pago = cobranca['status'] == 'PAGO';
-    final resposta = await apiService.put(
-      pago
-          ? '/api/cobrancas/${cobranca['id']}/reabrir'
-          : '/api/cobrancas/${cobranca['id']}/baixar?valor=${cobranca['total']}',
+  Future<void> _abrirCliente(Map<String, dynamic> cliente) async {
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _PainelCobrancaCliente(
+        cliente: cliente,
+        aoAtualizar: _atualizar,
+      ),
     );
-    if (!mounted) return;
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
-      setState(() => _cobrancas = _carregarCobrancas());
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível atualizar o pagamento.')),
-      );
-    }
   }
 
   @override
@@ -72,60 +49,8 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
         children: [
           Text('Cobranças', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          const Text('Mensalidades e valores de produtos e serviços.'),
-          const SizedBox(height: 20),
-          FutureBuilder<List<String>>(
-            future: _meses,
-            builder: (context, estado) {
-              if (!estado.hasData) return const LinearProgressIndicator();
-              final meses = estado.data!;
-              return Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 12,
-                runSpacing: 10,
-                children: [
-                  SizedBox(
-                    width: 280,
-                    child: DropdownButtonFormField<String>(
-                      value: _referencia,
-                      decoration: const InputDecoration(
-                        labelText: 'Mês de referência',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem<String>(
-                          value: null,
-                          child: Text('Mês atual e atrasos'),
-                        ),
-                        ...meses.map((mes) => DropdownMenuItem(
-                          value: mes,
-                          child: Text(_tituloMes(mes)),
-                        )),
-                      ],
-                      onChanged: (mes) {
-                        setState(() {
-                          _referencia = mes;
-                          _cobrancas = _carregarCobrancas();
-                        });
-                      },
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _referencia = null;
-                        _meses = _carregarMeses();
-                        _cobrancas = _carregarCobrancas();
-                      });
-                    },
-                    icon: const Icon(Icons.today_outlined),
-                    label: const Text('Voltar ao mês atual'),
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 14),
+          const Text('Abra um cliente para conferir, detalhar e baixar cada valor.'),
+          const SizedBox(height: 18),
           TextField(
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
@@ -137,35 +62,40 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
           const SizedBox(height: 12),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
-              future: _cobrancas,
+              future: _clientes,
               builder: (context, estado) {
                 if (estado.connectionState != ConnectionState.done) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (estado.hasError) return Center(child: Text('${estado.error}'));
-                final itens = estado.data!.where((item) {
-                  final nome = ((item['cliente'] ?? {})['nome'] ?? '').toString().toLowerCase();
-                  return nome.contains(_busca);
-                }).toList();
-                if (itens.isEmpty) {
-                  return const Center(child: Text('Nenhuma cobrança neste mês.'));
-                }
+                final clientes = estado.data!.where((item) =>
+                    (item['clienteNome'] ?? '').toString().toLowerCase().contains(_busca)).toList();
+                if (clientes.isEmpty) return const Center(child: Text('Nenhum cliente encontrado.'));
                 return Card(
                   child: ListView.separated(
-                    itemCount: itens.length,
+                    itemCount: clientes.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, indice) {
-                      final cobranca = itens[indice] as Map<String, dynamic>;
-                      final pago = cobranca['status'] == 'PAGO';
+                    itemBuilder: (_, indice) {
+                      final cliente = clientes[indice] as Map<String, dynamic>;
+                      final total = (cliente['totalPendente'] as num?) ?? 0;
+                      final atrasado = cliente['possuiAtraso'] == true;
                       return ListTile(
-                        leading: Icon(pago ? Icons.check_circle : Icons.pending_actions, color: pago ? Colors.green : Colors.orange),
-                        title: Text((cobranca['cliente'] ?? {})['nome'] ?? ''),
-                        subtitle: Text('Vencimento: ${cobranca['vencimento']} • ${cobranca['status']}'),
+                        onTap: () => _abrirCliente(cliente),
+                        leading: CircleAvatar(
+                          backgroundColor: atrasado ? Colors.red.shade50 : Colors.blue.shade50,
+                          child: Icon(atrasado ? Icons.warning_amber_rounded : Icons.person_outline,
+                              color: atrasado ? Colors.red : Colors.blue),
+                        ),
+                        title: Text(cliente['clienteNome'] ?? ''),
+                        subtitle: Text(total == 0
+                            ? 'Em dia'
+                            : '${cliente['quantidadePendente']} item(ns) ${atrasado ? '• possui atraso' : '• pendente'}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(formatarMoeda(cobranca['total'] as num)),
-                            Switch(value: pago, onChanged: (_) => _alterarPagamento(cobranca)),
+                            Text(formatarMoeda(total), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.chevron_right),
                           ],
                         ),
                       );
@@ -177,6 +107,268 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PainelCobrancaCliente extends StatefulWidget {
+  const _PainelCobrancaCliente({required this.cliente, required this.aoAtualizar});
+  final Map<String, dynamic> cliente;
+  final VoidCallback aoAtualizar;
+
+  @override
+  State<_PainelCobrancaCliente> createState() => _PainelCobrancaClienteState();
+}
+
+class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
+  late Future<List<dynamic>> _itens;
+  final Set<int> _selecionados = {};
+
+  int get clienteId => widget.cliente['clienteId'] as int;
+
+  @override
+  void initState() {
+    super.initState();
+    _itens = _carregar();
+  }
+
+  Future<List<dynamic>> _carregar() async {
+    final resposta = await apiService.get('/api/cobrancas/clientes/$clienteId/itens');
+    if (resposta.statusCode != 200) throw Exception('Não foi possível carregar os itens.');
+    return jsonDecode(resposta.body) as List<dynamic>;
+  }
+
+  bool _aberto(Map<String, dynamic> item) =>
+      item['status'] == 'PENDENTE' || item['status'] == 'PARCIAL';
+
+  void _recarregar() {
+    _selecionados.clear();
+    widget.aoAtualizar();
+    setState(() => _itens = _carregar());
+  }
+
+  Future<bool> _confirmar(String titulo, String mensagem, String botao) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(titulo),
+            content: Text(mensagem),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+              FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(botao)),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<void> _baixarItem(Map<String, dynamic> item) async {
+    final saldo = (item['saldoPendente'] as num?) ?? 0;
+    final ok = await _confirmar(
+      'Confirmar recebimento?',
+      'Dar baixa em ${item['descricao']} no valor de ${formatarMoeda(saldo)}?',
+      'Confirmar pagamento',
+    );
+    if (!ok) return;
+    final resposta = await apiService.put('/api/cobrancas/itens/${item['id']}/baixar', body: {});
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+  }
+
+  Future<void> _baixarSelecionados() async {
+    if (_selecionados.isEmpty) return;
+    final ok = await _confirmar(
+      'Confirmar itens selecionados?',
+      'Dar baixa em ${_selecionados.length} item(ns) selecionado(s)?',
+      'Confirmar recebimento',
+    );
+    if (!ok) return;
+    final resposta = await apiService.put('/api/cobrancas/itens/baixar', body: {
+      'itemIds': _selecionados.toList(),
+    });
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+  }
+
+  Future<void> _baixarTotal() async {
+    final total = (widget.cliente['totalPendente'] as num?) ?? 0;
+    final ok = await _confirmar(
+      'Confirmar pagamento total?',
+      'Todos os valores pendentes de ${widget.cliente['clienteNome']} serão baixados. Total: ${formatarMoeda(total)}.',
+      'Confirmar pagamento total',
+    );
+    if (!ok) return;
+    final resposta = await apiService.put('/api/cobrancas/clientes/$clienteId/baixar-total', body: {});
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+  }
+
+  Future<void> _baixarParcial() async {
+    final controlador = TextEditingController();
+    final valor = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Dar baixa parcial'),
+        content: TextField(
+          controller: controlador,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Valor recebido',
+            prefixText: 'R\$ ',
+            helperText: 'O saldo restante será levado para o próximo mês.',
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, double.tryParse(controlador.text.replaceAll(',', '.'))),
+            child: const Text('Confirmar baixa parcial'),
+          ),
+        ],
+      ),
+    );
+    if (valor == null || valor <= 0) return;
+    final resposta = await apiService.put('/api/cobrancas/clientes/$clienteId/baixar-parcial', body: {'valor': valor});
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Confira o valor informado.')));
+    }
+  }
+
+  Future<void> _abrirDetalhes(Map<String, dynamic> item) async {
+    dynamic detalhes;
+    final origemId = item['origemId'];
+    if (item['tipo'] == 'PEDIDO' && origemId != null) {
+      final resposta = await apiService.get('/api/pedidos-produto/codigo/$origemId');
+      if (resposta.statusCode == 200) detalhes = jsonDecode(resposta.body);
+    } else if (item['tipo'] == 'ORDEM_SERVICO' && origemId != null) {
+      final resposta = await apiService.get('/api/ordens-servico/$origemId');
+      if (resposta.statusCode == 200) detalhes = jsonDecode(resposta.body);
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(item['descricao'] ?? 'Detalhes'),
+        content: SizedBox(width: 520, child: _ConteudoDetalheCobranca(item: item, detalhes: detalhes)),
+        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar'))],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Valores a receber — ${widget.cliente['clienteNome']}'),
+      content: SizedBox(
+        width: 780,
+        height: 520,
+        child: Column(
+          children: [
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(onPressed: _baixarTotal, icon: const Icon(Icons.done_all), label: const Text('Confirmar pagamento total')),
+                OutlinedButton.icon(onPressed: _baixarParcial, icon: const Icon(Icons.payments_outlined), label: const Text('Baixa parcial')),
+                OutlinedButton.icon(onPressed: _selecionados.isEmpty ? null : _baixarSelecionados, icon: const Icon(Icons.checklist), label: Text('Baixar selecionados (${_selecionados.length})')),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            Expanded(
+              child: FutureBuilder<List<dynamic>>(
+                future: _itens,
+                builder: (_, estado) {
+                  if (!estado.hasData) return const Center(child: CircularProgressIndicator());
+                  if (estado.hasError) return Center(child: Text('${estado.error}'));
+                  if (estado.data!.isEmpty) return const Center(child: Text('Nenhum valor lançado.'));
+                  return ListView.separated(
+                    itemCount: estado.data!.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, indice) {
+                      final item = estado.data![indice] as Map<String, dynamic>;
+                      final aberto = _aberto(item);
+                      final id = item['id'] as int;
+                      return ListTile(
+                        onTap: () => _abrirDetalhes(item),
+                        leading: Checkbox(
+                          value: _selecionados.contains(id),
+                          onChanged: aberto ? (marcado) => setState(() => marcado == true ? _selecionados.add(id) : _selecionados.remove(id)) : null,
+                        ),
+                        title: Text(item['descricao'] ?? item['tipo'] ?? ''),
+                        subtitle: Text('${item['referencia']} • vence ${item['vencimento']} • ${item['status']}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(formatarMoeda((item['saldoPendente'] as num?) ?? 0), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            IconButton(tooltip: 'Ver detalhes', onPressed: () => _abrirDetalhes(item), icon: const Icon(Icons.visibility_outlined)),
+                            IconButton(tooltip: 'Confirmar pagamento', onPressed: aberto ? () => _baixarItem(item) : null, icon: Icon(Icons.check_circle_outline, color: aberto ? Colors.green : null)),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar'))],
+    );
+  }
+}
+
+class _ConteudoDetalheCobranca extends StatelessWidget {
+  const _ConteudoDetalheCobranca({required this.item, required this.detalhes});
+  final Map<String, dynamic> item;
+  final dynamic detalhes;
+
+  @override
+  Widget build(BuildContext context) {
+    if (detalhes is List) {
+      final produtos = detalhes as List<dynamic>;
+      return SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: produtos.map((linha) {
+            final produto = linha['produto'] ?? {};
+            return ListTile(
+              leading: const Icon(Icons.shopping_bag_outlined),
+              title: Text(produto['nome'] ?? 'Produto'),
+              subtitle: Text('${linha['quantidade']} unidade(s) × ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}'),
+              trailing: Text(formatarMoeda((linha['totalVenda'] as num?) ?? 0)),
+            );
+          }).toList(),
+        ),
+      );
+    }
+    if (detalhes is Map) {
+      final os = detalhes as Map<String, dynamic>;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(os['descricao'] ?? ''),
+          const SizedBox(height: 12),
+          Text('Data do serviço: ${os['dataServico'] ?? '-'}'),
+          Text('Custo: ${formatarMoeda((os['valorCusto'] as num?) ?? 0)}'),
+          Text('Cobrado do cliente: ${formatarMoeda((os['valorCobrado'] as num?) ?? 0)}'),
+          Text('Pago por: ${os['pagoPor'] ?? '-'}'),
+          Text('Situação: ${os['status'] ?? '-'}'),
+        ],
+      );
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Tipo: ${item['tipo']}'),
+        Text('Lançamento: ${item['dataLancamento']}'),
+        Text('Valor original: ${formatarMoeda((item['valorOriginal'] as num?) ?? 0)}'),
+        Text('Valor recebido: ${formatarMoeda((item['valorPago'] as num?) ?? 0)}'),
+        Text('Saldo: ${formatarMoeda((item['saldoPendente'] as num?) ?? 0)}'),
+      ],
     );
   }
 }
