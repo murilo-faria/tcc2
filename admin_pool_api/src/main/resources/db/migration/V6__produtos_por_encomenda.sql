@@ -1,0 +1,11 @@
+CREATE SEQUENCE IF NOT EXISTS pedido_codigo_seq START 1;
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS codigo_pedido BIGINT;
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS preco_compra_unitario NUMERIC(12,2);
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS pagador VARCHAR(30);
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS financeiro_lancado BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS data_conclusao DATE;
+UPDATE pedidos_produto p SET codigo_pedido=p.id WHERE codigo_pedido IS NULL;
+UPDATE pedidos_produto p SET preco_compra_unitario=pr.preco_compra FROM produtos pr WHERE p.produto_id=pr.id AND p.preco_compra_unitario IS NULL;
+UPDATE pedidos_produto SET financeiro_lancado=TRUE;
+SELECT setval('pedido_codigo_seq',GREATEST(COALESCE((SELECT MAX(codigo_pedido) FROM pedidos_produto),0)+1,1),false);
+ALTER TABLE produtos DROP COLUMN IF EXISTS estoque;
