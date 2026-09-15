@@ -13,6 +13,7 @@ part 'pages/login_page.dart';
 part 'pages/gestao_pages.dart';
 part 'pages/funcionarios_page.dart';
 part 'pages/cobrancas_page.dart';
+part 'pages/pedidos_page.dart';
 
 void main() => runApp(const AdminPoolApp());
 
@@ -231,7 +232,7 @@ class _PageContent extends StatelessWidget {
     if (titulo == 'Piscinas') return _PiscinasPage(gestor: perfil == Perfil.gestor);
     if (titulo == 'Cobranças') return const _CobrancasPageNova();
     if (titulo == 'Salários' || titulo == 'Meu salário') return _SalariosPage(gestor: perfil == Perfil.gestor);
-    if (titulo == 'Pedidos') return const _PedidosPage();
+    if (titulo == 'Pedidos') return _PedidosPageNova(gestor: perfil == Perfil.gestor);
     if (titulo == 'Ordens de serviço') return const _OrdensServicoPage();
     return Padding(
       padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
@@ -338,7 +339,6 @@ class _ProdutosGerenciamentoPageState
       'nome': nome.text.trim(),
       'precoCompra': double.tryParse(compra.text.replaceAll(',', '.')) ?? 0,
       'precoVenda': double.tryParse(venda.text.replaceAll(',', '.')) ?? 0,
-      'estoque': 0,
     });
     final rota = '/api/produtos${produto == null ? '' : '/${produto['id']}'}';
     final r = produto == null
@@ -522,7 +522,7 @@ class _ListaProdutosState extends State<_ListaProdutos> {
                       subtitle: Text(
                         p['nome'].toString().contains('Mangueira')
                             ? 'Informe os metros ao fazer o pedido.'
-                            : 'Estoque: ${p['estoque']}',
+                            : 'Produto vendido por encomenda',
                       ),
                       trailing: Text(
                         'R\$ $venda',
@@ -1643,6 +1643,7 @@ class _Dashboard extends StatelessWidget {
                   const _ContagemResumoCard(tipo: _TipoContagem.cobrancas),
                   const _FaturamentoCard(),
                   const _FluxoCaixaCard(),
+                  const _ResultadoProdutosCard(),
                   const _NotificacaoOperacionalCard(
                     tipo: _TipoNotificacao.produto,
                   ),
@@ -1683,37 +1684,6 @@ class _CobrancasDoMesState extends State<_CobrancasDoMes> {
     final r = await apiService.get('/api/cobrancas');
     if (r.statusCode != 200) throw Exception('API indisponível');
     return jsonDecode(r.body) as List<dynamic>;
-  }
-
-  Future<void> pagar(Map<String, dynamic> c) async {
-    final pago = c['status'] == 'PAGO';
-    final statusAnterior = c['status'] as String;
-    final vencimento = DateTime.parse(c['vencimento'] as String);
-    final hoje = DateTime.now();
-    final hojeSemHora = DateTime(hoje.year, hoje.month, hoje.day);
-    final novoStatus = pago
-        ? (vencimento.isBefore(hojeSemHora) ? 'VENCIDO' : 'PENDENTE')
-        : 'PAGO';
-
-    // Atualização otimista: o botão e a posição mudam imediatamente.
-    setState(() => c['status'] = novoStatus);
-
-    final rota = pago
-        ? '/api/cobrancas/${c['id']}/reabrir'
-        : '/api/cobrancas/${c['id']}/baixar?valor=${c['total']}';
-    try {
-      final resposta = await apiService.put(rota);
-      if (resposta.statusCode < 200 || resposta.statusCode >= 300) {
-        throw Exception('Falha ao atualizar pagamento.');
-      }
-      atualizacaoFinanceira.value++;
-    } catch (erro) {
-      if (!mounted) return;
-      setState(() => c['status'] = statusAnterior);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Não foi possível salvar: $erro')));
-    }
   }
 
   @override
@@ -1767,11 +1737,7 @@ class _CobrancasDoMesState extends State<_CobrancasDoMes> {
                 children: [
                   Text(valor),
                   const SizedBox(width: 12),
-                  Switch(
-                    value: status == 'PAGO',
-                    activeColor: Colors.green,
-                    onChanged: (_) => pagar(c),
-                  ),
+                  Icon(status == 'PAGO' ? Icons.check_circle : Icons.chevron_right, color: cor),
                 ],
               ),
             );

@@ -46,7 +46,9 @@ public class PedidoProdutoController {
 
     @GetMapping("/abertos")
     public List<PedidoProduto> listarAbertos() {
-        return pedidos.findByStatusOrderByDataPedidoDesc("SOLICITADO");
+        return pedidos.findAllByOrderByDataPedidoDesc().stream()
+                .filter(pedido -> !"CONCLUIDO".equals(pedido.getStatus()))
+                .toList();
     }
 
     @GetMapping("/resultado")
