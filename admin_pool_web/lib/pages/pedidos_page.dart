@@ -11,6 +11,10 @@ class _PedidosPageNova extends StatefulWidget {
 class _PedidosPageNovaState extends State<_PedidosPageNova> {
   late Future<List<dynamic>> _pedidos;
   String _filtro = '';
+  String? _clienteSelecionado;
+  String? _mesSelecionado;
+  DateTime? _dataInicial;
+  DateTime? _dataFinal;
 
   @override
   void initState() {
@@ -32,6 +36,13 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     atualizacaoFinanceira.value++;
     setState(() => _pedidos = _carregar());
   }
+
+  DateTime? _data(dynamic valor) => DateTime.tryParse(valor?.toString() ?? '');
+  String _mes(dynamic valor) { final data = _data(valor); return data == null ? '' : '${data.year}-${data.month.toString().padLeft(2, '0')}'; }
+  Future<void> _escolherData(bool inicial) async { final data = await showDatePicker(context: context, initialDate: (inicial ? _dataInicial : _dataFinal) ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2100)); if (data != null) setState(() { if (inicial) {_dataInicial = data;} else {_dataFinal = data;} }); }
+  bool _noPeriodo(dynamic valor) { final data = _data(valor); if (data == null) return false; final dia = DateTime(data.year, data.month, data.day); return (_mesSelecionado == null || _mes(data) == _mesSelecionado) && (_dataInicial == null || !dia.isBefore(_dataInicial!)) && (_dataFinal == null || !dia.isAfter(_dataFinal!)); }
+  List<MapEntry<int, List<Map<String, dynamic>>>> _filtrarGrupos(List<dynamic> linhas) => _agrupar(linhas).entries.where((grupo) { final primeiro = grupo.value.first; final cliente = (primeiro['cliente'] ?? {})['nome'].toString(); final produtos = grupo.value.map((item) => (item['produto'] ?? {})['nome'].toString().toLowerCase()).join(' '); return (_clienteSelecionado == null || cliente == _clienteSelecionado) && _noPeriodo(primeiro['dataPedido']) && (cliente.toLowerCase().contains(_filtro) || produtos.contains(_filtro)); }).toList();
+  Future<void> _gerarRelatorio() async { final grupos = _filtrarGrupos(await _pedidos); if (!mounted) return; final total = grupos.fold<double>(0, (s, g) => s + g.value.fold<double>(0, (x, i) => x + ((i['totalVenda'] as num?) ?? 0).toDouble())); await showDialog<void>(context: context, builder: (context) => AlertDialog(title: const Text('Relatório de pedidos'), content: SizedBox(width: 620, height: 420, child: Column(children: [Align(alignment: Alignment.centerLeft, child: Text('${grupos.length} pedido(s) • Total: ${formatarMoeda(total)}', style: const TextStyle(fontWeight: FontWeight.bold))), const Divider(), Expanded(child: grupos.isEmpty ? const Center(child: Text('Nenhum pedido para os filtros escolhidos.')) : ListView.builder(itemCount: grupos.length, itemBuilder: (_, i) { final g = grupos[i]; final p = g.value.first; final valor = g.value.fold<double>(0, (s, x) => s + ((x['totalVenda'] as num?) ?? 0).toDouble()); return ListTile(title: Text('Pedido #${g.key} — ${(p['cliente'] ?? {})['nome'] ?? ''}'), subtitle: Text('${p['dataPedido']} • ${g.value.length} produto(s)'), trailing: Text(formatarMoeda(valor))); }))])), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar'))])); }
 
   Future<void> _novoPedido() async {
     final resultados = await Future.wait([
@@ -227,11 +238,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           _CabecalhoResponsivo(
             titulo: 'Pedidos de produtos',
             subtitulo: 'Pedidos por encomenda, sem controle de estoque.',
-            acao: FilledButton.icon(
-              onPressed: _novoPedido,
-              icon: const Icon(Icons.add),
-              label: const Text('Novo pedido'),
-            ),
+            acao: Wrap(spacing: 10, children: [OutlinedButton.icon(onPressed: _gerarRelatorio, icon: const Icon(Icons.summarize_outlined), label: const Text('Gerar relatório')), FilledButton.icon(onPressed: _novoPedido, icon: const Icon(Icons.add), label: const Text('Novo pedido'))]),
           ),
           const SizedBox(height: 18),
           TextField(
@@ -244,6 +251,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 setState(() => _filtro = valor.trim().toLowerCase()),
           ),
           const SizedBox(height: 12),
+          FutureBuilder<List<dynamic>>(future: _pedidos, builder: (_, estado) { if (!estado.hasData) return const SizedBox.shrink(); final grupos = _agrupar(estado.data!); final clientes = grupos.values.map((g) => (g.first['cliente'] ?? {})['nome'].toString()).toSet().toList()..sort(); final meses = grupos.values.map((g) => _mes(g.first['dataPedido'])).where((m) => m.isNotEmpty).toSet().toList()..sort(); return _FiltrosRelatorio(clientes: clientes, meses: meses, clienteSelecionado: _clienteSelecionado, mesSelecionado: _mesSelecionado, dataInicial: _dataInicial, dataFinal: _dataFinal, aoMudarCliente: (v) => setState(() => _clienteSelecionado = v), aoMudarMes: (v) => setState(() => _mesSelecionado = v), aoEscolherData: _escolherData, aoLimpar: () => setState(() { _clienteSelecionado = null; _mesSelecionado = null; _dataInicial = null; _dataFinal = null; })); }),
+          const SizedBox(height: 12),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
               future: _pedidos,
@@ -252,20 +261,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                   return const Center(child: CircularProgressIndicator());
                 if (estado.hasError)
                   return Center(child: Text('${estado.error}'));
-                final grupos = _agrupar(estado.data!).entries.where((grupo) {
-                  final cliente = (grupo.value.first['cliente'] ?? {})['nome']
-                      .toString()
-                      .toLowerCase();
-                  final produtos = grupo.value
-                      .map(
-                        (item) => (item['produto'] ?? {})['nome']
-                            .toString()
-                            .toLowerCase(),
-                      )
-                      .join(' ');
-                  return cliente.contains(_filtro) ||
-                      produtos.contains(_filtro);
-                }).toList();
+                final grupos = _filtrarGrupos(estado.data!);
                 if (grupos.isEmpty)
                   return const Center(child: Text('Nenhum pedido cadastrado.'));
                 return Card(

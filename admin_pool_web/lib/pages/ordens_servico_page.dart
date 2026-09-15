@@ -11,6 +11,7 @@ class _OrdensServicoPageNova extends StatefulWidget {
 class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
   late Future<List<dynamic>> _ordens;
   String _filtro = '';
+  String? _clienteSelecionado; String? _mesSelecionado; DateTime? _dataInicial; DateTime? _dataFinal;
 
   @override
   void initState() {
@@ -31,6 +32,11 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
     atualizacaoFinanceira.value++;
     setState(() => _ordens = _carregar());
   }
+  DateTime? _data(dynamic valor) => DateTime.tryParse(valor?.toString() ?? '');
+  String _mes(dynamic valor) { final d = _data(valor); return d == null ? '' : '${d.year}-${d.month.toString().padLeft(2, '0')}'; }
+  Future<void> _escolherData(bool inicial) async { final d = await showDatePicker(context: context, initialDate: (inicial ? _dataInicial : _dataFinal) ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2100)); if (d != null) setState(() { if (inicial) {_dataInicial=d;} else {_dataFinal=d;} }); }
+  List<dynamic> _filtrarOrdens(List<dynamic> itens) => itens.where((o) { final nome=(o['cliente']??{})['nome'].toString(); final d=_data(o['dataServico']); final dia=d==null?null:DateTime(d.year,d.month,d.day); return (_clienteSelecionado==null||nome==_clienteSelecionado)&&(_mesSelecionado==null||_mes(o['dataServico'])==_mesSelecionado)&&(_dataInicial==null||(dia!=null&&!dia.isBefore(_dataInicial!)))&&(_dataFinal==null||(dia!=null&&!dia.isAfter(_dataFinal!)))&&(nome.toLowerCase().contains(_filtro)||o['descricao'].toString().toLowerCase().contains(_filtro)); }).toList();
+  Future<void> _gerarRelatorio() async { final lista=_filtrarOrdens(await _ordens); if(!mounted)return; final total=lista.fold<double>(0,(s,o)=>s+((o['valorCobrado'] as num?)??0).toDouble()); await showDialog<void>(context: context,builder:(c)=>AlertDialog(title:const Text('Relatório de ordens de serviço'),content:SizedBox(width:600,height:400,child:Column(children:[Text('${lista.length} OS(s) • Total: ${formatarMoeda(total)}',style:const TextStyle(fontWeight:FontWeight.bold)),const Divider(),Expanded(child:ListView.builder(itemCount:lista.length,itemBuilder:(_,i){final o=lista[i];return ListTile(title:Text('OS #${o['id']} — ${(o['cliente']??{})['nome']??''}'),subtitle:Text('${o['dataServico']} • ${o['descricao']}'),trailing:Text(formatarMoeda((o['valorCobrado'] as num?)??0)));}))])),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Fechar'))])); }
 
   Future<void> _novaOrdem() async {
     final clientes = await _buscar('/api/clientes');
@@ -221,7 +227,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
           _CabecalhoResponsivo(
             titulo: 'Ordens de serviço',
             subtitulo: 'Registre o serviço; o gestor define quem pagou ao concluir.',
-            acao: FilledButton.icon(onPressed: _novaOrdem, icon: const Icon(Icons.add), label: const Text('Nova OS')),
+            acao: Wrap(spacing: 10, children: [OutlinedButton.icon(onPressed: _gerarRelatorio, icon: const Icon(Icons.summarize_outlined), label: const Text('Gerar relatório')), FilledButton.icon(onPressed: _novaOrdem, icon: const Icon(Icons.add), label: const Text('Nova OS'))]),
           ),
           const SizedBox(height: 18),
           TextField(
@@ -229,16 +235,15 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
             onChanged: (valor) => setState(() => _filtro = valor.trim().toLowerCase()),
           ),
           const SizedBox(height: 12),
+          FutureBuilder<List<dynamic>>(future: _ordens, builder: (_, estado) { if (!estado.hasData) return const SizedBox.shrink(); final clientes=estado.data!.map((o)=>(o['cliente']??{})['nome'].toString()).toSet().toList()..sort(); final meses=estado.data!.map((o)=>_mes(o['dataServico'])).where((m)=>m.isNotEmpty).toSet().toList()..sort(); return _FiltrosRelatorio(clientes:clientes, meses:meses, clienteSelecionado:_clienteSelecionado, mesSelecionado:_mesSelecionado, dataInicial:_dataInicial, dataFinal:_dataFinal, aoMudarCliente:(v)=>setState(()=>_clienteSelecionado=v),aoMudarMes:(v)=>setState(()=>_mesSelecionado=v),aoEscolherData:_escolherData,aoLimpar:()=>setState((){_clienteSelecionado=null;_mesSelecionado=null;_dataInicial=null;_dataFinal=null;}));}),
+          const SizedBox(height: 12),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
               future: _ordens,
               builder: (_, estado) {
                 if (!estado.hasData) return const Center(child: CircularProgressIndicator());
                 if (estado.hasError) return Center(child: Text('${estado.error}'));
-                final ordens = estado.data!.where((item) {
-                  final cliente = (item['cliente'] ?? {})['nome'].toString().toLowerCase();
-                  return cliente.contains(_filtro) || item['descricao'].toString().toLowerCase().contains(_filtro);
-                }).toList();
+                final ordens = _filtrarOrdens(estado.data!);
                 if (ordens.isEmpty) return const Center(child: Text('Nenhuma ordem de serviço.'));
                 return Card(
                   child: ListView.separated(

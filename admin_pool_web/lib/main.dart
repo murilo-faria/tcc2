@@ -213,6 +213,20 @@ class _CabecalhoResponsivo extends StatelessWidget {
   }
 }
 
+class _FiltrosRelatorio extends StatelessWidget {
+  const _FiltrosRelatorio({required this.clientes, required this.meses, required this.clienteSelecionado, required this.mesSelecionado, required this.dataInicial, required this.dataFinal, required this.aoMudarCliente, required this.aoMudarMes, required this.aoEscolherData, required this.aoLimpar});
+  final List<String> clientes; final List<String> meses; final String? clienteSelecionado; final String? mesSelecionado; final DateTime? dataInicial; final DateTime? dataFinal;
+  final ValueChanged<String?> aoMudarCliente; final ValueChanged<String?> aoMudarMes; final ValueChanged<bool> aoEscolherData; final VoidCallback aoLimpar;
+  String _data(DateTime? valor, String vazio) => valor == null ? vazio : '${valor.day.toString().padLeft(2, '0')}/${valor.month.toString().padLeft(2, '0')}/${valor.year}';
+  @override Widget build(BuildContext context) => Wrap(spacing: 10, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
+    SizedBox(width: 220, child: DropdownButtonFormField<String>(value: clienteSelecionado, isExpanded: true, decoration: const InputDecoration(labelText: 'Cliente', border: OutlineInputBorder()), items: [const DropdownMenuItem(value: null, child: Text('Todos os clientes')), ...clientes.map((nome) => DropdownMenuItem(value: nome, child: Text(nome, overflow: TextOverflow.ellipsis)))], onChanged: aoMudarCliente)),
+    SizedBox(width: 180, child: DropdownButtonFormField<String>(value: mesSelecionado, decoration: const InputDecoration(labelText: 'Mês', border: OutlineInputBorder()), items: [const DropdownMenuItem(value: null, child: Text('Todos os meses')), ...meses.map((mes) => DropdownMenuItem(value: mes, child: Text(mes)))], onChanged: aoMudarMes)),
+    OutlinedButton.icon(onPressed: () => aoEscolherData(true), icon: const Icon(Icons.calendar_today_outlined), label: Text(_data(dataInicial, 'Data inicial'))),
+    OutlinedButton.icon(onPressed: () => aoEscolherData(false), icon: const Icon(Icons.calendar_today_outlined), label: Text(_data(dataFinal, 'Data final'))),
+    TextButton.icon(onPressed: aoLimpar, icon: const Icon(Icons.filter_alt_off_outlined), label: const Text('Limpar filtros')),
+  ]);
+}
+
 class _PageContent extends StatelessWidget {
   const _PageContent({
     required this.titulo,
