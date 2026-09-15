@@ -1,0 +1,13 @@
+package br.com.adminpool.repository;
+import br.com.adminpool.model.ItemCobranca;
+import br.com.adminpool.model.StatusItemCobranca;
+import br.com.adminpool.model.TipoLancamentoCobranca;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+public interface ItemCobrancaRepository extends JpaRepository<ItemCobranca,Long> {
+    List<ItemCobranca> findByCobrancaClienteIdOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(Long clienteId);
+    List<ItemCobranca> findByCobrancaClienteIdAndStatusInOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(Long clienteId, List<StatusItemCobranca> status);
+    boolean existsByCobrancaIdAndTipo(Long cobrancaId, TipoLancamentoCobranca tipo);
+    boolean existsByTipoAndOrigemId(TipoLancamentoCobranca tipo, Long origemId);
+}
