@@ -238,7 +238,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
-      _informarBaixa('Pagamento registrado. O item ficou marcado em verde.');
+      _informarBaixa('Pagamento confirmado.');
     } else {
       _informarErro();
     }
