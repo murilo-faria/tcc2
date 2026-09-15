@@ -55,52 +55,6 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
-  Future<void> _alterarStatus(int codigo, String atual) async {
-    const opcoes = [
-      'SOLICITADO',
-      'PEDIDO_REALIZADO',
-      'AGUARDANDO_ENTREGA',
-      'ENTREGUE',
-    ];
-    String escolhido = opcoes.contains(atual) ? atual : opcoes.first;
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (_, setLocal) => AlertDialog(
-          title: Text('Atualizar Pedido #$codigo'),
-          content: DropdownButtonFormField<String>(
-            initialValue: escolhido,
-            decoration: const InputDecoration(labelText: 'Situação'),
-            items: opcoes
-                .map(
-                  (status) => DropdownMenuItem(
-                    value: status,
-                    child: Text(_nomeStatus(status)),
-                  ),
-                )
-                .toList(),
-            onChanged: (status) => setLocal(() => escolhido = status!),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Salvar'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (confirmar != true) return;
-    final resposta = await apiService.put(
-      '/api/pedidos-produto/codigo/$codigo/status?status=$escolhido',
-    );
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
-  }
-
   Future<void> _concluir(int codigo) async {
     String pagador = 'EMPRESA';
     final confirmar = await showDialog<bool>(
@@ -125,7 +79,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 RadioListTile<String>(
                   value: 'CLIENTE',
                   groupValue: pagador,
-                  title: const Text('Pago pelo cliente na Beluga'),
+                  title: const Text('Pago pelo cliente'),
                   subtitle: const Text(
                     'Conclui sem cobrança e sem lucro para a empresa.',
                   ),
@@ -157,7 +111,18 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       '/api/pedidos-produto/codigo/$codigo/concluir',
       body: {'pagoPor': pagador},
     );
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pedido concluído.')));
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível concluir o pedido.')),
+      );
+    }
   }
 
   Future<void> _reabrir(int codigo) async {
@@ -253,7 +218,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   String _nomeStatus(String status) =>
       const {
         'SOLICITADO': 'Solicitado',
-        'PEDIDO_REALIZADO': 'Pedido realizado na Beluga',
+        'PEDIDO_REALIZADO': 'Pedido realizado',
         'AGUARDANDO_ENTREGA': 'Aguardando entrega',
         'ENTREGUE': 'Entregue',
         'CONCLUIDO': 'Concluído',
@@ -348,15 +313,6 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                               onPressed: () => _detalhar(grupo.key),
                               icon: const Icon(Icons.visibility_outlined),
                             ),
-                            if (!concluido)
-                              IconButton(
-                                tooltip: 'Atualizar andamento',
-                                onPressed: () => _alterarStatus(
-                                  grupo.key,
-                                  primeiro['status'],
-                                ),
-                                icon: const Icon(Icons.local_shipping_outlined),
-                              ),
                             if (widget.gestor)
                               IconButton(
                                 tooltip: concluido
