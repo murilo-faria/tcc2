@@ -235,15 +235,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
   }
 
   Future<void> _abrirDetalhes(Map<String, dynamic> item) async {
-    dynamic detalhes;
-    final origemId = item['origemId'];
-    if (item['tipo'] == 'PEDIDO' && origemId != null) {
-      final resposta = await apiService.get('/api/pedidos-produto/codigo/$origemId');
-      if (resposta.statusCode == 200) detalhes = jsonDecode(resposta.body);
-    } else if (item['tipo'] == 'ORDEM_SERVICO' && origemId != null) {
-      final resposta = await apiService.get('/api/ordens-servico/$origemId');
-      if (resposta.statusCode == 200) detalhes = jsonDecode(resposta.body);
-    }
+    final detalhes = await _carregarDetalhes(item);
     if (!mounted) return;
     await showDialog<void>(
       context: context,
@@ -253,6 +245,24 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
         actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar'))],
       ),
     );
+  }
+
+  Future<dynamic> _carregarDetalhes(Map<String, dynamic> item, [int nivel = 0]) async {
+    if (nivel > 6) return null;
+    final origemId = item['origemId'];
+    if (item['tipo'] == 'PEDIDO' && origemId != null) {
+      final resposta = await apiService.get('/api/pedidos-produto/codigo/$origemId');
+      if (resposta.statusCode == 200) return jsonDecode(resposta.body);
+    } else if (item['tipo'] == 'ORDEM_SERVICO' && origemId != null) {
+      final resposta = await apiService.get('/api/ordens-servico/$origemId');
+      if (resposta.statusCode == 200) return jsonDecode(resposta.body);
+    } else if (item['tipo'] == 'SALDO_ANTERIOR' && origemId != null) {
+      final resposta = await apiService.get('/api/cobrancas/itens/$origemId');
+      if (resposta.statusCode == 200) {
+        return _carregarDetalhes(jsonDecode(resposta.body) as Map<String, dynamic>, nivel + 1);
+      }
+    }
+    return null;
   }
 
   @override
@@ -296,7 +306,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                           onChanged: aberto ? (marcado) => setState(() => marcado == true ? _selecionados.add(id) : _selecionados.remove(id)) : null,
                         ),
                         title: Text(item['descricao'] ?? item['tipo'] ?? ''),
-                        subtitle: Text('${item['referencia']} • vence ${item['vencimento']} • ${item['status']}'),
+                        subtitle: Text('${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

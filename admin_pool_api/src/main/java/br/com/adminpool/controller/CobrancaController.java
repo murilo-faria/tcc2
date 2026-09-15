@@ -44,6 +44,11 @@ public class CobrancaController {
         return cobrancaService.listarItensCliente(clienteId);
     }
 
+    @GetMapping("/itens/{itemId}")
+    public ItemCobranca detalharItem(@PathVariable Long itemId) {
+        return cobrancaService.detalharItem(itemId);
+    }
+
     @PostMapping("/gerar-mes-atual")
     public List<CobrancaMensal> gerarMesAtual() {
         return cobrancaService.gerarMesAtual();

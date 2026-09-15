@@ -77,6 +77,10 @@ public class CobrancaService {
         return itens.findByCobrancaClienteIdOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(clienteId);
     }
 
+    public ItemCobranca detalharItem(Long itemId) {
+        return itens.findById(itemId).orElseThrow();
+    }
+
     public List<ItemCobranca> listarItensPendentesCliente(Long clienteId) {
         gerarMes(YearMonth.now());
         atualizarAtrasos();
@@ -221,8 +225,13 @@ public class CobrancaService {
         CobrancaMensal cobranca = new CobrancaMensal();
         cobranca.setCliente(cliente);
         cobranca.setReferencia(mes.toString());
-        int diaValido = Math.min(cliente.getDiaVencimento(), mes.lengthOfMonth());
-        cobranca.setVencimento(mes.atDay(diaValido));
+        LocalDate primeiroVencimento = cliente.getPrimeiroVencimento();
+        if (primeiroVencimento != null && YearMonth.from(primeiroVencimento).equals(mes)) {
+            cobranca.setVencimento(primeiroVencimento);
+        } else {
+            int diaValido = Math.min(cliente.getDiaVencimento(), mes.lengthOfMonth());
+            cobranca.setVencimento(mes.atDay(diaValido));
+        }
         cobranca.setMensalidade(BigDecimal.ZERO);
         cobranca.setProdutos(BigDecimal.ZERO);
         cobranca.setServicos(BigDecimal.ZERO);

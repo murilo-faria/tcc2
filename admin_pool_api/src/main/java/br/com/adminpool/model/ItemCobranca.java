@@ -25,6 +25,7 @@ public class ItemCobranca {
     }
     public String getReferencia(){return cobranca == null ? null : cobranca.getReferencia();}
     public LocalDate getVencimento(){return cobranca == null ? null : cobranca.getVencimento();}
+    public boolean isAtrasado(){return getSaldoPendente().compareTo(BigDecimal.ZERO)>0&&getVencimento()!=null&&getVencimento().isBefore(LocalDate.now());}
     public Long getClienteId(){return cobranca == null ? null : cobranca.getCliente().getId();}
     public Long getId(){return id;} public void setId(Long v){id=v;}
     public CobrancaMensal getCobranca(){return cobranca;} public void setCobranca(CobrancaMensal v){cobranca=v;}
