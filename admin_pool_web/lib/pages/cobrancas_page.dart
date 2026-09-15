@@ -33,23 +33,30 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
   Future<void> _abrirCliente(Map<String, dynamic> cliente) async {
     await showDialog<void>(
       context: context,
-      builder: (_) => _PainelCobrancaCliente(
-        cliente: cliente,
-        aoAtualizar: _atualizar,
-      ),
+      builder: (_) =>
+          _PainelCobrancaCliente(cliente: cliente, aoAtualizar: _atualizar),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
+      padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 16 : 28,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Cobranças', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            'Cobranças',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 6),
-          const Text('Abra um cliente para conferir, detalhar e baixar cada valor.'),
+          const Text(
+            'Abra um cliente para conferir, detalhar e baixar cada valor.',
+          ),
           const SizedBox(height: 18),
           TextField(
             decoration: const InputDecoration(
@@ -57,7 +64,8 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
               labelText: 'Pesquisar cliente',
               border: OutlineInputBorder(),
             ),
-            onChanged: (valor) => setState(() => _busca = valor.trim().toLowerCase()),
+            onChanged: (valor) =>
+                setState(() => _busca = valor.trim().toLowerCase()),
           ),
           const SizedBox(height: 12),
           Expanded(
@@ -67,10 +75,20 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                 if (estado.connectionState != ConnectionState.done) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (estado.hasError) return Center(child: Text('${estado.error}'));
-                final clientes = estado.data!.where((item) =>
-                    (item['clienteNome'] ?? '').toString().toLowerCase().contains(_busca)).toList();
-                if (clientes.isEmpty) return const Center(child: Text('Nenhum cliente encontrado.'));
+                if (estado.hasError)
+                  return Center(child: Text('${estado.error}'));
+                final clientes = estado.data!
+                    .where(
+                      (item) => (item['clienteNome'] ?? '')
+                          .toString()
+                          .toLowerCase()
+                          .contains(_busca),
+                    )
+                    .toList();
+                if (clientes.isEmpty)
+                  return const Center(
+                    child: Text('Nenhum cliente encontrado.'),
+                  );
                 return Card(
                   child: ListView.separated(
                     itemCount: clientes.length,
@@ -82,18 +100,32 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       return ListTile(
                         onTap: () => _abrirCliente(cliente),
                         leading: CircleAvatar(
-                          backgroundColor: atrasado ? Colors.red.shade50 : Colors.blue.shade50,
-                          child: Icon(atrasado ? Icons.warning_amber_rounded : Icons.person_outline,
-                              color: atrasado ? Colors.red : Colors.blue),
+                          backgroundColor: atrasado
+                              ? Colors.red.shade50
+                              : Colors.blue.shade50,
+                          child: Icon(
+                            atrasado
+                                ? Icons.warning_amber_rounded
+                                : Icons.person_outline,
+                            color: atrasado ? Colors.red : Colors.blue,
+                          ),
                         ),
                         title: Text(cliente['clienteNome'] ?? ''),
-                        subtitle: Text(total == 0
-                            ? 'Em dia'
-                            : '${cliente['quantidadePendente']} item(ns) ${atrasado ? '• possui atraso' : '• pendente'}'),
+                        subtitle: Text(
+                          total == 0
+                              ? 'Em dia'
+                              : '${cliente['quantidadePendente']} item(ns) ${atrasado ? '• possui atraso' : '• pendente'}',
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(formatarMoeda(total), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text(
+                              formatarMoeda(total),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                             const SizedBox(width: 8),
                             const Icon(Icons.chevron_right),
                           ],
@@ -112,7 +144,10 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
 }
 
 class _PainelCobrancaCliente extends StatefulWidget {
-  const _PainelCobrancaCliente({required this.cliente, required this.aoAtualizar});
+  const _PainelCobrancaCliente({
+    required this.cliente,
+    required this.aoAtualizar,
+  });
   final Map<String, dynamic> cliente;
   final VoidCallback aoAtualizar;
 
@@ -133,8 +168,11 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
   }
 
   Future<List<dynamic>> _carregar() async {
-    final resposta = await apiService.get('/api/cobrancas/clientes/$clienteId/itens');
-    if (resposta.statusCode != 200) throw Exception('Não foi possível carregar os itens.');
+    final resposta = await apiService.get(
+      '/api/cobrancas/clientes/$clienteId/itens',
+    );
+    if (resposta.statusCode != 200)
+      throw Exception('Não foi possível carregar os itens.');
     return jsonDecode(resposta.body) as List<dynamic>;
   }
 
@@ -147,6 +185,24 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     setState(() => _itens = _carregar());
   }
 
+  void _informarBaixa(String mensagem) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensagem), backgroundColor: Colors.green.shade700),
+    );
+  }
+
+  void _informarErro() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Não foi possível registrar o pagamento. Tente novamente.',
+        ),
+      ),
+    );
+  }
+
   Future<bool> _confirmar(String titulo, String mensagem, String botao) async {
     return await showDialog<bool>(
           context: context,
@@ -154,8 +210,14 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
             title: Text(titulo),
             content: Text(mensagem),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-              FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(botao)),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(botao),
+              ),
             ],
           ),
         ) ??
@@ -170,8 +232,16 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
       'Confirmar pagamento',
     );
     if (!ok) return;
-    final resposta = await apiService.put('/api/cobrancas/itens/${item['id']}/baixar', body: {});
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+    final resposta = await apiService.put(
+      '/api/cobrancas/itens/${item['id']}/baixar',
+      body: {},
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+      _informarBaixa('Pagamento registrado. O item ficou marcado em verde.');
+    } else {
+      _informarErro();
+    }
   }
 
   Future<void> _baixarSelecionados() async {
@@ -182,10 +252,16 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
       'Confirmar recebimento',
     );
     if (!ok) return;
-    final resposta = await apiService.put('/api/cobrancas/itens/baixar', body: {
-      'itemIds': _selecionados.toList(),
-    });
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+    final resposta = await apiService.put(
+      '/api/cobrancas/itens/baixar',
+      body: {'itemIds': _selecionados.toList()},
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+      _informarBaixa('Pagamentos selecionados registrados.');
+    } else {
+      _informarErro();
+    }
   }
 
   Future<void> _baixarTotal() async {
@@ -196,8 +272,16 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
       'Confirmar pagamento total',
     );
     if (!ok) return;
-    final resposta = await apiService.put('/api/cobrancas/clientes/$clienteId/baixar-total', body: {});
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+    final resposta = await apiService.put(
+      '/api/cobrancas/clientes/$clienteId/baixar-total',
+      body: {},
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+      _informarBaixa('Pagamento total registrado.');
+    } else {
+      _informarErro();
+    }
   }
 
   Future<void> _baixarParcial() async {
@@ -217,20 +301,32 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, double.tryParse(controlador.text.replaceAll(',', '.'))),
+            onPressed: () => Navigator.pop(
+              context,
+              double.tryParse(controlador.text.replaceAll(',', '.')),
+            ),
             child: const Text('Confirmar baixa parcial'),
           ),
         ],
       ),
     );
     if (valor == null || valor <= 0) return;
-    final resposta = await apiService.put('/api/cobrancas/clientes/$clienteId/baixar-parcial', body: {'valor': valor});
+    final resposta = await apiService.put(
+      '/api/cobrancas/clientes/$clienteId/baixar-parcial',
+      body: {'valor': valor},
+    );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
+      _informarBaixa('Baixa parcial registrada.');
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Confira o valor informado.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Confira o valor informado.')),
+      );
     }
   }
 
@@ -241,17 +337,30 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(item['descricao'] ?? 'Detalhes'),
-        content: SizedBox(width: 520, child: _ConteudoDetalheCobranca(item: item, detalhes: detalhes)),
-        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar'))],
+        content: SizedBox(
+          width: 520,
+          child: _ConteudoDetalheCobranca(item: item, detalhes: detalhes),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
       ),
     );
   }
 
-  Future<dynamic> _carregarDetalhes(Map<String, dynamic> item, [int nivel = 0]) async {
+  Future<dynamic> _carregarDetalhes(
+    Map<String, dynamic> item, [
+    int nivel = 0,
+  ]) async {
     if (nivel > 6) return null;
     final origemId = item['origemId'];
     if (item['tipo'] == 'PEDIDO' && origemId != null) {
-      final resposta = await apiService.get('/api/pedidos-produto/codigo/$origemId');
+      final resposta = await apiService.get(
+        '/api/pedidos-produto/codigo/$origemId',
+      );
       if (resposta.statusCode == 200) return jsonDecode(resposta.body);
     } else if (item['tipo'] == 'ORDEM_SERVICO' && origemId != null) {
       final resposta = await apiService.get('/api/ordens-servico/$origemId');
@@ -259,7 +368,10 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     } else if (item['tipo'] == 'SALDO_ANTERIOR' && origemId != null) {
       final resposta = await apiService.get('/api/cobrancas/itens/$origemId');
       if (resposta.statusCode == 200) {
-        return _carregarDetalhes(jsonDecode(resposta.body) as Map<String, dynamic>, nivel + 1);
+        return _carregarDetalhes(
+          jsonDecode(resposta.body) as Map<String, dynamic>,
+          nivel + 1,
+        );
       }
     }
     return null;
@@ -278,9 +390,21 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
               spacing: 10,
               runSpacing: 8,
               children: [
-                FilledButton.icon(onPressed: _baixarTotal, icon: const Icon(Icons.done_all), label: const Text('Confirmar pagamento total')),
-                OutlinedButton.icon(onPressed: _baixarParcial, icon: const Icon(Icons.payments_outlined), label: const Text('Baixa parcial')),
-                OutlinedButton.icon(onPressed: _selecionados.isEmpty ? null : _baixarSelecionados, icon: const Icon(Icons.checklist), label: Text('Baixar selecionados (${_selecionados.length})')),
+                FilledButton.icon(
+                  onPressed: _baixarTotal,
+                  icon: const Icon(Icons.done_all),
+                  label: const Text('Confirmar pagamento total'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _baixarParcial,
+                  icon: const Icon(Icons.payments_outlined),
+                  label: const Text('Baixa parcial'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _selecionados.isEmpty ? null : _baixarSelecionados,
+                  icon: const Icon(Icons.checklist),
+                  label: Text('Baixar selecionados (${_selecionados.length})'),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -289,30 +413,80 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
               child: FutureBuilder<List<dynamic>>(
                 future: _itens,
                 builder: (_, estado) {
-                  if (!estado.hasData) return const Center(child: CircularProgressIndicator());
-                  if (estado.hasError) return Center(child: Text('${estado.error}'));
-                  if (estado.data!.isEmpty) return const Center(child: Text('Nenhum valor lançado.'));
+                  if (!estado.hasData)
+                    return const Center(child: CircularProgressIndicator());
+                  if (estado.hasError)
+                    return Center(child: Text('${estado.error}'));
+                  if (estado.data!.isEmpty)
+                    return const Center(child: Text('Nenhum valor lançado.'));
                   return ListView.separated(
                     itemCount: estado.data!.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, indice) {
                       final item = estado.data![indice] as Map<String, dynamic>;
                       final aberto = _aberto(item);
+                      final pago = item['status'] == 'PAGO';
                       final id = item['id'] as int;
                       return ListTile(
+                        tileColor: pago
+                            ? Colors.green.withValues(alpha: .07)
+                            : Colors.white,
                         onTap: () => _abrirDetalhes(item),
                         leading: Checkbox(
                           value: _selecionados.contains(id),
-                          onChanged: aberto ? (marcado) => setState(() => marcado == true ? _selecionados.add(id) : _selecionados.remove(id)) : null,
+                          onChanged: aberto
+                              ? (marcado) => setState(
+                                  () => marcado == true
+                                      ? _selecionados.add(id)
+                                      : _selecionados.remove(id),
+                                )
+                              : null,
                         ),
-                        title: Text(item['descricao'] ?? item['tipo'] ?? ''),
-                        subtitle: Text('${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}'),
+                        title: Text(
+                          item['descricao'] ?? item['tipo'] ?? '',
+                          style: TextStyle(
+                            fontWeight: pago ? FontWeight.w600 : null,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
+                          style: TextStyle(
+                            color: pago ? Colors.green.shade800 : null,
+                          ),
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(formatarMoeda((item['saldoPendente'] as num?) ?? 0), style: const TextStyle(fontWeight: FontWeight.bold)),
-                            IconButton(tooltip: 'Ver detalhes', onPressed: () => _abrirDetalhes(item), icon: const Icon(Icons.visibility_outlined)),
-                            IconButton(tooltip: 'Confirmar pagamento', onPressed: aberto ? () => _baixarItem(item) : null, icon: Icon(Icons.check_circle_outline, color: aberto ? Colors.green : null)),
+                            Text(
+                              formatarMoeda(
+                                (item['saldoPendente'] as num?) ?? 0,
+                              ),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: pago ? Colors.green.shade800 : null,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Ver detalhes',
+                              onPressed: () => _abrirDetalhes(item),
+                              icon: const Icon(Icons.visibility_outlined),
+                            ),
+                            IconButton(
+                              tooltip: pago
+                                  ? 'Pagamento confirmado'
+                                  : 'Confirmar pagamento',
+                              onPressed: aberto
+                                  ? () => _baixarItem(item)
+                                  : null,
+                              icon: Icon(
+                                pago
+                                    ? Icons.check_circle
+                                    : Icons.circle_outlined,
+                                color: pago
+                                    ? Colors.green
+                                    : Colors.grey.shade500,
+                              ),
+                            ),
                           ],
                         ),
                       );
@@ -324,7 +498,12 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
           ],
         ),
       ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar'))],
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Fechar'),
+        ),
+      ],
     );
   }
 }
@@ -346,7 +525,9 @@ class _ConteudoDetalheCobranca extends StatelessWidget {
             return ListTile(
               leading: const Icon(Icons.shopping_bag_outlined),
               title: Text(produto['nome'] ?? 'Produto'),
-              subtitle: Text('${linha['quantidade']} unidade(s) × ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}'),
+              subtitle: Text(
+                '${linha['quantidade']} unidade(s) × ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}',
+              ),
               trailing: Text(formatarMoeda((linha['totalVenda'] as num?) ?? 0)),
             );
           }).toList(),
@@ -363,7 +544,9 @@ class _ConteudoDetalheCobranca extends StatelessWidget {
           const SizedBox(height: 12),
           Text('Data do serviço: ${os['dataServico'] ?? '-'}'),
           Text('Custo: ${formatarMoeda((os['valorCusto'] as num?) ?? 0)}'),
-          Text('Cobrado do cliente: ${formatarMoeda((os['valorCobrado'] as num?) ?? 0)}'),
+          Text(
+            'Cobrado do cliente: ${formatarMoeda((os['valorCobrado'] as num?) ?? 0)}',
+          ),
           Text('Pago por: ${os['pagoPor'] ?? '-'}'),
           Text('Situação: ${os['status'] ?? '-'}'),
         ],
@@ -375,8 +558,12 @@ class _ConteudoDetalheCobranca extends StatelessWidget {
       children: [
         Text('Tipo: ${item['tipo']}'),
         Text('Lançamento: ${item['dataLancamento']}'),
-        Text('Valor original: ${formatarMoeda((item['valorOriginal'] as num?) ?? 0)}'),
-        Text('Valor recebido: ${formatarMoeda((item['valorPago'] as num?) ?? 0)}'),
+        Text(
+          'Valor original: ${formatarMoeda((item['valorOriginal'] as num?) ?? 0)}',
+        ),
+        Text(
+          'Valor recebido: ${formatarMoeda((item['valorPago'] as num?) ?? 0)}',
+        ),
         Text('Saldo: ${formatarMoeda((item['saldoPendente'] as num?) ?? 0)}'),
       ],
     );
