@@ -1643,15 +1643,15 @@ class _Dashboard extends StatelessWidget {
               ? [
                   const _ContagemResumoCard(tipo: _TipoContagem.clientes),
                   const _ContagemResumoCard(tipo: _TipoContagem.cobrancas),
-                  const _FaturamentoCard(),
-                  const _FluxoCaixaCard(),
-                  const _ResultadoProdutosCard(),
                   const _NotificacaoOperacionalCard(
                     tipo: _TipoNotificacao.produto,
                   ),
                   const _NotificacaoOperacionalCard(
                     tipo: _TipoNotificacao.ordemServico,
                   ),
+                  const _FaturamentoCard(),
+                  const _FluxoCaixaCard(),
+                  const _ResultadoProdutosCard(),
                 ]
               : const [_ResumoFuncionario()],
         ),

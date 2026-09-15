@@ -420,11 +420,18 @@ class _ResultadoProdutosCard extends StatelessWidget {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.trending_up, color: Colors.teal),
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Color(0x1A009688),
+                          child: Icon(
+                            Icons.shopping_bag_outlined,
+                            color: Colors.teal,
+                          ),
+                        ),
                         SizedBox(width: 10),
                         Text(
-                          'Resultado de produtos do mês',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          'Fluxo de produtos',
+                          style: TextStyle(color: Colors.black54),
                         ),
                       ],
                     ),
@@ -441,10 +448,6 @@ class _ResultadoProdutosCard extends StatelessWidget {
                         ),
                         Text(
                           'Lucro: ${formatarMoeda((dados['lucroBruto'] as num?) ?? 0)}',
-                          style: const TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
                         ),
                         Text(
                           'Margem: ${((dados['margemPercentual'] as num?) ?? 0).toStringAsFixed(2)}%',
