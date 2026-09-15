@@ -1,44 +1,38 @@
 package br.com.adminpool.controller;
 
+import br.com.adminpool.dto.ConcluirOrdemServicoRequest;
 import br.com.adminpool.dto.NovaOrdemServicoRequest;
 import br.com.adminpool.model.OrdemServico;
-import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.OrdemServicoRepository;
-import br.com.adminpool.repository.PiscinaRepository;
-import br.com.adminpool.service.LancamentoCobrancaService;
+import br.com.adminpool.service.OrdemServicoService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
-import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/ordens-servico")
-
 public class OrdemServicoController {
 
     private final OrdemServicoRepository ordens;
-    private final ClienteRepository clientes;
-    private final PiscinaRepository piscinas;
-    private final LancamentoCobrancaService lancamentos;
+    private final OrdemServicoService servico;
 
-    public OrdemServicoController(
-            OrdemServicoRepository ordens,
-            ClienteRepository clientes,
-            PiscinaRepository piscinas,
-            LancamentoCobrancaService lancamentos) {
+    public OrdemServicoController(OrdemServicoRepository ordens, OrdemServicoService servico) {
         this.ordens = ordens;
-        this.clientes = clientes;
-        this.piscinas = piscinas;
-        this.lancamentos = lancamentos;
+        this.servico = servico;
     }
 
     @GetMapping
     public List<OrdemServico> listarTodas(Authentication auth) {
-        return gestor(auth)?ordens.findAllByOrderByDataServicoDesc():ordens.findByPiscinaResponsavelUsuarioLoginIgnoreCaseOrderByDataServicoDesc(auth.getName());
+        return gestor(auth) ? ordens.findAllByOrderByDataServicoDesc()
+                : ordens.findByPiscinaResponsavelUsuarioLoginIgnoreCaseOrderByDataServicoDesc(auth.getName());
+    }
+
+    @GetMapping("/{id}")
+    public OrdemServico detalhar(@PathVariable Long id) {
+        return ordens.findById(id).orElseThrow();
     }
 
     @GetMapping("/cliente/{clienteId}")
@@ -51,43 +45,39 @@ public class OrdemServicoController {
         return ordens.findByStatusOrderByDataServicoDesc("ABERTA");
     }
 
-    @PutMapping("/{id}/status")
-    public ResponseEntity<Void> alterarStatus(@PathVariable Long id, @RequestParam String status) {
-        OrdemServico ordem = ordens.findById(id).orElseThrow();
-        ordem.setStatus(status);
-        ordens.save(ordem);
+    @PostMapping
+    public ResponseEntity<OrdemServico> criar(@RequestBody NovaOrdemServicoRequest requisicao,
+                                              Authentication auth) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(servico.criar(requisicao, auth));
+    }
+
+    @PutMapping("/{id}/concluir")
+    public OrdemServico concluir(@PathVariable Long id,
+                                  @RequestBody ConcluirOrdemServicoRequest requisicao,
+                                  Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem concluir uma OS.");
+        }
+        return servico.concluir(id, requisicao);
+    }
+
+    @PutMapping("/{id}/cancelar")
+    public ResponseEntity<Void> cancelar(@PathVariable Long id) {
+        servico.cancelar(id);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> excluir(@PathVariable Long id) {
-        ordens.deleteById(id);
+        OrdemServico ordem = ordens.findById(id).orElseThrow();
+        if (ordem.isFinanceiroLancado()) {
+            throw new IllegalStateException("Uma OS concluída não pode ser excluída.");
+        }
+        ordens.delete(ordem);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping
-    public ResponseEntity<OrdemServico> criar(@RequestBody NovaOrdemServicoRequest requisicao, Authentication auth) {
-        OrdemServico ordem = new OrdemServico();
-        var cliente=clientes.findById(requisicao.clienteId()).orElseThrow(); ordem.setCliente(cliente);
-
-        if (requisicao.piscinaId() == null) throw new IllegalArgumentException("Selecione a piscina da ordem.");
-        var piscina=piscinas.findById(requisicao.piscinaId()).orElseThrow();
-        if(!piscina.getCliente().getId().equals(cliente.getId())) throw new IllegalArgumentException("A piscina não pertence ao cliente.");
-        if(!gestor(auth)&&(piscina.getResponsavel()==null||!piscina.getResponsavel().getUsuario().getLogin().equalsIgnoreCase(auth.getName()))) throw new org.springframework.security.access.AccessDeniedException("Piscina não vinculada ao funcionário.");
-        ordem.setPiscina(piscina);
-
-        ordem.setDescricao(requisicao.descricao());
-        ordem.setDataServico(
-                requisicao.dataServico() == null ? LocalDate.now() : requisicao.dataServico());
-        ordem.setValorAdicional(
-                requisicao.valorAdicional() == null ? BigDecimal.ZERO : requisicao.valorAdicional());
-
-        OrdemServico ordemSalva = ordens.save(ordem);
-        if (ordemSalva.getValorAdicional().signum() > 0) {
-            lancamentos.adicionarServico(requisicao.clienteId(), ordemSalva.getValorAdicional());
-        }
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(ordemSalva);
+    private boolean gestor(Authentication auth) {
+        return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_GESTOR"));
     }
-    private boolean gestor(Authentication a){return a.getAuthorities().stream().anyMatch(x->x.getAuthority().equals("ROLE_GESTOR"));}
 }
