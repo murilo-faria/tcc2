@@ -14,6 +14,7 @@ part 'pages/gestao_pages.dart';
 part 'pages/funcionarios_page.dart';
 part 'pages/cobrancas_page.dart';
 part 'pages/pedidos_page.dart';
+part 'pages/ordens_servico_page.dart';
 
 void main() => runApp(const AdminPoolApp());
 
@@ -233,7 +234,7 @@ class _PageContent extends StatelessWidget {
     if (titulo == 'Cobranças') return const _CobrancasPageNova();
     if (titulo == 'Salários' || titulo == 'Meu salário') return _SalariosPage(gestor: perfil == Perfil.gestor);
     if (titulo == 'Pedidos') return _PedidosPageNova(gestor: perfil == Perfil.gestor);
-    if (titulo == 'Ordens de serviço') return const _OrdensServicoPage();
+    if (titulo == 'Ordens de serviço') return _OrdensServicoPageNova(gestor: perfil == Perfil.gestor);
     return Padding(
       padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
       child: Column(
