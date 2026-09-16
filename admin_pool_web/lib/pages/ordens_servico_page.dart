@@ -235,6 +235,14 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
+  Future<void> _editar(Map<String, dynamic> ordem) async {
+    final descricao = TextEditingController(text: ordem['descricao'] ?? '');
+    final ok = await showDialog<bool>(context: context, builder: (c) => AlertDialog(title: Text('Editar OS #${ordem['id']}'), content: TextField(controller: descricao, maxLines: 4, decoration: const InputDecoration(labelText: 'Descrição do serviço')), actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Salvar'))]));
+    if (ok != true || descricao.text.trim().isEmpty) return;
+    final r = await apiService.put('/api/ordens-servico/${ordem['id']}', body: {'clienteId': (ordem['cliente'] ?? {})['id'], 'piscinaId': (ordem['piscina'] ?? {})['id'], 'descricao': descricao.text.trim(), 'dataServico': ordem['dataServico'], 'valorAdicional': ordem['valorAdicional'] ?? ordem['valorCobrado'] ?? 0});
+    if (r.statusCode >= 200 && r.statusCode < 300) _recarregar();
+  }
+
   Future<void> _concluir(Map<String, dynamic> ordem) async {
     final custo = TextEditingController(
       text: (ordem['valorCusto'] ?? 0).toString(),
@@ -531,6 +539,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                             icon: const Icon(Icons.more_vert),
                             onSelected: (acao) {
                               if (acao == 'ver') _detalhar(ordem);
+                              if (acao == 'editar') _editar(ordem);
                               if (acao == 'concluir') _concluir(ordem);
                               if (acao == 'cancelar') _cancelar(ordem);
                             },
@@ -539,6 +548,11 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                                 value: 'ver',
                                 child: Text('Ver detalhes'),
                               ),
+                              if (widget.gestor && aberta)
+                                const PopupMenuItem(
+                                  value: 'editar',
+                                  child: Text('Editar OS'),
+                                ),
                               if (widget.gestor && aberta)
                                 const PopupMenuItem(
                                   value: 'concluir',

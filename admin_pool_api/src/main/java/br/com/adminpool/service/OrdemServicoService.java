@@ -103,6 +103,20 @@ public class OrdemServicoService {
     }
 
     @Transactional
+    public OrdemServico editar(Long id, NovaOrdemServicoRequest requisicao) {
+        OrdemServico ordem = ordens.findById(id).orElseThrow();
+        if (ordem.isFinanceiroLancado()) throw new IllegalStateException("Uma OS concluída não pode ser editada.");
+        var cliente = clientes.findById(requisicao.clienteId()).orElseThrow();
+        var piscina = piscinas.findById(requisicao.piscinaId()).orElseThrow();
+        if (!piscina.getCliente().getId().equals(cliente.getId())) throw new IllegalArgumentException("A piscina não pertence ao cliente.");
+        ordem.setCliente(cliente); ordem.setPiscina(piscina); ordem.setDescricao(requisicao.descricao());
+        ordem.setDataServico(requisicao.dataServico() == null ? ordem.getDataServico() : requisicao.dataServico());
+        BigDecimal valor = requisicao.valorAdicional() == null ? BigDecimal.ZERO : requisicao.valorAdicional();
+        ordem.setValorAdicional(valor); ordem.setValorCobrado(valor);
+        return ordens.save(ordem);
+    }
+
+    @Transactional
     public void cancelar(Long id) {
         OrdemServico ordem = ordens.findById(id).orElseThrow();
         if (ordem.isFinanceiroLancado()) {

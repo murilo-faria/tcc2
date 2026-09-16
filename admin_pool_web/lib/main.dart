@@ -557,7 +557,13 @@ class _ProdutosGerenciamentoPageState
                       leading: const CircleAvatar(
                         child: Icon(Icons.inventory_2_outlined),
                       ),
-                      title: Text(p['nome']),
+                      titleAlignment: ListTileTitleAlignment.bottom,
+                      title: Text(
+                        p['nome'],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 16),
+                      ),
                       subtitle: Text(
                         '${mangueira ? 'Venda por metro' : 'Venda: ${formatarMoeda(p['precoVenda'] as num)}'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}',
                         maxLines: 2,

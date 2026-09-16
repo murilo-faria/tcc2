@@ -51,6 +51,13 @@ public class OrdemServicoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(servico.criar(requisicao, auth));
     }
 
+    @PutMapping("/{id}")
+    public OrdemServico editar(@PathVariable Long id, @RequestBody NovaOrdemServicoRequest requisicao,
+                               Authentication auth) {
+        if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar uma OS.");
+        return servico.editar(id, requisicao);
+    }
+
     @PutMapping("/{id}/concluir")
     public OrdemServico concluir(@PathVariable Long id,
                                   @RequestBody ConcluirOrdemServicoRequest requisicao,
