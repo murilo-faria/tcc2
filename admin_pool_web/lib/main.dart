@@ -34,6 +34,9 @@ class AdminPoolApp extends StatelessWidget {
           secondary: const Color(0xFF90CAF9),
         ),
         useMaterial3: true,
+        dialogTheme: const DialogThemeData(
+          insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        ),
         scaffoldBackgroundColor: const Color(0xFFF7FAFF),
       ),
       home: const LoginPage(),
@@ -124,18 +127,18 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         child: Row(
           children: [
-          if (!compacta)
-            SizedBox(
-              width: 248,
-              child: Material(
-                color: Colors.white,
-                child: _Menu(
-                  menu: menu,
-                  pagina: pagina,
-                  aoSelecionar: (valor) => setState(() => pagina = valor),
+            if (!compacta)
+              SizedBox(
+                width: 248,
+                child: Material(
+                  color: Colors.white,
+                  child: _Menu(
+                    menu: menu,
+                    pagina: pagina,
+                    aoSelecionar: (valor) => setState(() => pagina = valor),
+                  ),
                 ),
               ),
-            ),
             Expanded(child: conteudo),
           ],
         ),
@@ -198,7 +201,12 @@ class _CabecalhoResponsivo extends StatelessWidget {
     final textos = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(titulo, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          titulo,
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 6),
         Text(subtitulo),
       ],
@@ -206,25 +214,113 @@ class _CabecalhoResponsivo extends StatelessWidget {
     if (estreito) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [textos, if (acao != null) const SizedBox(height: 14), if (acao != null) Align(alignment: Alignment.centerLeft, child: acao!)],
+        children: [
+          textos,
+          if (acao != null) const SizedBox(height: 14),
+          if (acao != null)
+            Align(alignment: Alignment.centerLeft, child: acao!),
+        ],
       );
     }
-    return Row(children: [Expanded(child: textos), if (acao != null) acao!]);
+    return Row(
+      children: [
+        Expanded(child: textos),
+        if (acao != null) acao!,
+      ],
+    );
   }
 }
 
 class _FiltrosRelatorio extends StatelessWidget {
-  const _FiltrosRelatorio({required this.clientes, required this.meses, required this.clienteSelecionado, required this.mesSelecionado, required this.dataInicial, required this.dataFinal, required this.aoMudarCliente, required this.aoMudarMes, required this.aoEscolherData, required this.aoLimpar});
-  final List<String> clientes; final List<String> meses; final String? clienteSelecionado; final String? mesSelecionado; final DateTime? dataInicial; final DateTime? dataFinal;
-  final ValueChanged<String?> aoMudarCliente; final ValueChanged<String?> aoMudarMes; final ValueChanged<bool> aoEscolherData; final VoidCallback aoLimpar;
-  String _data(DateTime? valor, String vazio) => valor == null ? vazio : '${valor.day.toString().padLeft(2, '0')}/${valor.month.toString().padLeft(2, '0')}/${valor.year}';
-  @override Widget build(BuildContext context) => Wrap(spacing: 10, runSpacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
-    SizedBox(width: 220, child: DropdownButtonFormField<String>(value: clienteSelecionado, isExpanded: true, decoration: const InputDecoration(labelText: 'Cliente', border: OutlineInputBorder()), items: [const DropdownMenuItem(value: null, child: Text('Todos os clientes')), ...clientes.map((nome) => DropdownMenuItem(value: nome, child: Text(nome, overflow: TextOverflow.ellipsis)))], onChanged: aoMudarCliente)),
-    SizedBox(width: 180, child: DropdownButtonFormField<String>(value: mesSelecionado, decoration: const InputDecoration(labelText: 'Mês', border: OutlineInputBorder()), items: [const DropdownMenuItem(value: null, child: Text('Todos os meses')), ...meses.map((mes) => DropdownMenuItem(value: mes, child: Text(mes)))], onChanged: aoMudarMes)),
-    OutlinedButton.icon(onPressed: () => aoEscolherData(true), icon: const Icon(Icons.calendar_today_outlined), label: Text(_data(dataInicial, 'Data inicial'))),
-    OutlinedButton.icon(onPressed: () => aoEscolherData(false), icon: const Icon(Icons.calendar_today_outlined), label: Text(_data(dataFinal, 'Data final'))),
-    TextButton.icon(onPressed: aoLimpar, icon: const Icon(Icons.filter_alt_off_outlined), label: const Text('Limpar filtros')),
-  ]);
+  const _FiltrosRelatorio({
+    required this.clientes,
+    required this.meses,
+    required this.clienteSelecionado,
+    required this.mesSelecionado,
+    required this.dataInicial,
+    required this.dataFinal,
+    required this.aoMudarCliente,
+    required this.aoMudarMes,
+    required this.aoEscolherData,
+    required this.aoLimpar,
+  });
+  final List<String> clientes;
+  final List<String> meses;
+  final String? clienteSelecionado;
+  final String? mesSelecionado;
+  final DateTime? dataInicial;
+  final DateTime? dataFinal;
+  final ValueChanged<String?> aoMudarCliente;
+  final ValueChanged<String?> aoMudarMes;
+  final ValueChanged<bool> aoEscolherData;
+  final VoidCallback aoLimpar;
+  String _data(DateTime? valor, String vazio) => valor == null
+      ? vazio
+      : '${valor.day.toString().padLeft(2, '0')}/${valor.month.toString().padLeft(2, '0')}/${valor.year}';
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 10,
+    runSpacing: 10,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      SizedBox(
+        width: 220,
+        child: DropdownButtonFormField<String>(
+          value: clienteSelecionado,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Cliente',
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            const DropdownMenuItem(
+              value: null,
+              child: Text('Todos os clientes'),
+            ),
+            ...clientes.map(
+              (nome) => DropdownMenuItem(
+                value: nome,
+                child: Text(nome, overflow: TextOverflow.ellipsis),
+              ),
+            ),
+          ],
+          onChanged: aoMudarCliente,
+        ),
+      ),
+      SizedBox(
+        width: 180,
+        child: DropdownButtonFormField<String>(
+          value: mesSelecionado,
+          decoration: const InputDecoration(
+            labelText: 'Mês',
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            const DropdownMenuItem(value: null, child: Text('Todos os meses')),
+            ...meses.map(
+              (mes) => DropdownMenuItem(value: mes, child: Text(mes)),
+            ),
+          ],
+          onChanged: aoMudarMes,
+        ),
+      ),
+      OutlinedButton.icon(
+        onPressed: () => aoEscolherData(true),
+        icon: const Icon(Icons.calendar_today_outlined),
+        label: Text(_data(dataInicial, 'Data inicial')),
+      ),
+      OutlinedButton.icon(
+        onPressed: () => aoEscolherData(false),
+        icon: const Icon(Icons.calendar_today_outlined),
+        label: Text(_data(dataFinal, 'Data final')),
+      ),
+      TextButton.icon(
+        onPressed: aoLimpar,
+        icon: const Icon(Icons.filter_alt_off_outlined),
+        label: const Text('Limpar filtros'),
+      ),
+    ],
+  );
 }
 
 class _PageContent extends StatelessWidget {
@@ -245,20 +341,27 @@ class _PageContent extends StatelessWidget {
     if (titulo == 'Produtos')
       return _ProdutosGerenciamentoPage(gestor: perfil == Perfil.gestor);
     if (titulo == 'Colaboradores') return const _FuncionariosPageNova();
-    if (titulo == 'Piscinas') return _PiscinasPage(gestor: perfil == Perfil.gestor);
+    if (titulo == 'Piscinas')
+      return _PiscinasPage(gestor: perfil == Perfil.gestor);
     if (titulo == 'Cobranças') return const _CobrancasPageNova();
-    if (titulo == 'Salários' || titulo == 'Meu salário') return _SalariosPageNova(gestor: perfil == Perfil.gestor);
-    if (titulo == 'Pedidos') return _PedidosPageNova(gestor: perfil == Perfil.gestor);
-    if (titulo == 'Ordens de serviço') return _OrdensServicoPageNova(gestor: perfil == Perfil.gestor);
+    if (titulo == 'Salários' || titulo == 'Meu salário')
+      return _SalariosPageNova(gestor: perfil == Perfil.gestor);
+    if (titulo == 'Pedidos')
+      return _PedidosPageNova(gestor: perfil == Perfil.gestor);
+    if (titulo == 'Ordens de serviço')
+      return _OrdensServicoPageNova(gestor: perfil == Perfil.gestor);
     return Padding(
-      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
+      padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 16 : 28,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             titulo,
-            style: Theme.of(context).textTheme.headlineMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text('Módulo de $titulo do Admin Pool.'),
@@ -401,7 +504,11 @@ class _ProdutosGerenciamentoPageState
               ? 'Nome e preços de compra e venda.'
               : 'Produtos disponíveis para os clientes.',
           acao: widget.gestor
-              ? FilledButton.icon(onPressed: () => formulario(), icon: const Icon(Icons.add), label: const Text('Novo produto'))
+              ? FilledButton.icon(
+                  onPressed: () => formulario(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Novo produto'),
+                )
               : null,
         ),
         const SizedBox(height: 18),
@@ -507,8 +614,9 @@ class _ListaProdutosState extends State<_ListaProdutos> {
       children: [
         Text(
           'Produtos',
-          style: Theme.of(context).textTheme.headlineMedium
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         const Text('Preço de venda para os clientes.'),
@@ -627,7 +735,11 @@ class _PedidosPageState extends State<_PedidosPage> {
         _CabecalhoResponsivo(
           titulo: 'Pedidos de produtos',
           subtitulo: 'Pedidos lançados nas cobranças mensais dos clientes.',
-          acao: FilledButton.icon(onPressed: novoPedido, icon: const Icon(Icons.add), label: const Text('Novo pedido')),
+          acao: FilledButton.icon(
+            onPressed: novoPedido,
+            icon: const Icon(Icons.add),
+            label: const Text('Novo pedido'),
+          ),
         ),
         const SizedBox(height: 18),
         TextField(
@@ -771,7 +883,9 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
                       setLocal(() {
                         clienteId = v!;
                         piscinas = ps;
-                        piscinaId = ps.length == 1 ? ps.first['id'] as int : null;
+                        piscinaId = ps.length == 1
+                            ? ps.first['id'] as int
+                            : null;
                       });
                     },
                   ),
@@ -872,7 +986,11 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
         _CabecalhoResponsivo(
           titulo: 'Ordens de serviço',
           subtitulo: 'Acompanhe e registre os serviços dos clientes.',
-          acao: FilledButton.icon(onPressed: novaOrdem, icon: const Icon(Icons.add), label: const Text('Nova OS')),
+          acao: FilledButton.icon(
+            onPressed: novaOrdem,
+            icon: const Icon(Icons.add),
+            label: const Text('Nova OS'),
+          ),
         ),
         const SizedBox(height: 18),
         TextField(
@@ -1021,7 +1139,11 @@ class _ListaClientesState extends State<_ListaClientes> {
           : DateTime(hoje.year, hoje.month + 1);
       final dia = int.tryParse(vencimento.text) ?? 10;
       final ultimoDia = DateTime(mesBase.year, mesBase.month + 1, 0).day;
-      return DateTime(mesBase.year, mesBase.month, dia > ultimoDia ? ultimoDia : dia);
+      return DateTime(
+        mesBase.year,
+        mesBase.month,
+        dia > ultimoDia ? ultimoDia : dia,
+      );
     }
 
     String dataApi(DateTime data) =>
@@ -1039,37 +1161,98 @@ class _ListaClientesState extends State<_ListaClientes> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Dados do cliente', style: TextStyle(fontWeight: FontWeight.bold)),
-                  TextField(controller: nome, autofocus: true, decoration: const InputDecoration(labelText: 'Nome *')),
-                  TextField(controller: telefone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Telefone')),
-                  TextField(controller: endereco, maxLines: 2, decoration: const InputDecoration(labelText: 'Endereço do cliente')),
+                  const Text(
+                    'Dados do cliente',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextField(
+                    controller: nome,
+                    autofocus: true,
+                    decoration: const InputDecoration(labelText: 'Nome *'),
+                  ),
+                  TextField(
+                    controller: telefone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: 'Telefone'),
+                  ),
+                  TextField(
+                    controller: endereco,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Endereço do cliente',
+                    ),
+                  ),
                   const SizedBox(height: 18),
-                  const Text('Piscina', style: TextStyle(fontWeight: FontWeight.bold)),
-                  TextField(controller: piscinaNome, decoration: const InputDecoration(labelText: 'Nome ou identificação da piscina *')),
-                  TextField(controller: piscinaEndereco, maxLines: 2, decoration: const InputDecoration(labelText: 'Endereço da piscina')),
-                  Row(children: [
-                    Expanded(child: TextField(controller: piscinaTipo, decoration: const InputDecoration(labelText: 'Tipo'))),
-                    const SizedBox(width: 12),
-                    Expanded(child: TextField(controller: piscinaVolume, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Volume em litros'))),
-                  ]),
+                  const Text(
+                    'Piscina',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextField(
+                    controller: piscinaNome,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome ou identificação da piscina *',
+                    ),
+                  ),
+                  TextField(
+                    controller: piscinaEndereco,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Endereço da piscina',
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: piscinaTipo,
+                          decoration: const InputDecoration(labelText: 'Tipo'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: piscinaVolume,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Volume em litros',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   DropdownButtonFormField<int?>(
                     initialValue: responsavelId,
-                    decoration: const InputDecoration(labelText: 'Colaborador responsável'),
+                    decoration: const InputDecoration(
+                      labelText: 'Colaborador responsável',
+                    ),
                     items: [
-                      const DropdownMenuItem<int?>(value: null, child: Text('Definir depois')),
-                      ...funcionarios.map((f) => DropdownMenuItem<int?>(
-                        value: f['id'] as int,
-                        child: Text((f['usuario'] ?? {})['nome'] ?? ''),
-                      )),
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('Definir depois'),
+                      ),
+                      ...funcionarios.map(
+                        (f) => DropdownMenuItem<int?>(
+                          value: f['id'] as int,
+                          child: Text((f['usuario'] ?? {})['nome'] ?? ''),
+                        ),
+                      ),
                     ],
                     onChanged: (v) => setDialogState(() => responsavelId = v),
                   ),
                   DropdownButtonFormField<String?>(
                     initialValue: diaAtendimento,
-                    decoration: const InputDecoration(labelText: 'Dia de atendimento'),
+                    decoration: const InputDecoration(
+                      labelText: 'Dia de atendimento',
+                    ),
                     items: const [
-                      DropdownMenuItem<String?>(value: null, child: Text('Definir depois')),
-                      DropdownMenuItem(value: 'Segunda', child: Text('Segunda')),
+                      DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Definir depois'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Segunda',
+                        child: Text('Segunda'),
+                      ),
                       DropdownMenuItem(value: 'Terça', child: Text('Terça')),
                       DropdownMenuItem(value: 'Quarta', child: Text('Quarta')),
                       DropdownMenuItem(value: 'Quinta', child: Text('Quinta')),
@@ -1079,28 +1262,56 @@ class _ListaClientesState extends State<_ListaClientes> {
                     onChanged: (v) => setDialogState(() => diaAtendimento = v),
                   ),
                   const SizedBox(height: 18),
-                  const Text('Cobrança', style: TextStyle(fontWeight: FontWeight.bold)),
-                  Row(children: [
-                    Expanded(child: TextField(
-                      controller: valor,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'Mensalidade *', prefixText: 'R\$ '),
-                    )),
-                    const SizedBox(width: 12),
-                    Expanded(child: TextField(
-                      controller: vencimento,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Vence todo dia *', helperText: '1 a 31'),
-                      onChanged: (_) => setDialogState(() {}),
-                    )),
-                  ]),
+                  const Text(
+                    'Cobrança',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: valor,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Mensalidade *',
+                            prefixText: 'R\$ ',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: vencimento,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Vence todo dia *',
+                            helperText: '1 a 31',
+                          ),
+                          onChanged: (_) => setDialogState(() {}),
+                        ),
+                      ),
+                    ],
+                  ),
                   DropdownButtonFormField<String>(
                     initialValue: inicioCobranca,
-                    decoration: const InputDecoration(labelText: 'Começar a cobrar *'),
+                    decoration: const InputDecoration(
+                      labelText: 'Começar a cobrar *',
+                    ),
                     items: const [
-                      DropdownMenuItem(value: 'MES_ATUAL', child: Text('Neste mês')),
-                      DropdownMenuItem(value: 'PROXIMO_MES', child: Text('No próximo mês')),
-                      DropdownMenuItem(value: 'PERSONALIZADO', child: Text('Escolher uma data')),
+                      DropdownMenuItem(
+                        value: 'MES_ATUAL',
+                        child: Text('Neste mês'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'PROXIMO_MES',
+                        child: Text('No próximo mês'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'PERSONALIZADO',
+                        child: Text('Escolher uma data'),
+                      ),
                     ],
                     onChanged: (v) => setDialogState(() => inicioCobranca = v!),
                   ),
@@ -1108,28 +1319,42 @@ class _ListaClientesState extends State<_ListaClientes> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.calendar_month_outlined),
-                      title: Text(dataPersonalizada == null ? 'Escolher primeiro vencimento' : dataApi(dataPersonalizada!)),
+                      title: Text(
+                        dataPersonalizada == null
+                            ? 'Escolher primeiro vencimento'
+                            : dataApi(dataPersonalizada!),
+                      ),
                       onTap: () async {
                         final escolhida = await showDatePicker(
                           context: context,
-                          initialDate: dataPersonalizada ?? DateTime.now().add(const Duration(days: 1)),
+                          initialDate:
+                              dataPersonalizada ??
+                              DateTime.now().add(const Duration(days: 1)),
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 1095)),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 1095),
+                          ),
                         );
-                        if (escolhida != null) setDialogState(() => dataPersonalizada = escolhida);
+                        if (escolhida != null)
+                          setDialogState(() => dataPersonalizada = escolhida);
                       },
                     )
                   else
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: Text('Primeiro vencimento: ${dataApi(vencimentoCalculado())}'),
+                      child: Text(
+                        'Primeiro vencimento: ${dataApi(vencimentoCalculado())}',
+                      ),
                     ),
                 ],
               ),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
             FilledButton.icon(
               onPressed: () => Navigator.pop(context, true),
               icon: const Icon(Icons.save_outlined),
@@ -1152,7 +1377,13 @@ class _ListaClientesState extends State<_ListaClientes> {
         dia > 31 ||
         piscinaNome.text.trim().isEmpty ||
         (inicioCobranca == 'PERSONALIZADO' && dataPersonalizada == null) ||
-        vencimentoCalculado().isBefore(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day))) {
+        vencimentoCalculado().isBefore(
+          DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day,
+          ),
+        )) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -1357,8 +1588,9 @@ class _ListaClientesState extends State<_ListaClientes> {
       );
       atualizacaoOperacional.value++;
       if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Piscina cadastrada.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Piscina cadastrada.')));
     }
   }
 
@@ -1482,7 +1714,11 @@ class _ListaClientesState extends State<_ListaClientes> {
           titulo: 'Clientes',
           subtitulo: 'Clientes cadastrados no banco Admin_Poll.',
           acao: widget.gestor
-              ? FilledButton.icon(onPressed: cadastrar, icon: const Icon(Icons.person_add_alt_1), label: const Text('Novo cliente'))
+              ? FilledButton.icon(
+                  onPressed: cadastrar,
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Novo cliente'),
+                )
               : null,
         ),
         const SizedBox(height: 18),
@@ -1561,23 +1797,27 @@ class _ListaClientesState extends State<_ListaClientes> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (widget.gestor) Text(
-                                'R\$ $valor',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                              if (widget.gestor)
+                                Text(
+                                  'R\$ $valor',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                              if (widget.gestor) IconButton(
-                                icon: const Icon(Icons.edit_outlined),
-                                onPressed: () => editar(cliente),
-                              ),
-                              if (widget.gestor) IconButton(
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.red,
+                              if (widget.gestor)
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => editar(cliente),
                                 ),
-                                onPressed: () => excluir(cliente['id'] as int),
-                              ),
+                              if (widget.gestor)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () =>
+                                      excluir(cliente['id'] as int),
+                                ),
                               Icon(
                                 selecionado
                                     ? Icons.expand_less
@@ -1640,12 +1880,15 @@ class _Dashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final gestor = perfil == Perfil.gestor;
     return ListView(
-      padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
+      padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 16 : 28,
+      ),
       children: [
         Text(
           'Olá, ${gestor ? 'Gestor' : (apiService.nomeUsuario ?? 'Colaborador')}!',
-          style: Theme.of(context).textTheme.headlineMedium
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         const Text('Acompanhe o resumo deste mês.'),
@@ -1672,8 +1915,9 @@ class _Dashboard extends StatelessWidget {
         const SizedBox(height: 32),
         Text(
           gestor ? 'Cobranças do mês' : 'Próximos serviços',
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         gestor ? const _CobrancasDoMes() : const _ProximosServicosFuncionario(),
@@ -1753,7 +1997,10 @@ class _CobrancasDoMesState extends State<_CobrancasDoMes> {
                 children: [
                   Text(valor),
                   const SizedBox(width: 12),
-                  Icon(status == 'PAGO' ? Icons.check_circle : Icons.chevron_right, color: cor),
+                  Icon(
+                    status == 'PAGO' ? Icons.check_circle : Icons.chevron_right,
+                    color: cor,
+                  ),
                 ],
               ),
             );
@@ -2052,8 +2299,9 @@ class _Indicador extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     valor,
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),

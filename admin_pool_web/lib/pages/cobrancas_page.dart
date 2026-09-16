@@ -379,11 +379,13 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
 
   @override
   Widget build(BuildContext context) {
+    final celular = MediaQuery.of(context).size.width < 600;
     return AlertDialog(
+      insetPadding: EdgeInsets.all(celular ? 16 : 24),
       title: Text('Valores a receber — ${widget.cliente['clienteNome']}'),
       content: SizedBox(
-        width: 780,
-        height: 520,
+        width: celular ? double.maxFinite : 780,
+        height: celular ? MediaQuery.of(context).size.height * .62 : 520,
         child: Column(
           children: [
             Wrap(
@@ -427,6 +429,96 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                       final aberto = _aberto(item);
                       final pago = item['status'] == 'PAGO';
                       final id = item['id'] as int;
+                      if (celular) {
+                        return InkWell(
+                          onTap: () => _abrirDetalhes(item),
+                          child: Container(
+                            color: pago
+                                ? Colors.green.withValues(alpha: .07)
+                                : Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 8,
+                            ),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: _selecionados.contains(id),
+                                  onChanged: aberto
+                                      ? (marcado) => setState(
+                                          () => marcado == true
+                                              ? _selecionados.add(id)
+                                              : _selecionados.remove(id),
+                                        )
+                                      : null,
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['descricao'] ?? item['tipo'] ?? '',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontWeight: pago
+                                              ? FontWeight.w600
+                                              : null,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: pago
+                                              ? Colors.green.shade800
+                                              : null,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        formatarMoeda(
+                                          (item['saldoPendente'] as num?) ?? 0,
+                                        ),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: pago
+                                              ? Colors.green.shade800
+                                              : null,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Ver detalhes',
+                                  onPressed: () => _abrirDetalhes(item),
+                                  icon: const Icon(Icons.visibility_outlined),
+                                ),
+                                IconButton(
+                                  tooltip: pago
+                                      ? 'Pagamento confirmado'
+                                      : 'Confirmar pagamento',
+                                  onPressed: aberto
+                                      ? () => _baixarItem(item)
+                                      : null,
+                                  icon: Icon(
+                                    pago
+                                        ? Icons.check_circle
+                                        : Icons.circle_outlined,
+                                    color: pago
+                                        ? Colors.green
+                                        : Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
                       return ListTile(
                         tileColor: pago
                             ? Colors.green.withValues(alpha: .07)

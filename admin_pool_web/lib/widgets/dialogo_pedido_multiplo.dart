@@ -12,7 +12,8 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
   required String titulo,
 }) async {
   int clienteId = clienteFixo ?? clientes.first['id'] as int;
-  int? piscinaId = piscinas.where((p) => p['cliente']['id'] == clienteId).length == 1
+  int? piscinaId =
+      piscinas.where((p) => p['cliente']['id'] == clienteId).length == 1
       ? piscinas.firstWhere((p) => p['cliente']['id'] == clienteId)['id'] as int
       : null;
   final itens = <Map<String, int>>[
@@ -31,10 +32,12 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
           total += (produto['precoVenda'] as num) * item['quantidade']!;
         }
 
+        final celular = MediaQuery.of(context).size.width < 600;
         return AlertDialog(
+          insetPadding: EdgeInsets.all(celular ? 16 : 24),
           title: Text(titulo),
           content: SizedBox(
-            width: 650,
+            width: celular ? double.maxFinite : 650,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -54,8 +57,12 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                       onChanged: (valor) {
                         setLocal(() {
                           clienteId = valor!;
-                          final disponiveis = piscinas.where((p) => p['cliente']['id'] == clienteId).toList();
-                          piscinaId = disponiveis.length == 1 ? disponiveis.first['id'] as int : null;
+                          final disponiveis = piscinas
+                              .where((p) => p['cliente']['id'] == clienteId)
+                              .toList();
+                          piscinaId = disponiveis.length == 1
+                              ? disponiveis.first['id'] as int
+                              : null;
                         });
                       },
                     ),
@@ -63,9 +70,19 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                     key: ValueKey('piscina-$clienteId'),
                     initialValue: piscinaId,
                     decoration: const InputDecoration(labelText: 'Piscina *'),
-                    items: piscinas.where((p) => p['cliente']['id'] == clienteId).map<DropdownMenuItem<int>>(
-                      (p) => DropdownMenuItem(value: p['id'] as int, child: Text('${p['nome']} — ${p['endereco'] ?? ''}')),
-                    ).toList(),
+                    isExpanded: true,
+                    items: piscinas
+                        .where((p) => p['cliente']['id'] == clienteId)
+                        .map<DropdownMenuItem<int>>(
+                          (p) => DropdownMenuItem(
+                            value: p['id'] as int,
+                            child: Text(
+                              p['nome'] ?? 'Piscina',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
                     onChanged: (valor) => setLocal(() => piscinaId = valor),
                   ),
                   if (piscinaId != null)
@@ -81,65 +98,75 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                   const SizedBox(height: 8),
                   ...List.generate(itens.length, (indice) {
                     final item = itens[indice];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              initialValue: item['produtoId'],
-                              decoration: InputDecoration(
-                                labelText: 'Produto ${indice + 1}',
-                              ),
-                              items: produtos
-                                  .map<DropdownMenuItem<int>>(
-                                    (produto) => DropdownMenuItem(
-                                      value: produto['id'] as int,
-                                      child: Text(
-                                        '${produto['nome']} — '
-                                        '${formatarMoeda(produto['precoVenda'] as num)}',
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (valor) {
-                                setLocal(() => item['produtoId'] = valor!);
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          SizedBox(
-                            width: 115,
-                            child: TextFormField(
-                              key: ValueKey(
-                                'qtd-$indice-${item['produtoId']}',
-                              ),
-                              initialValue: '${item['quantidade']}',
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Quantidade',
-                              ),
-                              onChanged: (valor) {
-                                setLocal(() {
-                                  item['quantidade'] =
-                                      int.tryParse(valor) ?? 1;
-                                });
-                              },
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: itens.length == 1
-                                ? null
-                                : () => setLocal(
-                                    () => itens.removeAt(indice),
-                                  ),
-                            icon: const Icon(
-                              Icons.remove_circle_outline,
-                              color: Colors.red,
-                            ),
-                          ),
-                        ],
+                    final produtoCampo = DropdownButtonFormField<int>(
+                      initialValue: item['produtoId'],
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Produto ${indice + 1}',
                       ),
+                      items: produtos
+                          .map<DropdownMenuItem<int>>(
+                            (produto) => DropdownMenuItem(
+                              value: produto['id'] as int,
+                              child: Text(
+                                '${produto['nome']} — '
+                                '${formatarMoeda(produto['precoVenda'] as num)}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (valor) {
+                        setLocal(() => item['produtoId'] = valor!);
+                      },
+                    );
+                    final quantidadeCampo = SizedBox(
+                      width: celular ? double.infinity : 115,
+                      child: TextFormField(
+                        key: ValueKey('qtd-$indice-${item['produtoId']}'),
+                        initialValue: '${item['quantidade']}',
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Quantidade',
+                        ),
+                        onChanged: (valor) => setLocal(
+                          () => item['quantidade'] = int.tryParse(valor) ?? 1,
+                        ),
+                      ),
+                    );
+                    final remover = IconButton(
+                      onPressed: itens.length == 1
+                          ? null
+                          : () => setLocal(() => itens.removeAt(indice)),
+                      icon: const Icon(
+                        Icons.remove_circle_outline,
+                        color: Colors.red,
+                      ),
+                    );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: celular
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                produtoCampo,
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(child: quantidadeCampo),
+                                    remover,
+                                  ],
+                                ),
+                              ],
+                            )
+                          : Row(
+                              children: [
+                                Expanded(child: produtoCampo),
+                                const SizedBox(width: 10),
+                                quantidadeCampo,
+                                remover,
+                              ],
+                            ),
                     );
                   }),
                   Align(
@@ -176,10 +203,13 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: piscinaId == null ? null : () => Navigator.pop(context, {
-                'clienteId': clienteId, 'piscinaId': piscinaId,
-                'itens': itens,
-              }),
+              onPressed: piscinaId == null
+                  ? null
+                  : () => Navigator.pop(context, {
+                      'clienteId': clienteId,
+                      'piscinaId': piscinaId,
+                      'itens': itens,
+                    }),
               child: const Text('Salvar pedido'),
             ),
           ],
