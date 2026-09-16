@@ -258,69 +258,77 @@ class _FiltrosRelatorio extends StatelessWidget {
       ? vazio
       : '${valor.day.toString().padLeft(2, '0')}/${valor.month.toString().padLeft(2, '0')}/${valor.year}';
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: 10,
-    runSpacing: 10,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    children: [
-      SizedBox(
-        width: 220,
-        child: DropdownButtonFormField<String>(
-          value: clienteSelecionado,
-          isExpanded: true,
-          decoration: const InputDecoration(
-            labelText: 'Cliente',
-            border: OutlineInputBorder(),
-          ),
-          items: [
-            const DropdownMenuItem(
-              value: null,
-              child: Text('Todos os clientes'),
+  Widget build(BuildContext context) {
+    final celular = MediaQuery.of(context).size.width < 600;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        SizedBox(
+          width: celular ? 160 : 220,
+          child: DropdownButtonFormField<String>(
+            value: clienteSelecionado,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Cliente',
+              isDense: true,
+              border: OutlineInputBorder(),
             ),
-            ...clientes.map(
-              (nome) => DropdownMenuItem(
-                value: nome,
-                child: Text(nome, overflow: TextOverflow.ellipsis),
+            items: [
+              const DropdownMenuItem(
+                value: null,
+                child: Text('Todos os clientes'),
               ),
-            ),
-          ],
-          onChanged: aoMudarCliente,
-        ),
-      ),
-      SizedBox(
-        width: 180,
-        child: DropdownButtonFormField<String>(
-          value: mesSelecionado,
-          decoration: const InputDecoration(
-            labelText: 'Mês',
-            border: OutlineInputBorder(),
+              ...clientes.map(
+                (nome) => DropdownMenuItem(
+                  value: nome,
+                  child: Text(nome, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
+            onChanged: aoMudarCliente,
           ),
-          items: [
-            const DropdownMenuItem(value: null, child: Text('Todos os meses')),
-            ...meses.map(
-              (mes) => DropdownMenuItem(value: mes, child: Text(mes)),
-            ),
-          ],
-          onChanged: aoMudarMes,
         ),
-      ),
-      OutlinedButton.icon(
-        onPressed: () => aoEscolherData(true),
-        icon: const Icon(Icons.calendar_today_outlined),
-        label: Text(_data(dataInicial, 'Data inicial')),
-      ),
-      OutlinedButton.icon(
-        onPressed: () => aoEscolherData(false),
-        icon: const Icon(Icons.calendar_today_outlined),
-        label: Text(_data(dataFinal, 'Data final')),
-      ),
-      TextButton.icon(
-        onPressed: aoLimpar,
-        icon: const Icon(Icons.filter_alt_off_outlined),
-        label: const Text('Limpar filtros'),
-      ),
-    ],
-  );
+        SizedBox(
+          width: celular ? 140 : 180,
+          child: DropdownButtonFormField<String>(
+            value: mesSelecionado,
+            decoration: const InputDecoration(
+              labelText: 'Mês',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              const DropdownMenuItem(
+                value: null,
+                child: Text('Todos os meses'),
+              ),
+              ...meses.map(
+                (mes) => DropdownMenuItem(value: mes, child: Text(mes)),
+              ),
+            ],
+            onChanged: aoMudarMes,
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => aoEscolherData(true),
+          icon: const Icon(Icons.calendar_today_outlined),
+          label: Text(_data(dataInicial, 'Data inicial')),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => aoEscolherData(false),
+          icon: const Icon(Icons.calendar_today_outlined),
+          label: Text(_data(dataFinal, 'Data final')),
+        ),
+        TextButton.icon(
+          onPressed: aoLimpar,
+          icon: const Icon(Icons.filter_alt_off_outlined),
+          label: const Text('Limpar filtros'),
+        ),
+      ],
+    );
+  }
 }
 
 class _PageContent extends StatelessWidget {
@@ -541,6 +549,7 @@ class _ProdutosGerenciamentoPageState
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final p = dados[i] as Map<String, dynamic>;
+                    final celular = MediaQuery.of(context).size.width < 600;
                     final mangueira = (p['nome'] as String)
                         .toLowerCase()
                         .contains('mangueira');
@@ -550,15 +559,20 @@ class _ProdutosGerenciamentoPageState
                       ),
                       title: Text(p['nome']),
                       subtitle: Text(
-                        '${mangueira ? 'Venda por metro' : 'Preço de venda'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}',
+                        '${mangueira ? 'Venda por metro' : 'Venda: ${formatarMoeda(p['precoVenda'] as num)}'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            formatarMoeda(p['precoVenda'] as num),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                          if (!celular)
+                            Text(
+                              formatarMoeda(p['precoVenda'] as num),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           if (widget.gestor)
                             IconButton(
                               onPressed: () => formulario(p),
@@ -1761,6 +1775,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final cliente = dados[i] as Map<String, dynamic>;
+                    final celular = MediaQuery.of(context).size.width < 600;
                     final valor = (cliente['valorMensalidade'] ?? 0)
                         .toString()
                         .replaceAll('.', ',');
@@ -1791,13 +1806,15 @@ class _ListaClientesState extends State<_ListaClientes> {
                                   .toString()
                                   .isNotEmpty)
                                 cliente['endereco'],
+                              if (widget.gestor && celular)
+                                'Mensalidade: R\$ $valor',
                               'Clique para abrir os serviços',
                             ].join(' • '),
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (widget.gestor)
+                              if (widget.gestor && !celular)
                                 Text(
                                   'R\$ $valor',
                                   style: const TextStyle(
@@ -1830,35 +1847,66 @@ class _ListaClientesState extends State<_ListaClientes> {
                           Container(
                             color: const Color(0xFFE3F2FD),
                             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: FilledButton.tonalIcon(
-                                    onPressed: () => abrirPiscinas(cliente),
-                                    icon: const Icon(Icons.pool_outlined),
-                                    label: const Text('Piscinas'),
+                            child: celular
+                                ? Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      FilledButton.tonalIcon(
+                                        onPressed: () => abrirPiscinas(cliente),
+                                        icon: const Icon(Icons.pool_outlined),
+                                        label: const Text('Piscinas'),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      FilledButton.tonalIcon(
+                                        onPressed: () =>
+                                            abrirOrdemServico(cliente),
+                                        icon: const Icon(Icons.build_outlined),
+                                        label: const Text('Ordem de serviço'),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      FilledButton.tonalIcon(
+                                        onPressed: () => abrirPedido(cliente),
+                                        icon: const Icon(
+                                          Icons.shopping_cart_outlined,
+                                        ),
+                                        label: const Text('Produtos'),
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    children: [
+                                      Expanded(
+                                        child: FilledButton.tonalIcon(
+                                          onPressed: () =>
+                                              abrirPiscinas(cliente),
+                                          icon: const Icon(Icons.pool_outlined),
+                                          label: const Text('Piscinas'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: FilledButton.tonalIcon(
+                                          onPressed: () =>
+                                              abrirOrdemServico(cliente),
+                                          icon: const Icon(
+                                            Icons.build_outlined,
+                                          ),
+                                          label: const Text('Ordem de serviço'),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: FilledButton.tonalIcon(
+                                          onPressed: () => abrirPedido(cliente),
+                                          icon: const Icon(
+                                            Icons.shopping_cart_outlined,
+                                          ),
+                                          label: const Text('Produtos'),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: FilledButton.tonalIcon(
-                                    onPressed: () => abrirOrdemServico(cliente),
-                                    icon: const Icon(Icons.build_outlined),
-                                    label: const Text('Ordem de serviço'),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: FilledButton.tonalIcon(
-                                    onPressed: () => abrirPedido(cliente),
-                                    icon: const Icon(
-                                      Icons.shopping_cart_outlined,
-                                    ),
-                                    label: const Text('Produtos'),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                       ],
                     );
