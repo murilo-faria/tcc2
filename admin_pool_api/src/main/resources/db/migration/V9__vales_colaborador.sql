@@ -1,0 +1,1 @@
+CREATE TABLE vales_colaborador (id BIGSERIAL PRIMARY KEY, funcionario_id BIGINT NOT NULL REFERENCES funcionarios(id), tipo VARCHAR(30) NOT NULL, valor NUMERIC(12,2) NOT NULL, data_lancamento DATE NOT NULL, observacao VARCHAR(500));

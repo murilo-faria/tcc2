@@ -7,6 +7,8 @@ import br.com.adminpool.model.StatusReembolso;
 import br.com.adminpool.repository.FuncionarioRepository;
 import br.com.adminpool.repository.PiscinaRepository;
 import br.com.adminpool.repository.ReembolsoColaboradorRepository;
+import br.com.adminpool.repository.ValeColaboradorRepository;
+import br.com.adminpool.model.ValeColaborador;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -19,6 +21,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,13 +34,19 @@ public class SalarioController {
     private final FuncionarioRepository funcionarios;
     private final PiscinaRepository piscinas;
     private final ReembolsoColaboradorRepository reembolsos;
+    private final ValeColaboradorRepository vales;
 
     public SalarioController(FuncionarioRepository funcionarios, PiscinaRepository piscinas,
-                             ReembolsoColaboradorRepository reembolsos) {
+                             ReembolsoColaboradorRepository reembolsos, ValeColaboradorRepository vales) {
         this.funcionarios = funcionarios;
         this.piscinas = piscinas;
         this.reembolsos = reembolsos;
+        this.vales = vales;
     }
+
+    @GetMapping("/vales") public List<ValeColaborador> listarVales(Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem consultar vales."); YearMonth mes=YearMonth.now(); return vales.findAll().stream().filter(v -> !v.getDataLancamento().isBefore(mes.atDay(1)) && !v.getDataLancamento().isAfter(mes.atEndOfMonth())).toList(); }
+    @PostMapping("/vales") public ValeColaborador criarVale(@RequestBody Map<String,Object> dados, Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem lançar vales."); ValeColaborador v=new ValeColaborador(); v.setFuncionario(funcionarios.findById(Long.valueOf(dados.get("funcionarioId").toString())).orElseThrow()); v.setTipo(dados.get("tipo").toString()); v.setValor(new BigDecimal(dados.get("valor").toString())); v.setObservacao(String.valueOf(dados.getOrDefault("observacao", ""))); v.setDataLancamento(LocalDate.now()); return vales.save(v); }
+    @PutMapping("/vales/{id}") public ValeColaborador editarVale(@PathVariable Long id, @RequestBody Map<String,Object> dados, Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar vales."); ValeColaborador v=vales.findById(id).orElseThrow(); v.setTipo(dados.get("tipo").toString()); v.setValor(new BigDecimal(dados.get("valor").toString())); v.setObservacao(String.valueOf(dados.getOrDefault("observacao", ""))); return vales.save(v); }
 
     @GetMapping
     public List<Map<String, Object>> listar(Authentication auth) {
@@ -88,6 +98,8 @@ public class SalarioController {
         BigDecimal totalReembolsos = reembolsos
                 .findByFuncionarioIdAndStatusOrderByDataLancamentoAsc(funcionario.getId(), StatusReembolso.PENDENTE)
                 .stream().map(ReembolsoColaborador::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
+        YearMonth mesAtual = YearMonth.now();
+        BigDecimal totalVales = vales.findByFuncionarioIdAndDataLancamentoBetweenOrderByDataLancamentoDesc(funcionario.getId(), mesAtual.atDay(1), mesAtual.atEndOfMonth()).stream().map(ValeColaborador::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
         Map<String, Object> resultado = new LinkedHashMap<>();
         resultado.put("funcionario", funcionario);
         resultado.put("piscinas", piscinasVinculadas.size());
@@ -95,7 +107,8 @@ public class SalarioController {
         resultado.put("baseMensal", baseMensal);
         resultado.put("salario", salario);
         resultado.put("reembolsos", totalReembolsos);
-        resultado.put("totalPagar", salario.add(totalReembolsos));
+        resultado.put("vales", totalVales);
+        resultado.put("totalPagar", salario.add(totalReembolsos).subtract(totalVales).max(BigDecimal.ZERO));
         return resultado;
     }
 

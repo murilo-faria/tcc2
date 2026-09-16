@@ -34,6 +34,8 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
       ),
     );
   }
+  Color _cor(Map<String,dynamic> f) { const cores=[Colors.blue,Colors.green,Colors.orange,Colors.deepPurple,Colors.teal]; return cores[(f['id'] as int? ?? 0)%cores.length]; }
+  Future<void> _abrirVales() async { await showDialog<void>(context: context, builder: (_) => _DialogoVales(aoAtualizar: () => setState(() => _salarios = _carregar()))); }
 
   Widget _cartaoResumo(Map<String, dynamic> resumo) {
     final funcionario = resumo['funcionario'] ?? {};
@@ -50,7 +52,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                const CircleAvatar(child: Icon(Icons.person_outline)),
+                CircleAvatar(backgroundColor: _cor(funcionario).withValues(alpha:.15), foregroundColor:_cor(funcionario), child: const Icon(Icons.person_outline)),
                 const SizedBox(width: 12),
                 Expanded(child: Text(usuario['nome'] ?? '', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold))),
                 const Icon(Icons.chevron_right),
@@ -58,6 +60,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
               const Divider(),
               Text('Comissão: ${formatarMoeda(salario)}'),
               Text('Reembolsos pendentes: ${formatarMoeda(reembolsos)}'),
+              Text('Vales do mês: - ${formatarMoeda((resumo['vales'] as num?) ?? 0)}'),
               const SizedBox(height: 6),
               Text('Total a pagar: ${formatarMoeda(total)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
               const SizedBox(height: 6),
@@ -79,6 +82,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
           Text(widget.gestor ? 'Salários' : 'Meu salário', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
           const Text('A comissão e os reembolsos são calculados separadamente.'),
+          if (widget.gestor) Align(alignment: Alignment.centerRight, child: OutlinedButton.icon(onPressed: _abrirVales, icon: const Icon(Icons.payments_outlined), label: const Text('Vale'))),
           const SizedBox(height: 18),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
@@ -110,6 +114,9 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
     );
   }
 }
+
+class _DialogoVales extends StatefulWidget { const _DialogoVales({required this.aoAtualizar}); final VoidCallback aoAtualizar; @override State<_DialogoVales> createState()=>_DialogoValesState(); }
+class _DialogoValesState extends State<_DialogoVales> { late Future<List<dynamic>> vales; @override void initState(){super.initState();vales=carregar();} Future<List<dynamic>> carregar()async{final r=await apiService.get('/api/salarios/vales');if(r.statusCode!=200)throw Exception('Não foi possível carregar os vales.');return jsonDecode(r.body);} @override Widget build(BuildContext c)=>AlertDialog(title:const Text('Vales dos colaboradores'),content:SizedBox(width:650,height:420,child:FutureBuilder<List<dynamic>>(future:vales,builder:(_,s){if(!s.hasData)return const Center(child:CircularProgressIndicator());if(s.hasError)return Center(child:Text('${s.error}'));return ListView.separated(itemCount:s.data!.length,separatorBuilder:(_,__)=>const Divider(),itemBuilder:(_,i){final v=s.data![i];final f=v['funcionario']??{},u=f['usuario']??{};return ListTile(leading:CircleAvatar(backgroundColor:[Colors.blue,Colors.green,Colors.orange,Colors.deepPurple][(f['id'] as int? ?? 0)%4].withValues(alpha:.15),child:const Icon(Icons.person_outline)),title:Text(u['nome']??''),subtitle:Text('${v['tipo']} • ${v['dataLancamento']}\n${v['observacao']??''}'),isThreeLine:true,trailing:Text(formatarMoeda((v['valor'] as num?)??0)));});})),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Fechar'))]); }
 
 class _DialogoReembolsos extends StatefulWidget {
   const _DialogoReembolsos({required this.funcionario, required this.gestor, required this.aoAtualizar});
