@@ -13,6 +13,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
   String? _clienteSelecionado;
   String? _mesSelecionado;
   int? _diaVencimentoSelecionado;
+  bool _mostrarFiltros = false;
   DateTime? _dataInicial;
   DateTime? _dataFinal;
 
@@ -180,6 +181,13 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
             ),
           ),
           const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: () => setState(() => _mostrarFiltros = !_mostrarFiltros),
+            icon: Icon(_mostrarFiltros ? Icons.expand_less : Icons.expand_more),
+            label: Text(_mostrarFiltros ? 'Ocultar filtros' : 'Filtros'),
+          ),
+          if (_mostrarFiltros) ...[
+          const SizedBox(height: 12),
           FutureBuilder<Map<String, dynamic>>(
             future: _dados,
             builder: (_, estado) {
@@ -234,6 +242,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
             onChanged: (valor) =>
                 setState(() => _busca = valor.trim().toLowerCase()),
           ),
+          ],
           const SizedBox(height: 12),
           FutureBuilder<Map<String, dynamic>>(
             future: _dados,
