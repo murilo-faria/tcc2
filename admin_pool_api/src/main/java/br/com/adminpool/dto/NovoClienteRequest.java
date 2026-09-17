@@ -7,4 +7,4 @@ public record NovoClienteRequest(
         String nome, String cpfCnpj, String telefone, String endereco,
         BigDecimal valorMensalidade, Integer diaVencimento, LocalDate primeiroVencimento,
         String piscinaNome, String piscinaTipo, Integer piscinaVolumeLitros,
-        String piscinaEndereco, Long responsavelId, String diaAtendimento) {}
+        String piscinaEndereco, BigDecimal piscinaValorMensalidade, Long responsavelId, String diaAtendimento) {}

@@ -1329,7 +1329,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                             decimal: true,
                           ),
                           decoration: const InputDecoration(
-                            labelText: 'Mensalidade *',
+                            labelText: 'Valor mensal da piscina *',
                             prefixText: 'R\$ ',
                           ),
                         ),
@@ -1456,6 +1456,7 @@ class _ListaClientesState extends State<_ListaClientes> {
           'telefone': telefone.text.trim(),
           'endereco': endereco.text.trim(),
           'valorMensalidade': mensalidade,
+          'piscinaValorMensalidade': mensalidade,
           'diaVencimento': dia,
           'primeiroVencimento': dataApi(vencimentoCalculado()),
           'piscinaNome': piscinaNome.text.trim(),
@@ -1494,9 +1495,6 @@ class _ListaClientesState extends State<_ListaClientes> {
     final nome = TextEditingController(text: cliente['nome']);
     final telefone = TextEditingController(text: cliente['telefone'] ?? '');
     final endereco = TextEditingController(text: cliente['endereco'] ?? '');
-    final valor = TextEditingController(
-      text: cliente['valorMensalidade'].toString(),
-    );
     final vencimento = TextEditingController(
       text: cliente['diaVencimento'].toString(),
     );
@@ -1523,10 +1521,6 @@ class _ListaClientesState extends State<_ListaClientes> {
                 decoration: const InputDecoration(labelText: 'Endereço'),
               ),
               TextField(
-                controller: valor,
-                decoration: const InputDecoration(labelText: 'Mensalidade'),
-              ),
-              TextField(
                 controller: vencimento,
                 decoration: const InputDecoration(
                   labelText: 'Dia de vencimento',
@@ -1551,9 +1545,6 @@ class _ListaClientesState extends State<_ListaClientes> {
       cliente['nome'] = nome.text;
       cliente['telefone'] = telefone.text.trim();
       cliente['endereco'] = endereco.text.trim();
-      cliente['valorMensalidade'] = double.parse(
-        valor.text.replaceAll(',', '.'),
-      );
       cliente['diaVencimento'] = int.parse(vencimento.text);
       await apiService.put('/api/clientes/${cliente['id']}', body: cliente);
       atualizacaoClientes.value++;
@@ -1864,9 +1855,6 @@ class _ListaClientesState extends State<_ListaClientes> {
                   itemBuilder: (_, i) {
                     final cliente = dados[i] as Map<String, dynamic>;
                     final celular = MediaQuery.of(context).size.width < 600;
-                    final valor = (cliente['valorMensalidade'] ?? 0)
-                        .toString()
-                        .replaceAll('.', ',');
                     final dia = cliente['diaVencimento'] == null
                         ? 'Vencimento não informado'
                         : 'Vence dia ${cliente['diaVencimento']}';
@@ -1897,21 +1885,12 @@ class _ListaClientesState extends State<_ListaClientes> {
                                   .toString()
                                   .isNotEmpty)
                                 cliente['endereco'],
-                              if (widget.gestor && celular)
-                                'Mensalidade: R\$ $valor',
                               'Clique para abrir os serviços',
                             ].join(' • '),
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (widget.gestor && !celular)
-                                Text(
-                                  'R\$ $valor',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
                               if (widget.gestor)
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),

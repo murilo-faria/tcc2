@@ -12,6 +12,7 @@ import br.com.adminpool.repository.BaixaItemCobrancaRepository;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.CobrancaRepository;
 import br.com.adminpool.repository.ItemCobrancaRepository;
+import br.com.adminpool.repository.PiscinaRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -35,13 +36,16 @@ public class CobrancaService {
     private final ClienteRepository clientes;
     private final ItemCobrancaRepository itens;
     private final BaixaItemCobrancaRepository baixas;
+    private final PiscinaRepository piscinas;
 
     public CobrancaService(CobrancaRepository cobrancas, ClienteRepository clientes,
-                           ItemCobrancaRepository itens, BaixaItemCobrancaRepository baixas) {
+                           ItemCobrancaRepository itens, BaixaItemCobrancaRepository baixas,
+                           PiscinaRepository piscinas) {
         this.cobrancas = cobrancas;
         this.clientes = clientes;
         this.itens = itens;
         this.baixas = baixas;
+        this.piscinas = piscinas;
     }
 
     public List<CobrancaMensal> listarPorVencimento() {
@@ -259,7 +263,7 @@ public class CobrancaService {
     }
 
     private boolean deveGerarMensalidade(Cliente cliente, YearMonth mes) {
-        if (!cliente.isAtivo() || cliente.getDiaVencimento() == null || cliente.getValorMensalidade() == null) {
+        if (!cliente.isAtivo() || cliente.getDiaVencimento() == null) {
             return false;
         }
         LocalDate primeiro = cliente.getPrimeiroVencimento();
@@ -275,11 +279,17 @@ public class CobrancaService {
         item.setTipo(TipoLancamentoCobranca.MENSALIDADE);
         item.setDescricao("Mensalidade " + cobranca.getReferencia());
         item.setDataLancamento(cobranca.getVencimento());
-        item.setValorOriginal(cliente.getValorMensalidade());
+        item.setValorOriginal(valorMensalidadeDasPiscinas(cliente));
         item.setValorPago(BigDecimal.ZERO);
         item.setStatus(StatusItemCobranca.PENDENTE);
         itens.save(item);
         recalcular(cobranca);
+    }
+
+    private BigDecimal valorMensalidadeDasPiscinas(Cliente cliente) {
+        return piscinas.findByClienteIdOrderByNome(cliente.getId()).stream()
+                .map(piscina -> piscina.getValorMensalidade() == null ? BigDecimal.ZERO : piscina.getValorMensalidade())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private YearMonth referenciaParaNovoLancamento(Cliente cliente) {

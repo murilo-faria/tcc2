@@ -54,7 +54,7 @@ public class ClienteController {
         cliente.setCpfCnpj(requisicao.cpfCnpj());
         cliente.setTelefone(requisicao.telefone());
         cliente.setEndereco(requisicao.endereco());
-        cliente.setValorMensalidade(requisicao.valorMensalidade());
+        cliente.setValorMensalidade(BigDecimal.ZERO);
         cliente.setDiaVencimento(requisicao.diaVencimento());
         cliente.setPrimeiroVencimento(requisicao.primeiroVencimento());
         cliente.setAtivo(true);
@@ -67,6 +67,8 @@ public class ClienteController {
         piscina.setVolumeLitros(requisicao.piscinaVolumeLitros());
         piscina.setEndereco(requisicao.piscinaEndereco());
         piscina.setDiaAtendimento(requisicao.diaAtendimento());
+        piscina.setValorMensalidade(requisicao.piscinaValorMensalidade() == null
+                ? requisicao.valorMensalidade() : requisicao.piscinaValorMensalidade());
         if (requisicao.responsavelId() != null) {
             piscina.setResponsavel(funcionarios.findById(requisicao.responsavelId()).orElseThrow());
         }
@@ -100,8 +102,10 @@ public class ClienteController {
         if (requisicao.piscinaNome() == null || requisicao.piscinaNome().isBlank()) {
             throw new IllegalArgumentException("Informe a piscina do cliente.");
         }
-        if (requisicao.valorMensalidade() == null || requisicao.valorMensalidade().compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Informe uma mensalidade válida.");
+        BigDecimal valorPiscina = requisicao.piscinaValorMensalidade() == null
+                ? requisicao.valorMensalidade() : requisicao.piscinaValorMensalidade();
+        if (valorPiscina == null || valorPiscina.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Informe o valor da piscina.");
         }
         if (requisicao.diaVencimento() == null || requisicao.diaVencimento() < 1 || requisicao.diaVencimento() > 31) {
             throw new IllegalArgumentException("O dia de vencimento deve estar entre 1 e 31.");
