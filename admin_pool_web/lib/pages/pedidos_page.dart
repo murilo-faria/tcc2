@@ -92,11 +92,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           grupo.value.fold<double>(
             0,
             (subtotal, item) =>
-                subtotal +
-                ((item['totalLiquido'] as num?) ??
-                        (item['totalVenda'] as num?) ??
-                        0)
-                    .toDouble(),
+                subtotal + ((item['totalLiquido'] as num?) ?? (item['totalVenda'] as num?) ?? 0).toDouble(),
           ),
     );
     await showDialog<void>(
@@ -133,10 +129,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                             0,
                             (soma, item) =>
                                 soma +
-                                ((item['totalLiquido'] as num?) ??
-                                        (item['totalVenda'] as num?) ??
-                                        0)
-                                    .toDouble(),
+                                ((item['totalLiquido'] as num?) ?? (item['totalVenda'] as num?) ?? 0).toDouble(),
                           );
                           return ListTile(
                             title: Text(
@@ -264,14 +257,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 ),
                 TextField(
                   controller: desconto,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(
                     labelText: 'Desconto do pedido',
                     prefixText: 'R\$ ',
-                    helperText:
-                        'Opcional. Será abatido antes de gerar a cobrança.',
+                    helperText: 'Opcional. Será abatido antes de gerar a cobrança.',
                   ),
                 ),
                 const Divider(),
@@ -311,25 +301,15 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Excluir Pedido #$codigo?'),
-        content: const Text(
-          'O pedido ainda não foi concluído e será removido definitivamente.',
-        ),
+        content: const Text('O pedido será removido definitivamente. Se estiver concluído, a cobrança vinculada também será desfeita.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
         ],
       ),
     );
     if (confirmar != true) return;
-    final resposta = await apiService.delete(
-      '/api/pedidos-produto/codigo/$codigo',
-    );
+    final resposta = await apiService.delete('/api/pedidos-produto/codigo/$codigo');
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
@@ -354,11 +334,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                     '${linha['quantidade']} unidade(s) • venda ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}${((linha['desconto'] as num?) ?? 0) > 0 ? ' • desconto ${formatarMoeda(linha['desconto'] as num)}' : ''}',
                   ),
                   trailing: Text(
-                    formatarMoeda(
-                      (linha['totalLiquido'] as num?) ??
-                          (linha['totalVenda'] as num?) ??
-                          0,
-                    ),
+                    formatarMoeda((linha['totalLiquido'] as num?) ?? (linha['totalVenda'] as num?) ?? 0),
                   ),
                 );
               }).toList(),
@@ -500,19 +476,23 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                         0,
                         (soma, item) =>
                             soma +
-                            ((item['totalLiquido'] as num?) ??
-                                    (item['totalVenda'] as num?) ??
-                                    0)
-                                .toDouble(),
+                            ((item['totalLiquido'] as num?) ?? (item['totalVenda'] as num?) ?? 0).toDouble(),
                       );
+                      final compacto = MediaQuery.of(context).size.width < 600;
                       return ListTile(
                         onTap: () => _detalhar(grupo.key),
                         leading: CircleAvatar(child: Text('#${grupo.key}')),
-                        title: Text(primeiro['cliente']['nome']),
+                        title: Text(
+                          primeiro['cliente']['nome'],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         subtitle: Text(
                           '${grupo.value.length} produto(s) • ${_nomeStatus(primeiro['status'])} • ${primeiro['dataPedido']}',
                         ),
-                        trailing: Row(
+                        trailing: compacto
+                            ? Text(formatarMoeda(total), style: const TextStyle(fontWeight: FontWeight.bold))
+                            : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
@@ -535,7 +515,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                 ),
                                 icon: const Icon(Icons.local_shipping_outlined),
                               ),
-                            if (widget.gestor && !concluido)
+                            if (widget.gestor)
                               IconButton(
                                 tooltip: 'Concluir pedido',
                                 onPressed: () => _concluir(grupo.key),
@@ -546,12 +526,9 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                               ),
                             if (widget.gestor && !concluido)
                               IconButton(
-                                tooltip: 'Excluir pedido',
+                                tooltip: 'Excluir pedido, inclusive concluído',
                                 onPressed: () => _excluir(grupo.key),
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.red,
-                                ),
+                                icon: const Icon(Icons.delete_outline, color: Colors.red),
                               ),
                           ],
                         ),
@@ -604,9 +581,7 @@ class _ResultadoProdutosCard extends StatelessWidget {
                   itemBuilder: (_, indice) {
                     final pedido = pedidos[indice];
                     final lucro =
-                        ((pedido['totalLiquido'] as num?) ??
-                            (pedido['totalVenda'] as num?) ??
-                            0) -
+                        ((pedido['totalLiquido'] as num?) ?? (pedido['totalVenda'] as num?) ?? 0) -
                         ((pedido['totalCompra'] as num?) ?? 0);
                     return ListTile(
                       leading: const Icon(Icons.shopping_bag_outlined),
