@@ -257,7 +257,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
       text: (ordem['valorCobrado'] ?? ordem['valorAdicional'] ?? 0).toString(),
     );
     String pagador = 'EMPRESA';
-    final temCriador = ordem['criadoPor'] != null;
+    final temResponsavel = ordem['criadoPor'] != null || ((ordem['piscina'] ?? {})['responsavel'] != null);
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -304,11 +304,11 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                     groupValue: pagador,
                     title: const Text('Pago pelo funcionário'),
                     subtitle: Text(
-                      temCriador
+                      temResponsavel
                           ? 'Gera cobrança e reembolso para o responsável pela piscina. Se o custo ficar R\$ 0,00, usa o valor cobrado.'
                           : 'Indisponível: esta OS não possui funcionário criador.',
                     ),
-                    onChanged: temCriador
+                    onChanged: temResponsavel
                         ? (v) => setLocal(() => pagador = v!)
                         : null,
                   ),
