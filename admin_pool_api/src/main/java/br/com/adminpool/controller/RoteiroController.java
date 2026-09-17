@@ -18,7 +18,7 @@ public class RoteiroController {
     private final ClienteRepository clientes;
     private static final List<String> DIAS = List.of("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado");
     public RoteiroController(RoteiroAtendimentoRepository atendimentos, ClienteRepository clientes) { this.atendimentos=atendimentos; this.clientes=clientes; }
-    @GetMapping public List<RoteiroResponse> listar(Authentication auth) { return (gestor(auth) ? atendimentos.findAllByOrderByDiaAtendimentoAscClienteNomeAsc() : atendimentos.findByClienteFuncionarioUsuarioLoginIgnoreCaseOrderByDiaAtendimentoAscClienteNomeAsc(auth.getName())).stream().map(this::resposta).toList(); }
+    @GetMapping public List<RoteiroResponse> listar(Authentication auth) { return (gestor(auth) ? atendimentos.findAllByOrderByIdAsc() : atendimentos.findByClienteFuncionarioUsuarioLoginIgnoreCaseOrderByIdAsc(auth.getName())).stream().map(this::resposta).toList(); }
     @PostMapping public ResponseEntity<RoteiroResponse> adicionar(@RequestBody RoteiroRequest r, Authentication auth) {
         validarDia(r.diaAtendimento()); var cliente=clientes.findById(r.clienteId()).orElseThrow(); autorizar(cliente.getFuncionario()==null ? null : cliente.getFuncionario().getUsuario().getLogin(), auth);
         if(atendimentos.existsByClienteIdAndDiaAtendimento(cliente.getId(),r.diaAtendimento())) throw new IllegalArgumentException("Esse cliente já está neste dia.");

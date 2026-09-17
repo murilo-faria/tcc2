@@ -818,8 +818,7 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
         runSpacing: 12,
         children: [
           ...dias.map((dia) {
-          final visitas = rotas.where((r) => r['diaAtendimento'] == dia).cast<Map<String, dynamic>>().toList()
-            ..sort((a, b) => '${a['clienteNome']}'.compareTo('${b['clienteNome']}'));
+          final visitas = rotas.where((r) => r['diaAtendimento'] == dia).cast<Map<String, dynamic>>().toList();
           return SizedBox(
             width: 220,
             child: Card(
