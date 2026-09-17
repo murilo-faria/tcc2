@@ -3,12 +3,15 @@ package br.com.adminpool.controller;
 import br.com.adminpool.dto.BaixaCobrancaRequest;
 import br.com.adminpool.dto.BaixaItensRequest;
 import br.com.adminpool.dto.ResumoCobrancaCliente;
+import br.com.adminpool.dto.FluxoCaixaEntrada;
 import br.com.adminpool.model.CobrancaMensal;
 import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.service.CobrancaService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.YearMonth;
 import java.util.List;
 
 @RestController
@@ -37,6 +40,22 @@ public class CobrancaController {
     @GetMapping("/clientes")
     public List<ResumoCobrancaCliente> listarClientes() {
         return cobrancaService.listarResumoClientes();
+    }
+
+    @GetMapping("/fluxo-caixa")
+    public BigDecimal fluxoCaixa() {
+        return cobrancaService.fluxoCaixaMesAtual();
+    }
+
+    @GetMapping("/fluxo-caixa/entradas")
+    public List<FluxoCaixaEntrada> entradasFluxoCaixa(@RequestParam(required = false) String referencia) {
+        return cobrancaService.listarFluxoCaixa(referencia == null || referencia.isBlank()
+                ? YearMonth.now() : YearMonth.parse(referencia));
+    }
+
+    @GetMapping("/fluxo-caixa/meses")
+    public List<String> mesesFluxoCaixa() {
+        return cobrancaService.referenciasFluxoCaixa();
     }
 
     @GetMapping("/clientes/{clienteId}/itens")

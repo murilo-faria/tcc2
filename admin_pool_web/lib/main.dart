@@ -2148,12 +2148,21 @@ class _FluxoCaixaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<int>(
     valueListenable: atualizacaoFinanceira,
-    builder: (_, __, ___) => _TotalFinanceiroCard(
-      titulo: 'Fluxo de caixa',
-      incluir: (c) =>
-          c['referencia'] == referenciaAtual && c['status'] == 'PAGO',
-      icone: Icons.account_balance_wallet_outlined,
-      cor: const Color(0xFF2E7D32),
+    builder: (_, __, ___) => FutureBuilder<http.Response>(
+      future: apiService.get('/api/cobrancas/fluxo-caixa'),
+      builder: (_, resposta) {
+        final total = resposta.hasData && resposta.data!.statusCode == 200
+            ? (jsonDecode(resposta.data!.body) as num).toDouble()
+            : 0.0;
+        return _Indicador(
+          'Fluxo de caixa',
+          resposta.connectionState == ConnectionState.waiting
+              ? 'Calculando...'
+              : formatarMoeda(total),
+          Icons.account_balance_wallet_outlined,
+          const Color(0xFF2E7D32),
+        );
+      },
     ),
   );
 }

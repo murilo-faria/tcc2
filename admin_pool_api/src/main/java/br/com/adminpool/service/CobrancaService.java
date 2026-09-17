@@ -1,6 +1,7 @@
 package br.com.adminpool.service;
 
 import br.com.adminpool.dto.ResumoCobrancaCliente;
+import br.com.adminpool.dto.FluxoCaixaEntrada;
 import br.com.adminpool.model.BaixaItemCobranca;
 import br.com.adminpool.model.Cliente;
 import br.com.adminpool.model.CobrancaMensal;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -109,6 +111,27 @@ public class CobrancaService {
                         : resumo.totalPendente().compareTo(BigDecimal.ZERO) > 0 ? 1 : 2)
                 .thenComparing(ResumoCobrancaCliente::clienteNome, String.CASE_INSENSITIVE_ORDER))
                 .toList();
+    }
+
+    public BigDecimal fluxoCaixaMesAtual() {
+        return listarFluxoCaixa(YearMonth.now()).stream()
+                .map(FluxoCaixaEntrada::valor).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public List<FluxoCaixaEntrada> listarFluxoCaixa(YearMonth mes) {
+        return baixas.findByDataPagamentoBetween(mes.atDay(1).atStartOfDay(), mes.atEndOfMonth().atTime(LocalTime.MAX))
+                .stream()
+                .sorted(Comparator.comparing(BaixaItemCobranca::getDataPagamento).reversed())
+                .map(baixa -> new FluxoCaixaEntrada(baixa.getId(), baixa.getItem().getCobranca().getCliente().getNome(),
+                        baixa.getItem().getDescricao(), baixa.getValor(), baixa.getFormaPagamento(), baixa.getDataPagamento(),
+                        baixa.getItem().getReferencia()))
+                .toList();
+    }
+
+    public List<String> referenciasFluxoCaixa() {
+        return baixas.findAllByOrderByDataPagamentoDesc().stream()
+                .map(baixa -> YearMonth.from(baixa.getDataPagamento()).toString())
+                .distinct().toList();
     }
 
     @Scheduled(cron = "0 5 0 1 * *", zone = "America/Sao_Paulo")
