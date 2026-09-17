@@ -749,25 +749,51 @@ class _SalariosPageState extends State<_SalariosPage> {
   }
 }
 
-class _RoteiroSemanal extends StatelessWidget {
+class _RoteiroSemanal extends StatefulWidget {
   const _RoteiroSemanal();
   @override
+  State<_RoteiroSemanal> createState() => _RoteiroSemanalState();
+}
+
+class _RoteiroSemanalState extends State<_RoteiroSemanal> {
+  late Future<http.Response> _dados;
+
+  @override
+  void initState() {
+    super.initState();
+    _dados = apiService.get('/api/piscinas');
+  }
+
+  Future<void> _mudarDia(List<dynamic> piscinas, String dia) async {
+    final respostas = await Future.wait(piscinas.map((p) => apiService.put('/api/piscinas/${p['id']}/rota', body: {'diaAtendimento': dia})));
+    if (!mounted) return;
+    if (respostas.any((r) => r.statusCode < 200 || r.statusCode >= 300)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível atualizar a rota.')));
+      return;
+    }
+    setState(() => _dados = apiService.get('/api/piscinas'));
+  }
+
+  @override
   Widget build(BuildContext c) => FutureBuilder<http.Response>(
-    future: apiService.get('/api/piscinas'),
+    future: _dados,
     builder: (_, s) {
       if (!s.hasData) return const Center(child: CircularProgressIndicator());
       if (s.data!.statusCode != 200) return const SizedBox();
       final dados = jsonDecode(s.data!.body) as List<dynamic>;
-      const dias = ['Quarta', 'Quinta', 'Sexta', 'Sábado'];
+      const dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
       return Wrap(
         spacing: 12,
         runSpacing: 12,
         children: dias.map((dia) {
-          final clientes = dados
-              .where((p) => (p['diaAtendimento'] ?? '') == dia)
-              .map((p) => (p['cliente'] ?? {})['nome'] ?? p['nome'])
-              .toSet()
-              .toList();
+          final grupos = <String, List<dynamic>>{};
+          for (final p in dados.where((p) => (p['diaAtendimento'] ?? '') == dia)) {
+            final cliente = (p['cliente'] ?? {}) as Map<String, dynamic>;
+            final chave = '${cliente['id'] ?? p['id']}';
+            grupos.putIfAbsent(chave, () => []).add(p);
+          }
+          final clientes = grupos.values.toList()
+            ..sort((a, b) => '${(a.first['cliente'] ?? {})['nome'] ?? a.first['nome']}'.compareTo('${(b.first['cliente'] ?? {})['nome'] ?? b.first['nome']}'));
           return SizedBox(
             width: 220,
             child: Card(
@@ -781,12 +807,19 @@ class _RoteiroSemanal extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const Divider(),
-                    ...clientes.map(
-                      (nome) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        child: Text(nome),
-                      ),
-                    ),
+                    ...clientes.map((piscinas) {
+                      final piscina = piscinas.first as Map<String, dynamic>;
+                      final nome = (piscina['cliente'] ?? {})['nome'] ?? piscina['nome'];
+                      return Row(children: [
+                        Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text(nome))),
+                        PopupMenuButton<String>(
+                          tooltip: 'Mudar dia',
+                          icon: const Icon(Icons.edit_calendar_outlined, size: 19),
+                          onSelected: (novoDia) => _mudarDia(piscinas, novoDia),
+                          itemBuilder: (_) => dias.map((d) => PopupMenuItem(value: d, child: Text(d))).toList(),
+                        ),
+                      ]);
+                    }),
                     const Divider(),
                     Text(
                       '${clientes.length} cliente(s)',

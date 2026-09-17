@@ -1,6 +1,7 @@
 package br.com.adminpool.controller;
 
 import br.com.adminpool.dto.NovaPiscinaRequest;
+import br.com.adminpool.dto.AtualizarRotaRequest;
 import br.com.adminpool.model.Piscina;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.PiscinaRepository;
@@ -67,6 +68,16 @@ public class PiscinaController {
         piscina.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
         piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); piscina.setVolumeLitros(requisicao.volumeLitros()); piscina.setEndereco(requisicao.endereco()); piscina.setDiaAtendimento(requisicao.diaAtendimento()); piscina.setObservacoes(requisicao.observacoes());
         piscina.setResponsavel(requisicao.responsavelId()==null ? null : funcionarios.findById(requisicao.responsavelId()).orElseThrow());
+        return piscinas.save(piscina);
+    }
+    @PutMapping("/{id}/rota")
+    public Piscina atualizarRota(@PathVariable Long id, @RequestBody AtualizarRotaRequest requisicao, Authentication auth) {
+        Piscina piscina = piscinas.findById(id).orElseThrow();
+        boolean responsavel = piscina.getResponsavel() != null && piscina.getResponsavel().getUsuario().getLogin().equalsIgnoreCase(auth.getName());
+        if (!gestor(auth) && !responsavel) throw new org.springframework.security.access.AccessDeniedException("Você só pode ajustar a sua própria rota.");
+        if (!List.of("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado").contains(requisicao.diaAtendimento()))
+            throw new IllegalArgumentException("Escolha um dia de segunda a sábado.");
+        piscina.setDiaAtendimento(requisicao.diaAtendimento());
         return piscinas.save(piscina);
     }
     @DeleteMapping("/{id}")
