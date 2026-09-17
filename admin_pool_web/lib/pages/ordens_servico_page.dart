@@ -132,6 +132,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
     int? piscinaId = piscinas.length == 1 ? piscinas.first['id'] as int : null;
     final descricao = TextEditingController();
     final valorCobrado = TextEditingController();
+    final valorCusto = TextEditingController();
     final salvar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -194,11 +195,14 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                       decimal: true,
                     ),
                     decoration: const InputDecoration(
-                      labelText: 'Valor sugerido para cobrar do cliente',
+                      labelText: 'Valor do serviço',
                       prefixText: 'R\$ ',
-                      helperText:
-                          'O gestor poderá confirmar ou alterar este valor ao concluir.',
                     ),
+                  ),
+                  TextField(
+                    controller: valorCusto,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Valor de custo', prefixText: 'R\$ '),
                   ),
                 ],
               ),
@@ -230,6 +234,8 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
         'dataServico': DateTime.now().toIso8601String().substring(0, 10),
         'valorAdicional':
             double.tryParse(valorCobrado.text.replaceAll(',', '.')) ?? 0,
+        'valorCusto':
+            double.tryParse(valorCusto.text.replaceAll(',', '.')) ?? 0,
       },
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
@@ -239,7 +245,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
     final descricao = TextEditingController(text: ordem['descricao'] ?? '');
     final ok = await showDialog<bool>(context: context, builder: (c) => AlertDialog(title: Text('Editar OS #${ordem['id']}'), content: TextField(controller: descricao, maxLines: 4, decoration: const InputDecoration(labelText: 'Descrição do serviço')), actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Salvar'))]));
     if (ok != true || descricao.text.trim().isEmpty) return;
-    final r = await apiService.put('/api/ordens-servico/${ordem['id']}', body: {'clienteId': (ordem['cliente'] ?? {})['id'], 'piscinaId': (ordem['piscina'] ?? {})['id'], 'descricao': descricao.text.trim(), 'dataServico': ordem['dataServico'], 'valorAdicional': ordem['valorAdicional'] ?? ordem['valorCobrado'] ?? 0});
+    final r = await apiService.put('/api/ordens-servico/${ordem['id']}', body: {'clienteId': (ordem['cliente'] ?? {})['id'], 'piscinaId': (ordem['piscina'] ?? {})['id'], 'descricao': descricao.text.trim(), 'dataServico': ordem['dataServico'], 'valorAdicional': ordem['valorAdicional'] ?? ordem['valorCobrado'] ?? 0, 'valorCusto': ordem['valorCusto'] ?? 0});
     if (r.statusCode >= 200 && r.statusCode < 300) _recarregar();
   }
 
@@ -269,7 +275,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                       decimal: true,
                     ),
                     decoration: const InputDecoration(
-                      labelText: 'Valor pago/custo',
+                      labelText: 'Valor pago pelo colaborador (se diferente)',
                       prefixText: 'R\$ ',
                     ),
                   ),
@@ -299,7 +305,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                     title: const Text('Pago pelo funcionário'),
                     subtitle: Text(
                       temCriador
-                          ? 'Gera cobrança e reembolso para quem criou a OS.'
+                          ? 'Gera cobrança e reembolso para o responsável pela piscina. Se o custo ficar R\$ 0,00, usa o valor cobrado.'
                           : 'Indisponível: esta OS não possui funcionário criador.',
                     ),
                     onChanged: temCriador

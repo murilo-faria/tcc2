@@ -65,6 +65,7 @@ public class OrdemServicoService {
                 ? BigDecimal.ZERO : requisicao.valorAdicional();
         ordem.setValorAdicional(valorSugerido);
         ordem.setValorCobrado(valorSugerido);
+        ordem.setValorCusto(requisicao.valorCusto() == null ? BigDecimal.ZERO : requisicao.valorCusto());
         ordem.setCriadoPor(funcionarios.findByUsuarioLoginIgnoreCase(auth.getName()).orElse(null));
         ordem.setStatus("ABERTA");
         return ordens.save(ordem);
@@ -82,15 +83,18 @@ public class OrdemServicoService {
         if (pagador == null) {
             throw new IllegalArgumentException("Informe quem pagou a ordem de serviço.");
         }
-        if (pagador == ResponsavelPagamento.FUNCIONARIO && ordem.getCriadoPor() == null) {
-            throw new IllegalArgumentException("A OS não possui um colaborador criador para receber o reembolso.");
+        Funcionario funcionarioReembolso = ordem.getPiscina() == null ? ordem.getCriadoPor() : ordem.getPiscina().getResponsavel();
+        if (funcionarioReembolso == null) funcionarioReembolso = ordem.getCriadoPor();
+        if (pagador == ResponsavelPagamento.FUNCIONARIO && funcionarioReembolso == null) {
+            throw new IllegalArgumentException("A OS não possui um colaborador responsável para receber o reembolso.");
         }
+        BigDecimal valorReembolso = custo.compareTo(BigDecimal.ZERO) > 0 ? custo : cobrado;
         if (pagador != ResponsavelPagamento.CLIENTE && cobrado.compareTo(BigDecimal.ZERO) > 0) {
             cobrancas.adicionarLancamento(ordem.getCliente().getId(), TipoLancamentoCobranca.ORDEM_SERVICO,
                     ordem.getId(), "OS #" + ordem.getId() + " - " + ordem.getDescricao(), cobrado);
         }
-        if (pagador == ResponsavelPagamento.FUNCIONARIO && custo.compareTo(BigDecimal.ZERO) > 0) {
-            criarReembolso(ordem, custo);
+        if (pagador == ResponsavelPagamento.FUNCIONARIO && valorReembolso.compareTo(BigDecimal.ZERO) > 0) {
+            criarReembolso(ordem, valorReembolso, funcionarioReembolso);
         }
         ordem.setValorCusto(custo);
         ordem.setValorCobrado(cobrado);
@@ -113,6 +117,7 @@ public class OrdemServicoService {
         ordem.setDataServico(requisicao.dataServico() == null ? ordem.getDataServico() : requisicao.dataServico());
         BigDecimal valor = requisicao.valorAdicional() == null ? BigDecimal.ZERO : requisicao.valorAdicional();
         ordem.setValorAdicional(valor); ordem.setValorCobrado(valor);
+        ordem.setValorCusto(requisicao.valorCusto() == null ? ordem.getValorCusto() : requisicao.valorCusto());
         return ordens.save(ordem);
     }
 
@@ -126,8 +131,7 @@ public class OrdemServicoService {
         ordens.save(ordem);
     }
 
-    private void criarReembolso(OrdemServico ordem, BigDecimal custo) {
-        Funcionario funcionario = ordem.getCriadoPor();
+    private void criarReembolso(OrdemServico ordem, BigDecimal custo, Funcionario funcionario) {
         ReembolsoColaborador reembolso = new ReembolsoColaborador();
         reembolso.setFuncionario(funcionario);
         reembolso.setOrdemServico(ordem);

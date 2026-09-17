@@ -780,6 +780,30 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
     setState(() => _dados = _carregar());
   }
 
+  Future<void> _adicionarCliente(String dia, List<dynamic> clientes) async {
+    final busca = TextEditingController();
+    final escolhido = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (contexto) => StatefulBuilder(
+        builder: (_, atualizar) => AlertDialog(
+          title: Text('Adicionar cliente — $dia'),
+          content: SizedBox(
+            width: 420,
+            height: 420,
+            child: Column(children: [
+              TextField(controller: busca, autofocus: true, decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Pesquisar cliente'), onChanged: (_) => atualizar(() {})),
+              const SizedBox(height: 8),
+              Expanded(child: ListView(children: clientes.where((c) => '${c['nome']}'.toLowerCase().contains(busca.text.toLowerCase())).map((c) => ListTile(title: Text('${c['nome']}'), trailing: const Icon(Icons.add_circle_outline), onTap: () => Navigator.pop(contexto, c as Map<String, dynamic>))).toList())),
+            ]),
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(contexto), child: const Text('Cancelar'))],
+        ),
+      ),
+    );
+    busca.dispose();
+    if (escolhido != null) await _salvarRota('/api/roteiro', 'POST', {'clienteId': escolhido['id'], 'diaAtendimento': dia});
+  }
+
   @override
   Widget build(BuildContext c) => FutureBuilder<List<List<dynamic>>>(
     future: _dados,
@@ -824,6 +848,11 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
                         ),
                       ]);
                     }),
+                    TextButton.icon(
+                      onPressed: () => _adicionarCliente(dia, clientes),
+                      icon: const Icon(Icons.add_circle_outline, size: 19),
+                      label: const Text('Adicionar cliente'),
+                    ),
                     const Divider(),
                     Text(
                       '${visitas.length} cliente(s)',

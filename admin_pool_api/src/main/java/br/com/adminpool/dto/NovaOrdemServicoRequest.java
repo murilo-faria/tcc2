@@ -9,5 +9,6 @@ public record NovaOrdemServicoRequest(
         Long piscinaId,
         String descricao,
         LocalDate dataServico,
-        BigDecimal valorAdicional) {
+        BigDecimal valorAdicional,
+        BigDecimal valorCusto) {
 }
