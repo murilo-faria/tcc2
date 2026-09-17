@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -99,7 +100,11 @@ public class CobrancaService {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             boolean atrasado = pendentes.stream().anyMatch(item -> item.getVencimento().isBefore(LocalDate.now()));
             return new ResumoCobrancaCliente(cliente.getId(), cliente.getNome(), total, pendentes.size(), atrasado);
-        }).toList();
+        }).sorted(Comparator
+                .comparingInt((ResumoCobrancaCliente resumo) -> resumo.possuiAtraso() ? 0
+                        : resumo.totalPendente().compareTo(BigDecimal.ZERO) > 0 ? 1 : 2)
+                .thenComparing(ResumoCobrancaCliente::clienteNome, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     @Scheduled(cron = "0 5 0 1 * *", zone = "America/Sao_Paulo")

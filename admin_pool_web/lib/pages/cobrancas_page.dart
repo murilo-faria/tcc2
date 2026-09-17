@@ -97,17 +97,17 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       final cliente = clientes[indice] as Map<String, dynamic>;
                       final total = (cliente['totalPendente'] as num?) ?? 0;
                       final atrasado = cliente['possuiAtraso'] == true;
+                      final emDia = total == 0;
+                      final cor = atrasado ? Colors.red : emDia ? Colors.green : Colors.blue;
                       return ListTile(
                         onTap: () => _abrirCliente(cliente),
                         leading: CircleAvatar(
-                          backgroundColor: atrasado
-                              ? Colors.red.shade50
-                              : Colors.blue.shade50,
+                          backgroundColor: cor.withValues(alpha: .10),
                           child: Icon(
                             atrasado
                                 ? Icons.warning_amber_rounded
-                                : Icons.person_outline,
-                            color: atrasado ? Colors.red : Colors.blue,
+                                : emDia ? Icons.check_circle_outline : Icons.person_outline,
+                            color: cor,
                           ),
                         ),
                         title: Text(cliente['clienteNome'] ?? ''),

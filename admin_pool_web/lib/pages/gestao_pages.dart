@@ -263,9 +263,10 @@ class _PiscinasPageState extends State<_PiscinasPage> {
     if (clientes.isEmpty || !mounted) return;
     int cliente = clientes.first['id'];
     int? responsavel = funcs.isEmpty ? null : funcs.first['id'];
+    String? tipoSelecionado;
     final nome = TextEditingController(),
         endereco = TextEditingController(),
-        tipo = TextEditingController(), valor = TextEditingController(), volume = TextEditingController();
+        valor = TextEditingController(), volume = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -303,9 +304,14 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                       labelText: 'Endereço da piscina *',
                     ),
                   ),
-                  TextField(
-                    controller: tipo,
-                    decoration: const InputDecoration(labelText: 'Tipo'),
+                  DropdownButtonFormField<String>(
+                    initialValue: tipoSelecionado,
+                    decoration: const InputDecoration(labelText: 'Tipo da piscina'),
+                    items: const [
+                      DropdownMenuItem(value: 'Fibra', child: Text('Fibra')),
+                      DropdownMenuItem(value: 'Alvenaria', child: Text('Alvenaria')),
+                    ],
+                    onChanged: (valor) => setL(() => tipoSelecionado = valor),
                   ),
                   TextField(controller: volume, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Volume em litros')),
                   TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
@@ -348,7 +354,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
         'clienteId': cliente,
         'nome': nome.text.trim(),
         'endereco': endereco.text.trim(),
-        'tipo': tipo.text.trim(),
+        'tipo': tipoSelecionado ?? '',
         'volumeLitros': int.tryParse(volume.text) ?? 0,
         'responsavelId': responsavel,
         'observacoes': '',
@@ -402,10 +408,10 @@ class _PiscinasPageState extends State<_PiscinasPage> {
     final funcs = await _lista('/api/funcionarios');
     final nome = TextEditingController(text: p['nome'] ?? ''),
         endereco = TextEditingController(text: p['endereco'] ?? ''),
-        tipo = TextEditingController(text: p['tipo'] ?? ''),
         valor = TextEditingController(text: (p['valorMensalidade'] ?? 0).toString()),
         volume = TextEditingController(text: (p['volumeLitros'] ?? 0).toString());
     int? responsavel = (p['responsavel'] ?? {})['id'];
+    String? tipoSelecionado = ['Fibra', 'Alvenaria'].contains(p['tipo']) ? p['tipo'] as String : null;
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => StatefulBuilder(builder: (_, setLocal) => AlertDialog(
@@ -423,9 +429,14 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                 controller: endereco,
                 decoration: const InputDecoration(labelText: 'Endereço'),
               ),
-              TextField(
-                controller: tipo,
-                decoration: const InputDecoration(labelText: 'Tipo'),
+              DropdownButtonFormField<String>(
+                initialValue: tipoSelecionado,
+                decoration: const InputDecoration(labelText: 'Tipo da piscina'),
+                items: const [
+                  DropdownMenuItem(value: 'Fibra', child: Text('Fibra')),
+                  DropdownMenuItem(value: 'Alvenaria', child: Text('Alvenaria')),
+                ],
+                onChanged: (valor) => setLocal(() => tipoSelecionado = valor),
               ),
               TextField(controller: volume, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Volume em litros')),
               TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
@@ -453,7 +464,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
           'responsavelId': responsavel,
           'nome': nome.text.trim(),
           'endereco': endereco.text.trim(),
-          'tipo': tipo.text.trim(),
+          'tipo': tipoSelecionado ?? '',
           'volumeLitros': int.tryParse(volume.text) ?? 0,
           'observacoes': p['observacoes'] ?? '',
           'valorMensalidade': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,

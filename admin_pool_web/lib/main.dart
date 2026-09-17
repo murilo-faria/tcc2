@@ -70,7 +70,6 @@ class _HomePageState extends State<HomePage> {
       : const [
           _MenuItem('Visão geral', Icons.dashboard_outlined),
           _MenuItem('Clientes', Icons.people_outline),
-          _MenuItem('Piscinas', Icons.pool_outlined),
           _MenuItem('Produtos', Icons.inventory_2_outlined),
           _MenuItem('Pedidos', Icons.shopping_cart_outlined),
           _MenuItem('Ordens de serviço', Icons.build_outlined),
@@ -1113,14 +1112,38 @@ class _ListaClientesState extends State<_ListaClientes> {
       final clientes = <int, dynamic>{};
       for (final piscina in piscinas) {
         final cliente = piscina['cliente'];
-        if (cliente != null) clientes[cliente['id'] as int] = cliente;
+        if (cliente != null) {
+          final clienteComResponsavel = Map<String, dynamic>.from(cliente as Map);
+          clienteComResponsavel['_responsavel'] = piscina['responsavel'];
+          clientes[cliente['id'] as int] = clienteComResponsavel;
+        }
       }
       return clientes.values.toList();
     }
     final resposta = await apiService.get('/api/clientes');
     if (resposta.statusCode != 200)
       throw Exception('Não foi possível carregar os clientes.');
-    return jsonDecode(resposta.body) as List<dynamic>;
+    final respostaPiscinas = await apiService.get('/api/piscinas');
+    if (respostaPiscinas.statusCode != 200) return const [];
+    final responsavelPorCliente = <int, dynamic>{};
+    for (final piscina in jsonDecode(respostaPiscinas.body) as List<dynamic>) {
+      final cliente = piscina['cliente'];
+      final responsavel = piscina['responsavel'];
+      if (cliente != null && responsavel != null) {
+        responsavelPorCliente.putIfAbsent(cliente['id'] as int, () => responsavel);
+      }
+    }
+    return (jsonDecode(resposta.body) as List<dynamic>).map((item) {
+      final cliente = Map<String, dynamic>.from(item as Map);
+      cliente['_responsavel'] = responsavelPorCliente[cliente['id'] as int];
+      return cliente;
+    }).toList();
+  }
+
+  Color _corResponsavel(dynamic responsavel) {
+    const cores = [Colors.blue, Colors.green, Colors.orange, Colors.deepPurple, Colors.teal];
+    final id = responsavel is Map ? responsavel['id'] as int? : null;
+    return id == null ? Colors.blue : cores[id % cores.length];
   }
 
   Future<void> excluir(int id) async {
@@ -1789,6 +1812,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                         ? 'Vencimento não informado'
                         : 'Vence dia ${cliente['diaVencimento']}';
                     final selecionado = clienteSelecionado == cliente['id'];
+                    final corResponsavel = _corResponsavel(cliente['_responsavel']);
                     return Column(
                       children: [
                         ListTile(
@@ -1797,8 +1821,10 @@ class _ListaClientesState extends State<_ListaClientes> {
                                 ? null
                                 : cliente['id'] as int,
                           ),
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.person),
+                          leading: CircleAvatar(
+                            backgroundColor: corResponsavel.withValues(alpha: .15),
+                            foregroundColor: corResponsavel,
+                            child: const Icon(Icons.person),
                           ),
                           title: Text(cliente['nome'] ?? ''),
                           subtitle: Text(
@@ -1858,12 +1884,14 @@ class _ListaClientesState extends State<_ListaClientes> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                      FilledButton.tonalIcon(
-                                        onPressed: () => abrirPiscinas(cliente),
-                                        icon: const Icon(Icons.pool_outlined),
-                                        label: const Text('Piscinas'),
-                                      ),
-                                      const SizedBox(height: 8),
+                                      if (widget.gestor) ...[
+                                        FilledButton.tonalIcon(
+                                          onPressed: () => abrirPiscinas(cliente),
+                                          icon: const Icon(Icons.pool_outlined),
+                                          label: const Text('Piscinas'),
+                                        ),
+                                        const SizedBox(height: 8),
+                                      ],
                                       FilledButton.tonalIcon(
                                         onPressed: () =>
                                             abrirOrdemServico(cliente),
@@ -1882,15 +1910,16 @@ class _ListaClientesState extends State<_ListaClientes> {
                                   )
                                 : Row(
                                     children: [
-                                      Expanded(
-                                        child: FilledButton.tonalIcon(
-                                          onPressed: () =>
-                                              abrirPiscinas(cliente),
-                                          icon: const Icon(Icons.pool_outlined),
-                                          label: const Text('Piscinas'),
+                                      if (widget.gestor) ...[
+                                        Expanded(
+                                          child: FilledButton.tonalIcon(
+                                            onPressed: () => abrirPiscinas(cliente),
+                                            icon: const Icon(Icons.pool_outlined),
+                                            label: const Text('Piscinas'),
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 10),
+                                        const SizedBox(width: 10),
+                                      ],
                                       Expanded(
                                         child: FilledButton.tonalIcon(
                                           onPressed: () =>
