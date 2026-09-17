@@ -265,7 +265,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
     int? responsavel = funcs.isEmpty ? null : funcs.first['id'];
     final nome = TextEditingController(),
         endereco = TextEditingController(),
-        tipo = TextEditingController();
+        tipo = TextEditingController(), valor = TextEditingController(), volume = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -307,6 +307,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                     controller: tipo,
                     decoration: const InputDecoration(labelText: 'Tipo'),
                   ),
+                  TextField(controller: volume, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Volume em litros')),
+                  TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
                   DropdownButtonFormField<int>(
                     initialValue: responsavel,
                     decoration: const InputDecoration(
@@ -347,8 +349,10 @@ class _PiscinasPageState extends State<_PiscinasPage> {
         'nome': nome.text.trim(),
         'endereco': endereco.text.trim(),
         'tipo': tipo.text.trim(),
+        'volumeLitros': int.tryParse(volume.text) ?? 0,
         'responsavelId': responsavel,
         'observacoes': '',
+        'valorMensalidade': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
       },
     );
     if (!mounted) return;
@@ -395,12 +399,16 @@ class _PiscinasPageState extends State<_PiscinasPage> {
   }
 
   Future<void> editar(Map<String, dynamic> p) async {
+    final funcs = await _lista('/api/funcionarios');
     final nome = TextEditingController(text: p['nome'] ?? ''),
         endereco = TextEditingController(text: p['endereco'] ?? ''),
-        tipo = TextEditingController(text: p['tipo'] ?? '');
+        tipo = TextEditingController(text: p['tipo'] ?? ''),
+        valor = TextEditingController(text: (p['valorMensalidade'] ?? 0).toString()),
+        volume = TextEditingController(text: (p['volumeLitros'] ?? 0).toString());
+    int? responsavel = (p['responsavel'] ?? {})['id'];
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (_) => StatefulBuilder(builder: (_, setLocal) => AlertDialog(
         title: const Text('Editar piscina'),
         content: SizedBox(
           width: 440,
@@ -419,6 +427,9 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                 controller: tipo,
                 decoration: const InputDecoration(labelText: 'Tipo'),
               ),
+              TextField(controller: volume, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Volume em litros')),
+              TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
+              DropdownButtonFormField<int?>(initialValue: responsavel, decoration: const InputDecoration(labelText: 'Colaborador responsável'), items: [const DropdownMenuItem<int?>(value: null, child: Text('Definir depois')), ...funcs.map<DropdownMenuItem<int?>>((f) => DropdownMenuItem<int?>(value: f['id'], child: Text((f['usuario'] ?? {})['nome'] ?? '')))], onChanged: (v) => setLocal(() => responsavel = v)),
             ],
           ),
         ),
@@ -432,19 +443,20 @@ class _PiscinasPageState extends State<_PiscinasPage> {
             child: const Text('Salvar'),
           ),
         ],
-      ),
+      )),
     );
     if (ok == true) {
       final r = await apiService.put(
         '/api/piscinas/${p['id']}',
         body: {
           'clienteId': (p['cliente'] ?? {})['id'],
-          'responsavelId': (p['responsavel'] ?? {})['id'],
+          'responsavelId': responsavel,
           'nome': nome.text.trim(),
           'endereco': endereco.text.trim(),
           'tipo': tipo.text.trim(),
-          'volumeLitros': p['volumeLitros'],
+          'volumeLitros': int.tryParse(volume.text) ?? 0,
           'observacoes': p['observacoes'] ?? '',
+          'valorMensalidade': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
         },
       );
       if (r.statusCode >= 200 && r.statusCode < 300)
@@ -798,7 +810,7 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
           ),
           actions: [TextButton(onPressed: () => Navigator.pop(contexto), child: const Text('Cancelar'))],
         ),
-      ),
+        ),
     );
     busca.dispose();
     if (escolhido != null) await _salvarRota('/api/roteiro', 'POST', {'clienteId': escolhido['id'], 'diaAtendimento': dia});

@@ -1,5 +1,7 @@
 package br.com.adminpool.dto;
 
+import java.math.BigDecimal;
+
 /** Dados necessários para cadastrar uma piscina para um cliente. */
 public record NovaPiscinaRequest(
         Long clienteId,
@@ -9,5 +11,6 @@ public record NovaPiscinaRequest(
         String endereco,
         Long responsavelId,
         String diaAtendimento,
-        String observacoes) {
+        String observacoes,
+        BigDecimal valorMensalidade) {
 }

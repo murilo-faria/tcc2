@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/piscinas")
@@ -57,6 +58,7 @@ public class PiscinaController {
         if(requisicao.responsavelId()!=null) piscina.setResponsavel(funcionarios.findById(requisicao.responsavelId()).orElseThrow());
         piscina.setDiaAtendimento(requisicao.diaAtendimento());
         piscina.setObservacoes(requisicao.observacoes());
+        piscina.setValorMensalidade(requisicao.valorMensalidade() == null ? BigDecimal.ZERO : requisicao.valorMensalidade());
 
         Piscina piscinaSalva = piscinas.save(piscina);
         return ResponseEntity.status(HttpStatus.CREATED).body(piscinaSalva);
@@ -68,6 +70,7 @@ public class PiscinaController {
         piscina.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
         piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); piscina.setVolumeLitros(requisicao.volumeLitros()); piscina.setEndereco(requisicao.endereco()); piscina.setDiaAtendimento(requisicao.diaAtendimento()); piscina.setObservacoes(requisicao.observacoes());
         piscina.setResponsavel(requisicao.responsavelId()==null ? null : funcionarios.findById(requisicao.responsavelId()).orElseThrow());
+        piscina.setValorMensalidade(requisicao.valorMensalidade() == null ? piscina.getValorMensalidade() : requisicao.valorMensalidade());
         return piscinas.save(piscina);
     }
     @PutMapping("/{id}/rota")
