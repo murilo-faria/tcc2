@@ -1559,10 +1559,14 @@ class _ListaClientesState extends State<_ListaClientes> {
 
   Future<void> abrirPiscinas(Map<String, dynamic> cliente) async {
     final nome = TextEditingController();
+    final endereco = TextEditingController();
     final tipo = TextEditingController();
     final volume = TextEditingController();
+    final valor = TextEditingController();
     final existentes = await _buscar('/api/piscinas/cliente/${cliente['id']}');
+    final funcionarios = widget.gestor ? await _buscar('/api/funcionarios') : <dynamic>[];
     if (!mounted) return;
+    int? responsavel = funcionarios.isEmpty ? null : funcionarios.first['id'] as int;
     final salvar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1584,24 +1588,64 @@ class _ListaClientesState extends State<_ListaClientes> {
                     ),
                   ),
                 ),
-                const Divider(),
-                TextField(
-                  controller: nome,
-                  decoration: const InputDecoration(
-                    labelText: 'Nome da piscina',
+                if (widget.gestor) ...[
+                  const Divider(),
+                  TextField(
+                    controller: nome,
+                    decoration: const InputDecoration(
+                      labelText: 'Nome da piscina',
+                    ),
                   ),
-                ),
-                TextField(
-                  controller: tipo,
-                  decoration: const InputDecoration(labelText: 'Tipo'),
-                ),
-                TextField(
-                  controller: volume,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Volume em litros',
+                  TextField(
+                    controller: endereco,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Endereço da piscina',
+                    ),
                   ),
-                ),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Tipo da piscina'),
+                    items: const [
+                      DropdownMenuItem(value: 'Fibra', child: Text('Fibra')),
+                      DropdownMenuItem(value: 'Alvenaria', child: Text('Alvenaria')),
+                    ],
+                    onChanged: (valorSelecionado) => tipo.text = valorSelecionado ?? '',
+                  ),
+                  TextField(
+                    controller: volume,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Volume em litros',
+                    ),
+                  ),
+                  TextField(
+                    controller: valor,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Valor mensal da piscina',
+                      prefixText: 'R\$ ',
+                    ),
+                  ),
+                  DropdownButtonFormField<int?>(
+                    initialValue: responsavel,
+                    decoration: const InputDecoration(
+                      labelText: 'Colaborador responsável',
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('Definir depois'),
+                      ),
+                      ...funcionarios.map<DropdownMenuItem<int?>>(
+                        (funcionario) => DropdownMenuItem<int?>(
+                          value: funcionario['id'] as int,
+                          child: Text((funcionario['usuario'] ?? {})['nome'] ?? ''),
+                        ),
+                      ),
+                    ],
+                    onChanged: (valorSelecionado) => responsavel = valorSelecionado,
+                  ),
+                ],
               ],
             ),
           ),
@@ -1611,14 +1655,15 @@ class _ListaClientesState extends State<_ListaClientes> {
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Fechar'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Cadastrar piscina'),
-          ),
+          if (widget.gestor)
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Cadastrar piscina'),
+            ),
         ],
       ),
     );
-    if (salvar == true && nome.text.trim().isNotEmpty) {
+    if (widget.gestor && salvar == true && nome.text.trim().isNotEmpty) {
       await apiService.post(
         '/api/piscinas',
         body: {
@@ -1626,6 +1671,9 @@ class _ListaClientesState extends State<_ListaClientes> {
           'nome': nome.text.trim(),
           'tipo': tipo.text.trim(),
           'volumeLitros': int.tryParse(volume.text) ?? 0,
+          'endereco': endereco.text.trim(),
+          'valorMensalidade': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
+          'responsavelId': responsavel,
           'observacoes': '',
         },
       );
@@ -1884,14 +1932,12 @@ class _ListaClientesState extends State<_ListaClientes> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
-                                      if (widget.gestor) ...[
-                                        FilledButton.tonalIcon(
-                                          onPressed: () => abrirPiscinas(cliente),
-                                          icon: const Icon(Icons.pool_outlined),
-                                          label: const Text('Piscinas'),
-                                        ),
-                                        const SizedBox(height: 8),
-                                      ],
+                                      FilledButton.tonalIcon(
+                                        onPressed: () => abrirPiscinas(cliente),
+                                        icon: const Icon(Icons.pool_outlined),
+                                        label: const Text('Piscinas'),
+                                      ),
+                                      const SizedBox(height: 8),
                                       FilledButton.tonalIcon(
                                         onPressed: () =>
                                             abrirOrdemServico(cliente),
@@ -1910,16 +1956,14 @@ class _ListaClientesState extends State<_ListaClientes> {
                                   )
                                 : Row(
                                     children: [
-                                      if (widget.gestor) ...[
-                                        Expanded(
-                                          child: FilledButton.tonalIcon(
-                                            onPressed: () => abrirPiscinas(cliente),
-                                            icon: const Icon(Icons.pool_outlined),
-                                            label: const Text('Piscinas'),
-                                          ),
+                                      Expanded(
+                                        child: FilledButton.tonalIcon(
+                                          onPressed: () => abrirPiscinas(cliente),
+                                          icon: const Icon(Icons.pool_outlined),
+                                          label: const Text('Piscinas'),
                                         ),
-                                        const SizedBox(width: 10),
-                                      ],
+                                      ),
+                                      const SizedBox(width: 10),
                                       Expanded(
                                         child: FilledButton.tonalIcon(
                                           onPressed: () =>

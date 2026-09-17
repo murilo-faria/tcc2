@@ -244,6 +244,7 @@ class _PiscinasPage extends StatefulWidget {
 
 class _PiscinasPageState extends State<_PiscinasPage> {
   late Future<List<dynamic>> dados;
+  String filtro = '';
   @override
   void initState() {
     super.initState();
@@ -516,7 +517,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
             labelText: 'Pesquisar piscina, cliente ou endereço',
             border: OutlineInputBorder(),
           ),
-          onChanged: (_) => setState(() {}),
+          onChanged: (valor) => setState(() => filtro = valor.trim().toLowerCase()),
         ),
         const SizedBox(height: 12),
         Expanded(
@@ -526,14 +527,22 @@ class _PiscinasPageState extends State<_PiscinasPage> {
               if (s.connectionState != ConnectionState.done)
                 return const Center(child: CircularProgressIndicator());
               if (s.hasError) return Center(child: Text('${s.error}'));
-              if (s.data!.isEmpty)
+              final piscinas = s.data!
+                  .where((item) {
+                    final piscina = item as Map<String, dynamic>;
+                    final cliente = piscina['cliente'] ?? {};
+                    final texto = '${piscina['nome'] ?? ''} ${cliente['nome'] ?? ''} ${piscina['endereco'] ?? ''}'.toLowerCase();
+                    return texto.contains(filtro);
+                  })
+                  .toList();
+              if (piscinas.isEmpty)
                 return const Center(child: Text('Nenhuma piscina cadastrada.'));
               return Card(
                 child: ListView.separated(
-                  itemCount: s.data!.length,
+                  itemCount: piscinas.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (_, i) {
-                    final p = s.data![i] as Map<String, dynamic>;
+                    final p = piscinas[i] as Map<String, dynamic>;
                     final cl = p['cliente'] ?? {},
                         resp = p['responsavel'] ?? {},
                         u = resp['usuario'] ?? {};
