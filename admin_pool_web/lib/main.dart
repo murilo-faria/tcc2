@@ -34,9 +34,6 @@ class AdminPoolApp extends StatelessWidget {
           secondary: const Color(0xFF90CAF9),
         ),
         useMaterial3: true,
-        dialogTheme: const DialogThemeData(
-          insetPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        ),
         scaffoldBackgroundColor: const Color(0xFFF7FAFF),
       ),
       home: const LoginPage(),
@@ -70,6 +67,7 @@ class _HomePageState extends State<HomePage> {
       : const [
           _MenuItem('Visão geral', Icons.dashboard_outlined),
           _MenuItem('Clientes', Icons.people_outline),
+          _MenuItem('Piscinas', Icons.pool_outlined),
           _MenuItem('Produtos', Icons.inventory_2_outlined),
           _MenuItem('Pedidos', Icons.shopping_cart_outlined),
           _MenuItem('Ordens de serviço', Icons.build_outlined),
@@ -170,27 +168,16 @@ class _Menu extends StatelessWidget {
           ),
         ),
       ),
-      ...List.generate(menu.length, (i) {
-        const cores = [
-          Colors.indigo,
-          Colors.orange,
-          Colors.teal,
-          Colors.deepPurple,
-          Colors.green,
-          Colors.pink,
-          Colors.red,
-          Colors.blue,
-          Colors.amber,
-        ];
-        final selecionado = pagina == i;
-        return ListTile(
-          selected: selecionado,
+      ...List.generate(
+        menu.length,
+        (i) => ListTile(
+          selected: pagina == i,
           selectedTileColor: const Color(0xFFE3F2FD),
-          leading: Icon(menu[i].icone, color: selecionado ? Colors.blue : cores[i % cores.length]),
+          leading: Icon(menu[i].icone),
           title: Text(menu[i].titulo),
           onTap: () => aoSelecionar(i),
-        );
-      }),
+        ),
+      ),
     ],
   );
 }
@@ -254,6 +241,7 @@ class _FiltrosRelatorio extends StatelessWidget {
     required this.aoEscolherData,
     required this.aoLimpar,
   });
+
   final List<String> clientes;
   final List<String> meses;
   final String? clienteSelecionado;
@@ -264,9 +252,11 @@ class _FiltrosRelatorio extends StatelessWidget {
   final ValueChanged<String?> aoMudarMes;
   final ValueChanged<bool> aoEscolherData;
   final VoidCallback aoLimpar;
-  String _data(DateTime? valor, String vazio) => valor == null
+
+  String _textoData(DateTime? data, String vazio) => data == null
       ? vazio
-      : '${valor.day.toString().padLeft(2, '0')}/${valor.month.toString().padLeft(2, '0')}/${valor.year}';
+      : '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
+
   @override
   Widget build(BuildContext context) {
     final celular = MediaQuery.of(context).size.width < 600;
@@ -276,13 +266,17 @@ class _FiltrosRelatorio extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         SizedBox(
-          width: celular ? 160 : 220,
+          width: celular ? 150 : 220,
           child: DropdownButtonFormField<String>(
             value: clienteSelecionado,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Cliente',
               isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(),
             ),
             items: [
@@ -301,12 +295,16 @@ class _FiltrosRelatorio extends StatelessWidget {
           ),
         ),
         SizedBox(
-          width: celular ? 140 : 180,
+          width: celular ? 138 : 180,
           child: DropdownButtonFormField<String>(
             value: mesSelecionado,
             decoration: const InputDecoration(
               labelText: 'Mês',
               isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
               border: OutlineInputBorder(),
             ),
             items: [
@@ -323,18 +321,20 @@ class _FiltrosRelatorio extends StatelessWidget {
         ),
         OutlinedButton.icon(
           onPressed: () => aoEscolherData(true),
-          icon: const Icon(Icons.calendar_today_outlined),
-          label: Text(_data(dataInicial, 'Data inicial')),
+          icon: const Icon(Icons.calendar_today_outlined, size: 18),
+          label: Text(
+            _textoData(dataInicial, celular ? 'Início' : 'Data inicial'),
+          ),
         ),
         OutlinedButton.icon(
           onPressed: () => aoEscolherData(false),
-          icon: const Icon(Icons.calendar_today_outlined),
-          label: Text(_data(dataFinal, 'Data final')),
+          icon: const Icon(Icons.calendar_today_outlined, size: 18),
+          label: Text(_textoData(dataFinal, celular ? 'Fim' : 'Data final')),
         ),
         TextButton.icon(
           onPressed: aoLimpar,
-          icon: const Icon(Icons.filter_alt_off_outlined),
-          label: const Text('Limpar filtros'),
+          icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+          label: Text(celular ? 'Limpar' : 'Limpar filtros'),
         ),
       ],
     );
@@ -559,7 +559,6 @@ class _ProdutosGerenciamentoPageState
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final p = dados[i] as Map<String, dynamic>;
-                    final celular = MediaQuery.of(context).size.width < 600;
                     final mangueira = (p['nome'] as String)
                         .toLowerCase()
                         .contains('mangueira');
@@ -567,28 +566,17 @@ class _ProdutosGerenciamentoPageState
                       leading: const CircleAvatar(
                         child: Icon(Icons.inventory_2_outlined),
                       ),
-                      titleAlignment: ListTileTitleAlignment.bottom,
-                      title: Text(
-                        p['nome'],
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 16),
-                      ),
+                      title: Text(p['nome']),
                       subtitle: Text(
-                        '${mangueira ? 'Venda por metro' : 'Venda: ${formatarMoeda(p['precoVenda'] as num)}'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        '${mangueira ? 'Venda por metro' : 'Preço de venda'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}',
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (!celular)
-                            Text(
-                              formatarMoeda(p['precoVenda'] as num),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          Text(
+                            formatarMoeda(p['precoVenda'] as num),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           if (widget.gestor)
                             IconButton(
                               onPressed: () => formulario(p),
@@ -1123,38 +1111,14 @@ class _ListaClientesState extends State<_ListaClientes> {
       final clientes = <int, dynamic>{};
       for (final piscina in piscinas) {
         final cliente = piscina['cliente'];
-        if (cliente != null) {
-          final clienteComResponsavel = Map<String, dynamic>.from(cliente as Map);
-          clienteComResponsavel['_responsavel'] = piscina['responsavel'];
-          clientes[cliente['id'] as int] = clienteComResponsavel;
-        }
+        if (cliente != null) clientes[cliente['id'] as int] = cliente;
       }
       return clientes.values.toList();
     }
     final resposta = await apiService.get('/api/clientes');
     if (resposta.statusCode != 200)
       throw Exception('Não foi possível carregar os clientes.');
-    final respostaPiscinas = await apiService.get('/api/piscinas');
-    if (respostaPiscinas.statusCode != 200) return const [];
-    final responsavelPorCliente = <int, dynamic>{};
-    for (final piscina in jsonDecode(respostaPiscinas.body) as List<dynamic>) {
-      final cliente = piscina['cliente'];
-      final responsavel = piscina['responsavel'];
-      if (cliente != null && responsavel != null) {
-        responsavelPorCliente.putIfAbsent(cliente['id'] as int, () => responsavel);
-      }
-    }
-    return (jsonDecode(resposta.body) as List<dynamic>).map((item) {
-      final cliente = Map<String, dynamic>.from(item as Map);
-      cliente['_responsavel'] = responsavelPorCliente[cliente['id'] as int];
-      return cliente;
-    }).toList();
-  }
-
-  Color _corResponsavel(dynamic responsavel) {
-    const cores = [Colors.blue, Colors.green, Colors.orange, Colors.deepPurple, Colors.teal];
-    final id = responsavel is Map ? responsavel['id'] as int? : null;
-    return id == null ? Colors.blue : cores[id % cores.length];
+    return jsonDecode(resposta.body) as List<dynamic>;
   }
 
   Future<void> excluir(int id) async {
@@ -1329,7 +1293,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                             decimal: true,
                           ),
                           decoration: const InputDecoration(
-                            labelText: 'Valor mensal da piscina *',
+                            labelText: 'Mensalidade *',
                             prefixText: 'R\$ ',
                           ),
                         ),
@@ -1456,7 +1420,6 @@ class _ListaClientesState extends State<_ListaClientes> {
           'telefone': telefone.text.trim(),
           'endereco': endereco.text.trim(),
           'valorMensalidade': mensalidade,
-          'piscinaValorMensalidade': mensalidade,
           'diaVencimento': dia,
           'primeiroVencimento': dataApi(vencimentoCalculado()),
           'piscinaNome': piscinaNome.text.trim(),
@@ -1495,6 +1458,9 @@ class _ListaClientesState extends State<_ListaClientes> {
     final nome = TextEditingController(text: cliente['nome']);
     final telefone = TextEditingController(text: cliente['telefone'] ?? '');
     final endereco = TextEditingController(text: cliente['endereco'] ?? '');
+    final valor = TextEditingController(
+      text: cliente['valorMensalidade'].toString(),
+    );
     final vencimento = TextEditingController(
       text: cliente['diaVencimento'].toString(),
     );
@@ -1521,6 +1487,10 @@ class _ListaClientesState extends State<_ListaClientes> {
                 decoration: const InputDecoration(labelText: 'Endereço'),
               ),
               TextField(
+                controller: valor,
+                decoration: const InputDecoration(labelText: 'Mensalidade'),
+              ),
+              TextField(
                 controller: vencimento,
                 decoration: const InputDecoration(
                   labelText: 'Dia de vencimento',
@@ -1545,6 +1515,9 @@ class _ListaClientesState extends State<_ListaClientes> {
       cliente['nome'] = nome.text;
       cliente['telefone'] = telefone.text.trim();
       cliente['endereco'] = endereco.text.trim();
+      cliente['valorMensalidade'] = double.parse(
+        valor.text.replaceAll(',', '.'),
+      );
       cliente['diaVencimento'] = int.parse(vencimento.text);
       await apiService.put('/api/clientes/${cliente['id']}', body: cliente);
       atualizacaoClientes.value++;
@@ -1561,14 +1534,10 @@ class _ListaClientesState extends State<_ListaClientes> {
 
   Future<void> abrirPiscinas(Map<String, dynamic> cliente) async {
     final nome = TextEditingController();
-    final endereco = TextEditingController();
     final tipo = TextEditingController();
     final volume = TextEditingController();
-    final valor = TextEditingController();
     final existentes = await _buscar('/api/piscinas/cliente/${cliente['id']}');
-    final funcionarios = widget.gestor ? await _buscar('/api/funcionarios') : <dynamic>[];
     if (!mounted) return;
-    int? responsavel = funcionarios.isEmpty ? null : funcionarios.first['id'] as int;
     final salvar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1590,64 +1559,24 @@ class _ListaClientesState extends State<_ListaClientes> {
                     ),
                   ),
                 ),
-                if (widget.gestor) ...[
-                  const Divider(),
-                  TextField(
-                    controller: nome,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome da piscina',
-                    ),
+                const Divider(),
+                TextField(
+                  controller: nome,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome da piscina',
                   ),
-                  TextField(
-                    controller: endereco,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Endereço da piscina',
-                    ),
+                ),
+                TextField(
+                  controller: tipo,
+                  decoration: const InputDecoration(labelText: 'Tipo'),
+                ),
+                TextField(
+                  controller: volume,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Volume em litros',
                   ),
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Tipo da piscina'),
-                    items: const [
-                      DropdownMenuItem(value: 'Fibra', child: Text('Fibra')),
-                      DropdownMenuItem(value: 'Alvenaria', child: Text('Alvenaria')),
-                    ],
-                    onChanged: (valorSelecionado) => tipo.text = valorSelecionado ?? '',
-                  ),
-                  TextField(
-                    controller: volume,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Volume em litros',
-                    ),
-                  ),
-                  TextField(
-                    controller: valor,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Valor mensal da piscina',
-                      prefixText: 'R\$ ',
-                    ),
-                  ),
-                  DropdownButtonFormField<int?>(
-                    initialValue: responsavel,
-                    decoration: const InputDecoration(
-                      labelText: 'Colaborador responsável',
-                    ),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('Definir depois'),
-                      ),
-                      ...funcionarios.map<DropdownMenuItem<int?>>(
-                        (funcionario) => DropdownMenuItem<int?>(
-                          value: funcionario['id'] as int,
-                          child: Text((funcionario['usuario'] ?? {})['nome'] ?? ''),
-                        ),
-                      ),
-                    ],
-                    onChanged: (valorSelecionado) => responsavel = valorSelecionado,
-                  ),
-                ],
+                ),
               ],
             ),
           ),
@@ -1657,15 +1586,14 @@ class _ListaClientesState extends State<_ListaClientes> {
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Fechar'),
           ),
-          if (widget.gestor)
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Cadastrar piscina'),
-            ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cadastrar piscina'),
+          ),
         ],
       ),
     );
-    if (widget.gestor && salvar == true && nome.text.trim().isNotEmpty) {
+    if (salvar == true && nome.text.trim().isNotEmpty) {
       await apiService.post(
         '/api/piscinas',
         body: {
@@ -1673,9 +1601,6 @@ class _ListaClientesState extends State<_ListaClientes> {
           'nome': nome.text.trim(),
           'tipo': tipo.text.trim(),
           'volumeLitros': int.tryParse(volume.text) ?? 0,
-          'endereco': endereco.text.trim(),
-          'valorMensalidade': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
-          'responsavelId': responsavel,
           'observacoes': '',
         },
       );
@@ -1854,12 +1779,13 @@ class _ListaClientesState extends State<_ListaClientes> {
                   separatorBuilder: (_, _) => const Divider(height: 1),
                   itemBuilder: (_, i) {
                     final cliente = dados[i] as Map<String, dynamic>;
-                    final celular = MediaQuery.of(context).size.width < 600;
+                    final valor = (cliente['valorMensalidade'] ?? 0)
+                        .toString()
+                        .replaceAll('.', ',');
                     final dia = cliente['diaVencimento'] == null
                         ? 'Vencimento não informado'
                         : 'Vence dia ${cliente['diaVencimento']}';
                     final selecionado = clienteSelecionado == cliente['id'];
-                    final corResponsavel = _corResponsavel(cliente['_responsavel']);
                     return Column(
                       children: [
                         ListTile(
@@ -1868,10 +1794,8 @@ class _ListaClientesState extends State<_ListaClientes> {
                                 ? null
                                 : cliente['id'] as int,
                           ),
-                          leading: CircleAvatar(
-                            backgroundColor: corResponsavel.withValues(alpha: .15),
-                            foregroundColor: corResponsavel,
-                            child: const Icon(Icons.person),
+                          leading: const CircleAvatar(
+                            child: Icon(Icons.person),
                           ),
                           title: Text(cliente['nome'] ?? ''),
                           subtitle: Text(
@@ -1891,6 +1815,13 @@ class _ListaClientesState extends State<_ListaClientes> {
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              if (widget.gestor)
+                                Text(
+                                  'R\$ $valor',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               if (widget.gestor)
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),
@@ -1917,65 +1848,35 @@ class _ListaClientesState extends State<_ListaClientes> {
                           Container(
                             color: const Color(0xFFE3F2FD),
                             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-                            child: celular
-                                ? Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      FilledButton.tonalIcon(
-                                        onPressed: () => abrirPiscinas(cliente),
-                                        icon: const Icon(Icons.pool_outlined),
-                                        label: const Text('Piscinas'),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      FilledButton.tonalIcon(
-                                        onPressed: () =>
-                                            abrirOrdemServico(cliente),
-                                        icon: const Icon(Icons.build_outlined),
-                                        label: const Text('Ordem de serviço'),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      FilledButton.tonalIcon(
-                                        onPressed: () => abrirPedido(cliente),
-                                        icon: const Icon(
-                                          Icons.shopping_cart_outlined,
-                                        ),
-                                        label: const Text('Produtos'),
-                                      ),
-                                    ],
-                                  )
-                                : Row(
-                                    children: [
-                                      Expanded(
-                                        child: FilledButton.tonalIcon(
-                                          onPressed: () => abrirPiscinas(cliente),
-                                          icon: const Icon(Icons.pool_outlined),
-                                          label: const Text('Piscinas'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: FilledButton.tonalIcon(
-                                          onPressed: () =>
-                                              abrirOrdemServico(cliente),
-                                          icon: const Icon(
-                                            Icons.build_outlined,
-                                          ),
-                                          label: const Text('Ordem de serviço'),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: FilledButton.tonalIcon(
-                                          onPressed: () => abrirPedido(cliente),
-                                          icon: const Icon(
-                                            Icons.shopping_cart_outlined,
-                                          ),
-                                          label: const Text('Produtos'),
-                                        ),
-                                      ),
-                                    ],
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: FilledButton.tonalIcon(
+                                    onPressed: () => abrirPiscinas(cliente),
+                                    icon: const Icon(Icons.pool_outlined),
+                                    label: const Text('Piscinas'),
                                   ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: FilledButton.tonalIcon(
+                                    onPressed: () => abrirOrdemServico(cliente),
+                                    icon: const Icon(Icons.build_outlined),
+                                    label: const Text('Ordem de serviço'),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: FilledButton.tonalIcon(
+                                    onPressed: () => abrirPedido(cliente),
+                                    icon: const Icon(
+                                      Icons.shopping_cart_outlined,
+                                    ),
+                                    label: const Text('Produtos'),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                       ],
                     );
@@ -2017,15 +1918,15 @@ class _Dashboard extends StatelessWidget {
               ? [
                   const _ContagemResumoCard(tipo: _TipoContagem.clientes),
                   const _ContagemResumoCard(tipo: _TipoContagem.cobrancas),
+                  const _FaturamentoCard(),
+                  const _FluxoCaixaCard(),
+                  const _ResultadoProdutosCard(),
                   const _NotificacaoOperacionalCard(
                     tipo: _TipoNotificacao.produto,
                   ),
                   const _NotificacaoOperacionalCard(
                     tipo: _TipoNotificacao.ordemServico,
                   ),
-                  const _FaturamentoCard(),
-                  const _FluxoCaixaCard(),
-                  const _ResultadoProdutosCard(),
                 ]
               : const [_ResumoFuncionario()],
         ),
@@ -2145,6 +2046,186 @@ class _FaturamentoCard extends StatelessWidget {
 
 class _FluxoCaixaCard extends StatelessWidget {
   const _FluxoCaixaCard();
+
+  String _tituloMes(String referencia) {
+    const nomes = [
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
+    ];
+    final partes = referencia.split('-');
+    if (partes.length != 2) return referencia;
+    final mes = int.tryParse(partes[1]);
+    return mes == null || mes < 1 || mes > 12
+        ? referencia
+        : '${nomes[mes - 1]} de ${partes[0]}';
+  }
+
+  Future<List<dynamic>> _carregarEntradas(String referencia) async {
+    final resposta = await apiService.get(
+      '/api/cobrancas/fluxo-caixa/entradas?referencia=$referencia',
+    );
+    if (resposta.statusCode != 200) return [];
+    return jsonDecode(resposta.body) as List<dynamic>;
+  }
+
+  Future<void> _abrirFluxo(BuildContext context) async {
+    final resposta = await apiService.get('/api/cobrancas/fluxo-caixa/meses');
+    if (!context.mounted) return;
+
+    final meses = resposta.statusCode == 200
+        ? (jsonDecode(resposta.body) as List<dynamic>).cast<String>()
+        : <String>[];
+    if (!meses.contains(referenciaAtual)) meses.insert(0, referenciaAtual);
+    if (meses.isEmpty) meses.add(referenciaAtual);
+
+    var referencia = meses.first;
+    var entradas = _carregarEntradas(referencia);
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, atualizar) {
+          return AlertDialog(
+            title: Text('Fluxo de caixa — ${_tituloMes(referencia)}'),
+            content: SizedBox(
+              width: 620,
+              height: 440,
+              child: Column(
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: referencia,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Mês'),
+                    items: meses
+                        .map(
+                          (mes) => DropdownMenuItem(
+                            value: mes,
+                            child: Text(_tituloMes(mes)),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (mes) {
+                      if (mes == null) return;
+                      atualizar(() {
+                        referencia = mes;
+                        entradas = _carregarEntradas(mes);
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: FutureBuilder<List<dynamic>>(
+                      future: entradas,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final porCliente =
+                            <String, List<Map<String, dynamic>>>{};
+                        for (final entrada
+                            in snapshot.data ?? const <dynamic>[]) {
+                          final item = entrada as Map<String, dynamic>;
+                          final cliente =
+                              item['clienteNome']?.toString() ?? 'Cliente';
+                          porCliente.putIfAbsent(cliente, () => []).add(item);
+                        }
+                        if (porCliente.isEmpty) {
+                          return const Center(
+                            child: Text(
+                              'Nenhuma entrada confirmada neste mês.',
+                            ),
+                          );
+                        }
+                        final clientes = porCliente.keys.toList()..sort();
+                        return ListView.separated(
+                          itemCount: clientes.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final cliente = clientes[index];
+                            final itens = porCliente[cliente]!;
+                            final total = itens.fold<double>(
+                              0,
+                              (soma, item) =>
+                                  soma +
+                                  ((item['valor'] as num?)?.toDouble() ?? 0),
+                            );
+                            return ExpansionTile(
+                              leading: const Icon(
+                                Icons.person_outline,
+                                color: Color(0xFF2E7D32),
+                              ),
+                              title: Text(cliente),
+                              subtitle: Text(
+                                '${itens.length} ${itens.length == 1 ? 'entrada confirmada' : 'entradas confirmadas'}',
+                              ),
+                              trailing: Text(
+                                formatarMoeda(total),
+                                style: const TextStyle(
+                                  color: Color(0xFF2E7D32),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              children: itens
+                                  .map(
+                                    (item) => ListTile(
+                                      contentPadding: const EdgeInsets.only(
+                                        left: 72,
+                                        right: 16,
+                                      ),
+                                      title: Text(
+                                        item['descricao']?.toString() ??
+                                            'Pagamento',
+                                      ),
+                                      subtitle: Text(
+                                        item['formaPagamento']
+                                                    ?.toString()
+                                                    .isNotEmpty ==
+                                                true
+                                            ? item['formaPagamento'].toString()
+                                            : 'Forma de pagamento não informada',
+                                      ),
+                                      trailing: Text(
+                                        formatarMoeda(
+                                          (item['valor'] as num?)?.toDouble() ??
+                                              0,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Fechar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<int>(
     valueListenable: atualizacaoFinanceira,
@@ -2161,6 +2242,7 @@ class _FluxoCaixaCard extends StatelessWidget {
               : formatarMoeda(total),
           Icons.account_balance_wallet_outlined,
           const Color(0xFF2E7D32),
+          aoTocar: () => _abrirFluxo(context),
         );
       },
     ),
@@ -2399,40 +2481,51 @@ class _NotificacaoOperacionalCard extends StatelessWidget {
 }
 
 class _Indicador extends StatelessWidget {
-  const _Indicador(this.titulo, this.valor, this.icone, this.cor);
+  const _Indicador(
+    this.titulo,
+    this.valor,
+    this.icone,
+    this.cor, {
+    this.aoTocar,
+  });
   final String titulo, valor;
   final IconData icone;
   final Color cor;
+  final VoidCallback? aoTocar;
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 230,
     child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: cor.withValues(alpha: .14),
-              foregroundColor: cor,
-              child: Icon(icone),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(titulo, style: const TextStyle(color: Colors.black54)),
-                  const SizedBox(height: 4),
-                  Text(
-                    valor,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: aoTocar,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: cor.withValues(alpha: .14),
+                foregroundColor: cor,
+                child: Icon(icone),
               ),
-            ),
-          ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(titulo, style: const TextStyle(color: Colors.black54)),
+                    const SizedBox(height: 4),
+                    Text(
+                      valor,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     ),
