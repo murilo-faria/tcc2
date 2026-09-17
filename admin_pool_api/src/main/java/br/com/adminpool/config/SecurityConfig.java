@@ -48,6 +48,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/me").authenticated()
                 .requestMatchers("/api/piscinas/**", "/api/salarios/**", "/api/funcionarios/**").authenticated()
                 .requestMatchers("/api/cobrancas/**", "/api/funcionarios/**").hasRole("GESTOR")
+                .requestMatchers(HttpMethod.DELETE, "/api/roteiro/**").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("GESTOR")
                 .requestMatchers(HttpMethod.POST, "/api/clientes/**", "/api/produtos/**", "/api/piscinas/**").hasRole("GESTOR")
                 .requestMatchers(HttpMethod.PUT, "/api/clientes/**", "/api/produtos/**", "/api/piscinas/**").hasRole("GESTOR")
