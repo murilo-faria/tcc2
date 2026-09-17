@@ -8,26 +8,148 @@ class _CobrancasPageNova extends StatefulWidget {
 }
 
 class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
-  late Future<List<dynamic>> _clientes;
+  late Future<Map<String, dynamic>> _dados;
   String _busca = '';
+  String? _clienteSelecionado;
+  String? _mesSelecionado;
+  int? _diaVencimentoSelecionado;
+  DateTime? _dataInicial;
+  DateTime? _dataFinal;
 
   @override
   void initState() {
     super.initState();
-    _clientes = _carregar();
+    _dados = _carregar();
   }
 
-  Future<List<dynamic>> _carregar() async {
-    final resposta = await apiService.get('/api/cobrancas/clientes');
-    if (resposta.statusCode != 200) {
+  Future<Map<String, dynamic>> _carregar() async {
+    final respostas = await Future.wait([
+      apiService.get('/api/cobrancas/clientes'),
+      apiService.get('/api/cobrancas/meses'),
+      apiService.get('/api/clientes'),
+    ]);
+    if (respostas[0].statusCode != 200 ||
+        respostas[1].statusCode != 200 ||
+        respostas[2].statusCode != 200) {
       throw Exception('Não foi possível carregar as cobranças.');
     }
-    return jsonDecode(resposta.body) as List<dynamic>;
+    final meses = jsonDecode(respostas[1].body) as List<dynamic>;
+    final cobrancas = await Future.wait(
+      meses.map((mes) async {
+        final resposta = await apiService.get('/api/cobrancas?referencia=$mes');
+        return resposta.statusCode == 200
+            ? jsonDecode(resposta.body) as List<dynamic>
+            : <dynamic>[];
+      }),
+    );
+    return {
+      'resumos': jsonDecode(respostas[0].body) as List<dynamic>,
+      'meses': meses,
+      'clientesCadastrados': jsonDecode(respostas[2].body) as List<dynamic>,
+      'cobrancas': cobrancas.expand((itens) => itens).toList(),
+    };
   }
 
   void _atualizar() {
     atualizacaoFinanceira.value++;
-    setState(() => _clientes = _carregar());
+    setState(() => _dados = _carregar());
+  }
+
+  DateTime? _data(dynamic valor) => DateTime.tryParse(valor?.toString() ?? '');
+  Future<void> _escolherData(bool inicial) async {
+    final escolhida = await showDatePicker(
+      context: context,
+      initialDate: (inicial ? _dataInicial : _dataFinal) ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (escolhida != null)
+      setState(
+        () => inicial ? _dataInicial = escolhida : _dataFinal = escolhida,
+      );
+  }
+
+  bool _noPeriodo(Map<String, dynamic> cobranca) {
+    final data = _data(cobranca['vencimento']);
+    if (data == null) return false;
+    final dia = DateTime(data.year, data.month, data.day);
+    return (_mesSelecionado == null ||
+            cobranca['referencia'] == _mesSelecionado) &&
+        (_diaVencimentoSelecionado == null ||
+            data.day == _diaVencimentoSelecionado) &&
+        (_dataInicial == null || !dia.isBefore(_dataInicial!)) &&
+        (_dataFinal == null || !dia.isAfter(_dataFinal!));
+  }
+
+  Future<void> _gerarRelatorio() async {
+    final dados = await _dados;
+    final cobrancas = (dados['cobrancas'] as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .where((c) {
+          final cliente = (c['cliente'] ?? {})['nome'].toString();
+          return (_clienteSelecionado == null ||
+                  cliente == _clienteSelecionado) &&
+              _noPeriodo(c) &&
+              cliente.toLowerCase().contains(_busca);
+        })
+        .toList();
+    if (!mounted) return;
+    final total = cobrancas.fold<double>(
+      0,
+      (soma, item) => soma + ((item['total'] as num?) ?? 0).toDouble(),
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Relatório de cobranças'),
+        content: SizedBox(
+          width: 620,
+          height: 420,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${cobrancas.length} cobrança(s) • Total: ${formatarMoeda(total)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: cobrancas.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Nenhuma cobrança para os filtros escolhidos.',
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: cobrancas.length,
+                        separatorBuilder: (_, __) => const Divider(),
+                        itemBuilder: (_, i) {
+                          final c = cobrancas[i];
+                          return ListTile(
+                            title: Text((c['cliente'] ?? {})['nome'] ?? ''),
+                            subtitle: Text(
+                              '${c['referencia']} • vence ${c['vencimento']} • ${c['status']}',
+                            ),
+                            trailing: Text(
+                              formatarMoeda((c['total'] as num?) ?? 0),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _abrirCliente(Map<String, dynamic> cliente) async {
@@ -47,17 +169,62 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Cobranças',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Abra um cliente para conferir, detalhar e baixar cada valor.',
+          _CabecalhoResponsivo(
+            titulo: 'Cobranças',
+            subtitulo:
+                'Abra um cliente para conferir, detalhar e baixar cada valor.',
+            acao: OutlinedButton.icon(
+              onPressed: _gerarRelatorio,
+              icon: const Icon(Icons.summarize_outlined),
+              label: const Text('Gerar relatório'),
+            ),
           ),
           const SizedBox(height: 18),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _dados,
+            builder: (_, estado) {
+              if (!estado.hasData) return const SizedBox.shrink();
+              final dias =
+                  (estado.data!['clientesCadastrados'] as List<dynamic>)
+                      .where((cliente) => cliente['ativo'] != false)
+                      .map((cliente) => cliente['diaVencimento'])
+                      .whereType<int>()
+                      .toSet()
+                      .toList()
+                    ..sort();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Filtrar por dia de vencimento',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('Todos'),
+                        selected: _diaVencimentoSelecionado == null,
+                        onSelected: (_) =>
+                            setState(() => _diaVencimentoSelecionado = null),
+                      ),
+                      ...dias.map(
+                        (dia) => ChoiceChip(
+                          label: Text('Dia $dia'),
+                          selected: _diaVencimentoSelecionado == dia,
+                          onSelected: (_) =>
+                              setState(() => _diaVencimentoSelecionado = dia),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
           TextField(
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
@@ -68,22 +235,65 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                 setState(() => _busca = valor.trim().toLowerCase()),
           ),
           const SizedBox(height: 12),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _dados,
+            builder: (_, estado) {
+              if (!estado.hasData) return const SizedBox.shrink();
+              final resumos = estado.data!['resumos'] as List<dynamic>;
+              final clientes =
+                  resumos.map((item) => item['clienteNome'].toString()).toList()
+                    ..sort();
+              final meses =
+                  (estado.data!['meses'] as List<dynamic>)
+                      .map((item) => item.toString())
+                      .toList()
+                    ..sort();
+              return _FiltrosRelatorio(
+                clientes: clientes,
+                meses: meses,
+                clienteSelecionado: _clienteSelecionado,
+                mesSelecionado: _mesSelecionado,
+                dataInicial: _dataInicial,
+                dataFinal: _dataFinal,
+                aoMudarCliente: (v) => setState(() => _clienteSelecionado = v),
+                aoMudarMes: (v) => setState(() => _mesSelecionado = v),
+                aoEscolherData: _escolherData,
+                aoLimpar: () => setState(() {
+                  _clienteSelecionado = null;
+                  _mesSelecionado = null;
+                  _diaVencimentoSelecionado = null;
+                  _dataInicial = null;
+                  _dataFinal = null;
+                }),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
           Expanded(
-            child: FutureBuilder<List<dynamic>>(
-              future: _clientes,
+            child: FutureBuilder<Map<String, dynamic>>(
+              future: _dados,
               builder: (context, estado) {
                 if (estado.connectionState != ConnectionState.done) {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (estado.hasError)
                   return Center(child: Text('${estado.error}'));
-                final clientes = estado.data!
-                    .where(
-                      (item) => (item['clienteNome'] ?? '')
-                          .toString()
-                          .toLowerCase()
-                          .contains(_busca),
-                    )
+                final cobrancas = (estado.data!['cobrancas'] as List<dynamic>)
+                    .cast<Map<String, dynamic>>();
+                final clientes = (estado.data!['resumos'] as List<dynamic>)
+                    .cast<Map<String, dynamic>>()
+                    .where((item) {
+                      final nome = (item['clienteNome'] ?? '').toString();
+                      final id = item['clienteId'];
+                      return (_clienteSelecionado == null ||
+                              nome == _clienteSelecionado) &&
+                          nome.toLowerCase().contains(_busca) &&
+                          cobrancas.any(
+                            (c) =>
+                                (c['cliente'] ?? {})['id'] == id &&
+                                _noPeriodo(c),
+                          );
+                    })
                     .toList();
                 if (clientes.isEmpty)
                   return const Center(
@@ -97,17 +307,17 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       final cliente = clientes[indice] as Map<String, dynamic>;
                       final total = (cliente['totalPendente'] as num?) ?? 0;
                       final atrasado = cliente['possuiAtraso'] == true;
-                      final emDia = total == 0;
-                      final cor = atrasado ? Colors.red : emDia ? Colors.green : Colors.blue;
                       return ListTile(
                         onTap: () => _abrirCliente(cliente),
                         leading: CircleAvatar(
-                          backgroundColor: cor.withValues(alpha: .10),
+                          backgroundColor: atrasado
+                              ? Colors.red.shade50
+                              : Colors.blue.shade50,
                           child: Icon(
                             atrasado
                                 ? Icons.warning_amber_rounded
-                                : emDia ? Icons.check_circle_outline : Icons.person_outline,
-                            color: cor,
+                                : Icons.person_outline,
+                            color: atrasado ? Colors.red : Colors.blue,
                           ),
                         ),
                         title: Text(cliente['clienteNome'] ?? ''),
@@ -185,24 +395,6 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     setState(() => _itens = _carregar());
   }
 
-  void _informarBaixa(String mensagem) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensagem), backgroundColor: Colors.green.shade700),
-    );
-  }
-
-  void _informarErro() {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Não foi possível registrar o pagamento. Tente novamente.',
-        ),
-      ),
-    );
-  }
-
   Future<bool> _confirmar(String titulo, String mensagem, String botao) async {
     return await showDialog<bool>(
           context: context,
@@ -236,12 +428,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
       '/api/cobrancas/itens/${item['id']}/baixar',
       body: {},
     );
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
-      _recarregar();
-      _informarBaixa('Pagamento confirmado.');
-    } else {
-      _informarErro();
-    }
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
   Future<void> _baixarSelecionados() async {
@@ -256,12 +443,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
       '/api/cobrancas/itens/baixar',
       body: {'itemIds': _selecionados.toList()},
     );
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
-      _recarregar();
-      _informarBaixa('Pagamentos selecionados registrados.');
-    } else {
-      _informarErro();
-    }
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
   Future<void> _baixarTotal() async {
@@ -276,12 +458,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
       '/api/cobrancas/clientes/$clienteId/baixar-total',
       body: {},
     );
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
-      _recarregar();
-      _informarBaixa('Pagamento total registrado.');
-    } else {
-      _informarErro();
-    }
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
   Future<void> _baixarParcial() async {
@@ -322,7 +499,6 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
-      _informarBaixa('Baixa parcial registrada.');
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Confira o valor informado.')),
@@ -379,13 +555,11 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
 
   @override
   Widget build(BuildContext context) {
-    final celular = MediaQuery.of(context).size.width < 600;
     return AlertDialog(
-      insetPadding: EdgeInsets.all(celular ? 16 : 24),
       title: Text('Valores a receber — ${widget.cliente['clienteNome']}'),
       content: SizedBox(
-        width: celular ? double.maxFinite : 780,
-        height: celular ? MediaQuery.of(context).size.height * .62 : 520,
+        width: 780,
+        height: 520,
         child: Column(
           children: [
             Wrap(
@@ -427,102 +601,8 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                     itemBuilder: (_, indice) {
                       final item = estado.data![indice] as Map<String, dynamic>;
                       final aberto = _aberto(item);
-                      final pago = item['status'] == 'PAGO';
                       final id = item['id'] as int;
-                      if (celular) {
-                        return InkWell(
-                          onTap: () => _abrirDetalhes(item),
-                          child: Container(
-                            color: pago
-                                ? Colors.green.withValues(alpha: .07)
-                                : Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              children: [
-                                Checkbox(
-                                  value: _selecionados.contains(id),
-                                  onChanged: aberto
-                                      ? (marcado) => setState(
-                                          () => marcado == true
-                                              ? _selecionados.add(id)
-                                              : _selecionados.remove(id),
-                                        )
-                                      : null,
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item['descricao'] ?? item['tipo'] ?? '',
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontWeight: pago
-                                              ? FontWeight.w600
-                                              : null,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: pago
-                                              ? Colors.green.shade800
-                                              : null,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        formatarMoeda(
-                                          (item['saldoPendente'] as num?) ?? 0,
-                                        ),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: pago
-                                              ? Colors.green.shade800
-                                              : null,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: 'Ver detalhes',
-                                  onPressed: () => _abrirDetalhes(item),
-                                  icon: const Icon(Icons.visibility_outlined),
-                                ),
-                                IconButton(
-                                  tooltip: pago
-                                      ? 'Pagamento confirmado'
-                                      : 'Confirmar pagamento',
-                                  onPressed: aberto
-                                      ? () => _baixarItem(item)
-                                      : null,
-                                  icon: Icon(
-                                    pago
-                                        ? Icons.check_circle
-                                        : Icons.circle_outlined,
-                                    color: pago
-                                        ? Colors.green
-                                        : Colors.grey.shade500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
                       return ListTile(
-                        tileColor: pago
-                            ? Colors.green.withValues(alpha: .07)
-                            : Colors.white,
                         onTap: () => _abrirDetalhes(item),
                         leading: Checkbox(
                           value: _selecionados.contains(id),
@@ -534,17 +614,9 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                 )
                               : null,
                         ),
-                        title: Text(
-                          item['descricao'] ?? item['tipo'] ?? '',
-                          style: TextStyle(
-                            fontWeight: pago ? FontWeight.w600 : null,
-                          ),
-                        ),
+                        title: Text(item['descricao'] ?? item['tipo'] ?? ''),
                         subtitle: Text(
                           '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
-                          style: TextStyle(
-                            color: pago ? Colors.green.shade800 : null,
-                          ),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -553,9 +625,8 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                               formatarMoeda(
                                 (item['saldoPendente'] as num?) ?? 0,
                               ),
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: pago ? Colors.green.shade800 : null,
                               ),
                             ),
                             IconButton(
@@ -564,19 +635,13 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                               icon: const Icon(Icons.visibility_outlined),
                             ),
                             IconButton(
-                              tooltip: pago
-                                  ? 'Pagamento confirmado'
-                                  : 'Confirmar pagamento',
+                              tooltip: 'Confirmar pagamento',
                               onPressed: aberto
                                   ? () => _baixarItem(item)
                                   : null,
                               icon: Icon(
-                                pago
-                                    ? Icons.check_circle
-                                    : Icons.circle_outlined,
-                                color: pago
-                                    ? Colors.green
-                                    : Colors.grey.shade500,
+                                Icons.check_circle_outline,
+                                color: aberto ? Colors.green : null,
                               ),
                             ),
                           ],

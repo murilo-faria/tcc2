@@ -38,11 +38,130 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   }
 
   DateTime? _data(dynamic valor) => DateTime.tryParse(valor?.toString() ?? '');
-  String _mes(dynamic valor) { final data = _data(valor); return data == null ? '' : '${data.year}-${data.month.toString().padLeft(2, '0')}'; }
-  Future<void> _escolherData(bool inicial) async { final data = await showDatePicker(context: context, initialDate: (inicial ? _dataInicial : _dataFinal) ?? DateTime.now(), firstDate: DateTime(2020), lastDate: DateTime(2100)); if (data != null) setState(() { if (inicial) {_dataInicial = data;} else {_dataFinal = data;} }); }
-  bool _noPeriodo(dynamic valor) { final data = _data(valor); if (data == null) return false; final dia = DateTime(data.year, data.month, data.day); return (_mesSelecionado == null || _mes(data) == _mesSelecionado) && (_dataInicial == null || !dia.isBefore(_dataInicial!)) && (_dataFinal == null || !dia.isAfter(_dataFinal!)); }
-  List<MapEntry<int, List<Map<String, dynamic>>>> _filtrarGrupos(List<dynamic> linhas) => _agrupar(linhas).entries.where((grupo) { final primeiro = grupo.value.first; final cliente = (primeiro['cliente'] ?? {})['nome'].toString(); final produtos = grupo.value.map((item) => (item['produto'] ?? {})['nome'].toString().toLowerCase()).join(' '); return (_clienteSelecionado == null || cliente == _clienteSelecionado) && _noPeriodo(primeiro['dataPedido']) && (cliente.toLowerCase().contains(_filtro) || produtos.contains(_filtro)); }).toList();
-  Future<void> _gerarRelatorio() async { final grupos = _filtrarGrupos(await _pedidos); if (!mounted) return; final total = grupos.fold<double>(0, (s, g) => s + g.value.fold<double>(0, (x, i) => x + ((i['totalVenda'] as num?) ?? 0).toDouble())); await showDialog<void>(context: context, builder: (context) => AlertDialog(title: const Text('Relatório de pedidos'), content: SizedBox(width: 620, height: 420, child: Column(children: [Align(alignment: Alignment.centerLeft, child: Text('${grupos.length} pedido(s) • Total: ${formatarMoeda(total)}', style: const TextStyle(fontWeight: FontWeight.bold))), const Divider(), Expanded(child: grupos.isEmpty ? const Center(child: Text('Nenhum pedido para os filtros escolhidos.')) : ListView.builder(itemCount: grupos.length, itemBuilder: (_, i) { final g = grupos[i]; final p = g.value.first; final valor = g.value.fold<double>(0, (s, x) => s + ((x['totalVenda'] as num?) ?? 0).toDouble()); return ListTile(title: Text('Pedido #${g.key} — ${(p['cliente'] ?? {})['nome'] ?? ''}'), subtitle: Text('${p['dataPedido']} • ${g.value.length} produto(s)'), trailing: Text(formatarMoeda(valor))); }))])), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar'))])); }
+
+  String _mes(dynamic valor) {
+    final data = _data(valor);
+    return data == null
+        ? ''
+        : '${data.year}-${data.month.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _escolherData(bool inicial) async {
+    final escolhida = await showDatePicker(
+      context: context,
+      initialDate: (inicial ? _dataInicial : _dataFinal) ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (escolhida != null)
+      setState(
+        () => inicial ? _dataInicial = escolhida : _dataFinal = escolhida,
+      );
+  }
+
+  bool _noPeriodo(dynamic valor) {
+    final data = _data(valor);
+    if (data == null) return false;
+    final dia = DateTime(data.year, data.month, data.day);
+    if (_mesSelecionado != null && _mes(data) != _mesSelecionado) return false;
+    if (_dataInicial != null && dia.isBefore(_dataInicial!)) return false;
+    if (_dataFinal != null && dia.isAfter(_dataFinal!)) return false;
+    return true;
+  }
+
+  List<MapEntry<int, List<Map<String, dynamic>>>> _filtrarGrupos(
+    List<dynamic> linhas,
+  ) => _agrupar(linhas).entries.where((grupo) {
+    final primeiro = grupo.value.first;
+    final cliente = (primeiro['cliente'] ?? {})['nome'].toString();
+    final produtos = grupo.value
+        .map((item) => (item['produto'] ?? {})['nome'].toString().toLowerCase())
+        .join(' ');
+    return (_clienteSelecionado == null || cliente == _clienteSelecionado) &&
+        _noPeriodo(primeiro['dataPedido']) &&
+        (cliente.toLowerCase().contains(_filtro) || produtos.contains(_filtro));
+  }).toList();
+
+  Future<void> _gerarRelatorio() async {
+    final grupos = _filtrarGrupos(await _pedidos);
+    if (!mounted) return;
+    final total = grupos.fold<double>(
+      0,
+      (soma, grupo) =>
+          soma +
+          grupo.value.fold<double>(
+            0,
+            (subtotal, item) =>
+                subtotal +
+                ((item['totalLiquido'] as num?) ??
+                        (item['totalVenda'] as num?) ??
+                        0)
+                    .toDouble(),
+          ),
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Relatório de pedidos'),
+        content: SizedBox(
+          width: 620,
+          height: 420,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${grupos.length} pedido(s) • Total: ${formatarMoeda(total)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Divider(),
+              Expanded(
+                child: grupos.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Nenhum pedido para os filtros escolhidos.',
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: grupos.length,
+                        separatorBuilder: (_, __) => const Divider(),
+                        itemBuilder: (_, i) {
+                          final grupo = grupos[i];
+                          final primeiro = grupo.value.first;
+                          final valor = grupo.value.fold<double>(
+                            0,
+                            (soma, item) =>
+                                soma +
+                                ((item['totalLiquido'] as num?) ??
+                                        (item['totalVenda'] as num?) ??
+                                        0)
+                                    .toDouble(),
+                          );
+                          return ListTile(
+                            title: Text(
+                              'Pedido #${grupo.key} — ${(primeiro['cliente'] ?? {})['nome'] ?? ''}',
+                            ),
+                            subtitle: Text(
+                              '${primeiro['dataPedido']} • ${grupo.value.length} produto(s)',
+                            ),
+                            trailing: Text(formatarMoeda(valor)),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _novoPedido() async {
     final resultados = await Future.wait([
@@ -66,8 +185,55 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
+  Future<void> _alterarStatus(int codigo, String atual) async {
+    const opcoes = [
+      'SOLICITADO',
+      'PEDIDO_REALIZADO',
+      'AGUARDANDO_ENTREGA',
+      'ENTREGUE',
+    ];
+    String escolhido = opcoes.contains(atual) ? atual : opcoes.first;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (_, setLocal) => AlertDialog(
+          title: Text('Atualizar Pedido #$codigo'),
+          content: DropdownButtonFormField<String>(
+            initialValue: escolhido,
+            decoration: const InputDecoration(labelText: 'Situação'),
+            items: opcoes
+                .map(
+                  (status) => DropdownMenuItem(
+                    value: status,
+                    child: Text(_nomeStatus(status)),
+                  ),
+                )
+                .toList(),
+            onChanged: (status) => setLocal(() => escolhido = status!),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Salvar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmar != true) return;
+    final resposta = await apiService.put(
+      '/api/pedidos-produto/codigo/$codigo/status?status=$escolhido',
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+  }
+
   Future<void> _concluir(int codigo) async {
     String pagador = 'EMPRESA';
+    final desconto = TextEditingController();
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -90,11 +256,23 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 RadioListTile<String>(
                   value: 'CLIENTE',
                   groupValue: pagador,
-                  title: const Text('Pago pelo cliente'),
+                  title: const Text('Pago pelo cliente na Beluga'),
                   subtitle: const Text(
                     'Conclui sem cobrança e sem lucro para a empresa.',
                   ),
                   onChanged: (v) => setLocal(() => pagador = v!),
+                ),
+                TextField(
+                  controller: desconto,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Desconto do pedido',
+                    prefixText: 'R\$ ',
+                    helperText:
+                        'Opcional. Será abatido antes de gerar a cobrança.',
+                  ),
                 ),
                 const Divider(),
                 const Text(
@@ -120,63 +298,39 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     if (confirmar != true) return;
     final resposta = await apiService.put(
       '/api/pedidos-produto/codigo/$codigo/concluir',
-      body: {'pagoPor': pagador},
+      body: {
+        'pagoPor': pagador,
+        'desconto': double.tryParse(desconto.text.replaceAll(',', '.')) ?? 0,
+      },
     );
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
-      _recarregar();
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Pedido concluído.')));
-      }
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível concluir o pedido.')),
-      );
-    }
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
-  Future<void> _reabrir(int codigo) async {
+  Future<void> _excluir(int codigo) async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Desfazer conclusão do Pedido #$codigo?'),
+        title: Text('Excluir Pedido #$codigo?'),
         content: const Text(
-          'O pedido voltará para solicitado e a cobrança vinculada será removida. Isso só é permitido se o cliente ainda não tiver pago esse pedido.',
+          'O pedido ainda não foi concluído e será removido definitivamente.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
-          FilledButton.icon(
+          FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.undo),
-            label: const Text('Desfazer conclusão'),
+            child: const Text('Excluir'),
           ),
         ],
       ),
     );
     if (confirmar != true) return;
-    final resposta = await apiService.put(
-      '/api/pedidos-produto/codigo/$codigo/reabrir',
+    final resposta = await apiService.delete(
+      '/api/pedidos-produto/codigo/$codigo',
     );
-    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
-      _recarregar();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pedido reaberto e cobrança removida.')),
-        );
-      }
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Não foi possível desfazer: o pedido pode já ter pagamento recebido.',
-          ),
-        ),
-      );
-    }
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
   Future<void> _detalhar(int codigo) async {
@@ -197,10 +351,14 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                   leading: const Icon(Icons.shopping_bag_outlined),
                   title: Text(produto['nome'] ?? ''),
                   subtitle: Text(
-                    '${linha['quantidade']} unidade(s) • venda ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}',
+                    '${linha['quantidade']} unidade(s) • venda ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}${((linha['desconto'] as num?) ?? 0) > 0 ? ' • desconto ${formatarMoeda(linha['desconto'] as num)}' : ''}',
                   ),
                   trailing: Text(
-                    formatarMoeda((linha['totalVenda'] as num?) ?? 0),
+                    formatarMoeda(
+                      (linha['totalLiquido'] as num?) ??
+                          (linha['totalVenda'] as num?) ??
+                          0,
+                    ),
                   ),
                 );
               }).toList(),
@@ -226,6 +384,16 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     return grupos;
   }
 
+  String _nomeStatus(String status) =>
+      const {
+        'SOLICITADO': 'Solicitado',
+        'PEDIDO_REALIZADO': 'Pedido realizado na Beluga',
+        'AGUARDANDO_ENTREGA': 'Aguardando entrega',
+        'ENTREGUE': 'Entregue',
+        'CONCLUIDO': 'Concluído',
+      }[status] ??
+      status;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -238,20 +406,76 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           _CabecalhoResponsivo(
             titulo: 'Pedidos de produtos',
             subtitulo: 'Pedidos por encomenda, sem controle de estoque.',
-            acao: Wrap(spacing: 10, children: [OutlinedButton.icon(onPressed: _gerarRelatorio, icon: const Icon(Icons.summarize_outlined), label: const Text('Gerar relatório')), FilledButton.icon(onPressed: _novoPedido, icon: const Icon(Icons.add), label: const Text('Novo pedido'))]),
+            acao: Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _gerarRelatorio,
+                  icon: const Icon(Icons.summarize_outlined),
+                  label: const Text('Gerar relatório'),
+                ),
+                FilledButton.icon(
+                  onPressed: _novoPedido,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Novo pedido'),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 18),
           TextField(
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
               labelText: 'Pesquisar cliente ou produto',
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(),
             ),
             onChanged: (valor) =>
                 setState(() => _filtro = valor.trim().toLowerCase()),
           ),
           const SizedBox(height: 12),
-          FutureBuilder<List<dynamic>>(future: _pedidos, builder: (_, estado) { if (!estado.hasData) return const SizedBox.shrink(); final grupos = _agrupar(estado.data!); final clientes = grupos.values.map((g) => (g.first['cliente'] ?? {})['nome'].toString()).toSet().toList()..sort(); final meses = grupos.values.map((g) => _mes(g.first['dataPedido'])).where((m) => m.isNotEmpty).toSet().toList()..sort(); return _FiltrosRelatorio(clientes: clientes, meses: meses, clienteSelecionado: _clienteSelecionado, mesSelecionado: _mesSelecionado, dataInicial: _dataInicial, dataFinal: _dataFinal, aoMudarCliente: (v) => setState(() => _clienteSelecionado = v), aoMudarMes: (v) => setState(() => _mesSelecionado = v), aoEscolherData: _escolherData, aoLimpar: () => setState(() { _clienteSelecionado = null; _mesSelecionado = null; _dataInicial = null; _dataFinal = null; })); }),
+          FutureBuilder<List<dynamic>>(
+            future: _pedidos,
+            builder: (_, estado) {
+              if (!estado.hasData) return const SizedBox.shrink();
+              final grupos = _agrupar(estado.data!);
+              final clientes =
+                  grupos.values
+                      .map(
+                        (grupo) =>
+                            (grupo.first['cliente'] ?? {})['nome'].toString(),
+                      )
+                      .toSet()
+                      .toList()
+                    ..sort();
+              final meses =
+                  grupos.values
+                      .map((grupo) => _mes(grupo.first['dataPedido']))
+                      .where((mes) => mes.isNotEmpty)
+                      .toSet()
+                      .toList()
+                    ..sort();
+              return _FiltrosRelatorio(
+                clientes: clientes,
+                meses: meses,
+                clienteSelecionado: _clienteSelecionado,
+                mesSelecionado: _mesSelecionado,
+                dataInicial: _dataInicial,
+                dataFinal: _dataFinal,
+                aoMudarCliente: (v) => setState(() => _clienteSelecionado = v),
+                aoMudarMes: (v) => setState(() => _mesSelecionado = v),
+                aoEscolherData: _escolherData,
+                aoLimpar: () => setState(() {
+                  _clienteSelecionado = null;
+                  _mesSelecionado = null;
+                  _dataInicial = null;
+                  _dataFinal = null;
+                }),
+              );
+            },
+          ),
           const SizedBox(height: 12),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
@@ -276,14 +500,17 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                         0,
                         (soma, item) =>
                             soma +
-                            ((item['totalVenda'] as num?) ?? 0).toDouble(),
+                            ((item['totalLiquido'] as num?) ??
+                                    (item['totalVenda'] as num?) ??
+                                    0)
+                                .toDouble(),
                       );
                       return ListTile(
                         onTap: () => _detalhar(grupo.key),
                         leading: CircleAvatar(child: Text('#${grupo.key}')),
                         title: Text(primeiro['cliente']['nome']),
                         subtitle: Text(
-                          '${grupo.value.length} produto(s) • ${primeiro['dataPedido']}',
+                          '${grupo.value.length} produto(s) • ${_nomeStatus(primeiro['status'])} • ${primeiro['dataPedido']}',
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -299,21 +526,31 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                               onPressed: () => _detalhar(grupo.key),
                               icon: const Icon(Icons.visibility_outlined),
                             ),
-                            if (widget.gestor)
+                            if (!concluido)
                               IconButton(
-                                tooltip: concluido
-                                    ? 'Desfazer conclusão'
-                                    : 'Concluir pedido',
-                                onPressed: () => concluido
-                                    ? _reabrir(grupo.key)
-                                    : _concluir(grupo.key),
-                                icon: Icon(
-                                  concluido
-                                      ? Icons.check_circle
-                                      : Icons.circle_outlined,
-                                  color: concluido
-                                      ? Colors.green
-                                      : Colors.grey.shade600,
+                                tooltip: 'Atualizar andamento',
+                                onPressed: () => _alterarStatus(
+                                  grupo.key,
+                                  primeiro['status'],
+                                ),
+                                icon: const Icon(Icons.local_shipping_outlined),
+                              ),
+                            if (widget.gestor && !concluido)
+                              IconButton(
+                                tooltip: 'Concluir pedido',
+                                onPressed: () => _concluir(grupo.key),
+                                icon: const Icon(
+                                  Icons.check_circle_outline,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            if (widget.gestor && !concluido)
+                              IconButton(
+                                tooltip: 'Excluir pedido',
+                                onPressed: () => _excluir(grupo.key),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
                                 ),
                               ),
                           ],
@@ -367,7 +604,9 @@ class _ResultadoProdutosCard extends StatelessWidget {
                   itemBuilder: (_, indice) {
                     final pedido = pedidos[indice];
                     final lucro =
-                        ((pedido['totalVenda'] as num?) ?? 0) -
+                        ((pedido['totalLiquido'] as num?) ??
+                            (pedido['totalVenda'] as num?) ??
+                            0) -
                         ((pedido['totalCompra'] as num?) ?? 0);
                     return ListTile(
                       leading: const Icon(Icons.shopping_bag_outlined),
@@ -416,18 +655,11 @@ class _ResultadoProdutosCard extends StatelessWidget {
                   children: [
                     const Row(
                       children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Color(0x1A009688),
-                          child: Icon(
-                            Icons.shopping_bag_outlined,
-                            color: Colors.teal,
-                          ),
-                        ),
+                        Icon(Icons.trending_up, color: Colors.teal),
                         SizedBox(width: 10),
                         Text(
-                          'Fluxo de produtos',
-                          style: TextStyle(color: Colors.black54),
+                          'Resultado de produtos do mês',
+                          style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -444,6 +676,10 @@ class _ResultadoProdutosCard extends StatelessWidget {
                         ),
                         Text(
                           'Lucro: ${formatarMoeda((dados['lucroBruto'] as num?) ?? 0)}',
+                          style: const TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Text(
                           'Margem: ${((dados['margemPercentual'] as num?) ?? 0).toStringAsFixed(2)}%',

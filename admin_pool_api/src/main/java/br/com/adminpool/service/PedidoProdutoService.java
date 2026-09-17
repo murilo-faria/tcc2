@@ -81,7 +81,7 @@ public class PedidoProdutoService {
     }
 
     @Transactional
-    public List<PedidoProduto> concluir(Long codigo, ResponsavelPagamento pagoPor) {
+    public List<PedidoProduto> concluir(Long codigo, ResponsavelPagamento pagoPor, BigDecimal desconto) {
         if (pagoPor != ResponsavelPagamento.EMPRESA && pagoPor != ResponsavelPagamento.CLIENTE) {
             throw new IllegalArgumentException("Produto só pode ser pago pela empresa ou pelo cliente.");
         }
@@ -92,12 +92,19 @@ public class PedidoProdutoService {
         if (itens.stream().anyMatch(PedidoProduto::isFinanceiroLancado)) {
             throw new IllegalStateException("Este pedido já foi concluído.");
         }
+        BigDecimal totalVenda = itens.stream().map(PedidoProduto::getTotalVenda)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal descontoAplicado = desconto == null ? BigDecimal.ZERO : desconto;
+        if (descontoAplicado.compareTo(BigDecimal.ZERO) < 0 || descontoAplicado.compareTo(totalVenda) > 0) {
+            throw new IllegalArgumentException("O desconto deve ficar entre zero e o valor total do pedido.");
+        }
+        ratearDesconto(itens, totalVenda, descontoAplicado);
         if (pagoPor == ResponsavelPagamento.EMPRESA) {
-            BigDecimal totalVenda = itens.stream().map(PedidoProduto::getTotalVenda)
+            BigDecimal totalLiquido = itens.stream().map(PedidoProduto::getTotalLiquido)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             PedidoProduto primeiro = itens.get(0);
             cobrancas.adicionarLancamento(primeiro.getCliente().getId(), TipoLancamentoCobranca.PEDIDO,
-                    codigo, "Pedido #" + codigo, totalVenda);
+                    codigo, "Pedido #" + codigo, totalLiquido);
         }
         for (PedidoProduto item : itens) {
             item.setPagador(pagoPor);
@@ -109,24 +116,30 @@ public class PedidoProdutoService {
     }
 
     @Transactional
-    public List<PedidoProduto> reabrir(Long codigo) {
+    public void excluir(Long codigo) {
         List<PedidoProduto> itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
         if (itens.isEmpty()) {
             throw new IllegalArgumentException("Pedido não encontrado.");
         }
-        if (itens.stream().anyMatch(item -> !item.isFinanceiroLancado() || !"CONCLUIDO".equals(item.getStatus()))) {
-            throw new IllegalStateException("Somente pedidos concluídos podem ser reabertos.");
+        if (itens.stream().anyMatch(PedidoProduto::isFinanceiroLancado)) {
+            throw new IllegalStateException("Pedido concluído não pode ser excluído.");
         }
-        if (itens.get(0).getPagador() == ResponsavelPagamento.EMPRESA) {
-            cobrancas.removerLancamento(TipoLancamentoCobranca.PEDIDO, codigo);
+        pedidos.deleteAll(itens);
+    }
+
+    private void ratearDesconto(List<PedidoProduto> itens, BigDecimal totalVenda, BigDecimal desconto) {
+        if (desconto.compareTo(BigDecimal.ZERO) == 0) {
+            itens.forEach(item -> item.setDesconto(BigDecimal.ZERO));
+            return;
         }
-        for (PedidoProduto item : itens) {
-            item.setPagador(null);
-            item.setFinanceiroLancado(false);
-            item.setDataConclusao(null);
-            item.setStatus("SOLICITADO");
+        BigDecimal restante = desconto;
+        for (int indice = 0; indice < itens.size(); indice++) {
+            PedidoProduto item = itens.get(indice);
+            BigDecimal parcela = indice == itens.size() - 1 ? restante
+                    : desconto.multiply(item.getTotalVenda()).divide(totalVenda, 2, RoundingMode.HALF_UP);
+            item.setDesconto(parcela);
+            restante = restante.subtract(parcela);
         }
-        return pedidos.saveAll(itens);
     }
 
     @Transactional
@@ -152,7 +165,7 @@ public class PedidoProdutoService {
                 .findByDataConclusaoBetweenAndPagadorOrderByDataConclusaoDesc(inicio, fim, ResponsavelPagamento.EMPRESA);
         BigDecimal compras = concluidos.stream().map(PedidoProduto::getTotalCompra)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal vendas = concluidos.stream().map(PedidoProduto::getTotalVenda)
+        BigDecimal vendas = concluidos.stream().map(PedidoProduto::getTotalLiquido)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal lucro = vendas.subtract(compras);
         BigDecimal margem = vendas.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO

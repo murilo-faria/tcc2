@@ -39,84 +39,96 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
 
   DateTime? _data(dynamic valor) => DateTime.tryParse(valor?.toString() ?? '');
   String _mes(dynamic valor) {
-    final d = _data(valor);
-    return d == null ? '' : '${d.year}-${d.month.toString().padLeft(2, '0')}';
+    final data = _data(valor);
+    return data == null
+        ? ''
+        : '${data.year}-${data.month.toString().padLeft(2, '0')}';
   }
 
   Future<void> _escolherData(bool inicial) async {
-    final d = await showDatePicker(
+    final escolhida = await showDatePicker(
       context: context,
       initialDate: (inicial ? _dataInicial : _dataFinal) ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
-    if (d != null)
-      setState(() {
-        if (inicial) {
-          _dataInicial = d;
-        } else {
-          _dataFinal = d;
-        }
-      });
+    if (escolhida != null)
+      setState(
+        () => inicial ? _dataInicial = escolhida : _dataFinal = escolhida,
+      );
   }
 
-  List<dynamic> _filtrarOrdens(List<dynamic> itens) => itens.where((o) {
-    final nome = (o['cliente'] ?? {})['nome'].toString();
-    final d = _data(o['dataServico']);
-    final dia = d == null ? null : DateTime(d.year, d.month, d.day);
-    return (_clienteSelecionado == null || nome == _clienteSelecionado) &&
-        (_mesSelecionado == null ||
-            _mes(o['dataServico']) == _mesSelecionado) &&
-        (_dataInicial == null ||
-            (dia != null && !dia.isBefore(_dataInicial!))) &&
-        (_dataFinal == null || (dia != null && !dia.isAfter(_dataFinal!))) &&
-        (nome.toLowerCase().contains(_filtro) ||
-            o['descricao'].toString().toLowerCase().contains(_filtro));
+  bool _noPeriodo(dynamic valor) {
+    final data = _data(valor);
+    if (data == null) return false;
+    final dia = DateTime(data.year, data.month, data.day);
+    return (_mesSelecionado == null || _mes(data) == _mesSelecionado) &&
+        (_dataInicial == null || !dia.isBefore(_dataInicial!)) &&
+        (_dataFinal == null || !dia.isAfter(_dataFinal!));
+  }
+
+  List<dynamic> _filtrarOrdens(List<dynamic> itens) => itens.where((item) {
+    final cliente = (item['cliente'] ?? {})['nome'].toString();
+    return (_clienteSelecionado == null || cliente == _clienteSelecionado) &&
+        _noPeriodo(item['dataServico']) &&
+        (cliente.toLowerCase().contains(_filtro) ||
+            item['descricao'].toString().toLowerCase().contains(_filtro));
   }).toList();
+
   Future<void> _gerarRelatorio() async {
-    final lista = _filtrarOrdens(await _ordens);
+    final ordens = _filtrarOrdens(await _ordens);
     if (!mounted) return;
-    final total = lista.fold<double>(
+    final total = ordens.fold<double>(
       0,
-      (s, o) => s + ((o['valorCobrado'] as num?) ?? 0).toDouble(),
+      (soma, item) => soma + ((item['valorCobrado'] as num?) ?? 0).toDouble(),
     );
     await showDialog<void>(
       context: context,
-      builder: (c) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Relatório de ordens de serviço'),
         content: SizedBox(
-          width: 600,
-          height: 400,
+          width: 620,
+          height: 420,
           child: Column(
             children: [
-              Text(
-                '${lista.length} OS(s) • Total: ${formatarMoeda(total)}',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${ordens.length} OS(s) • Total cobrado: ${formatarMoeda(total)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               const Divider(),
               Expanded(
-                child: ListView.builder(
-                  itemCount: lista.length,
-                  itemBuilder: (_, i) {
-                    final o = lista[i];
-                    return ListTile(
-                      title: Text(
-                        'OS #${o['id']} — ${(o['cliente'] ?? {})['nome'] ?? ''}',
+                child: ordens.isEmpty
+                    ? const Center(
+                        child: Text('Nenhuma OS para os filtros escolhidos.'),
+                      )
+                    : ListView.separated(
+                        itemCount: ordens.length,
+                        separatorBuilder: (_, __) => const Divider(),
+                        itemBuilder: (_, i) {
+                          final os = ordens[i];
+                          return ListTile(
+                            title: Text(
+                              'OS #${os['id']} — ${(os['cliente'] ?? {})['nome'] ?? ''}',
+                            ),
+                            subtitle: Text(
+                              '${os['dataServico']} • ${os['descricao']}',
+                            ),
+                            trailing: Text(
+                              formatarMoeda((os['valorCobrado'] as num?) ?? 0),
+                            ),
+                          );
+                        },
                       ),
-                      subtitle: Text('${o['dataServico']} • ${o['descricao']}'),
-                      trailing: Text(
-                        formatarMoeda((o['valorCobrado'] as num?) ?? 0),
-                      ),
-                    );
-                  },
-                ),
               ),
             ],
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(c),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Fechar'),
           ),
         ],
@@ -127,12 +139,17 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
   Future<void> _novaOrdem() async {
     final clientes = await _buscar('/api/clientes');
     if (clientes.isEmpty || !mounted) return;
+    clientes.sort(
+      (primeiro, segundo) => (primeiro['nome'] ?? '')
+          .toString()
+          .toLowerCase()
+          .compareTo((segundo['nome'] ?? '').toString().toLowerCase()),
+    );
     int clienteId = clientes.first['id'] as int;
     List<dynamic> piscinas = await _buscar('/api/piscinas/cliente/$clienteId');
     int? piscinaId = piscinas.length == 1 ? piscinas.first['id'] as int : null;
     final descricao = TextEditingController();
     final valorCobrado = TextEditingController();
-    final valorCusto = TextEditingController();
     final salvar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -195,14 +212,11 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                       decimal: true,
                     ),
                     decoration: const InputDecoration(
-                      labelText: 'Valor do serviço',
+                      labelText: 'Valor sugerido para cobrar do cliente',
                       prefixText: 'R\$ ',
+                      helperText:
+                          'O gestor poderá confirmar ou alterar este valor ao concluir.',
                     ),
-                  ),
-                  TextField(
-                    controller: valorCusto,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Valor de custo', prefixText: 'R\$ '),
                   ),
                 ],
               ),
@@ -234,19 +248,9 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
         'dataServico': DateTime.now().toIso8601String().substring(0, 10),
         'valorAdicional':
             double.tryParse(valorCobrado.text.replaceAll(',', '.')) ?? 0,
-        'valorCusto':
-            double.tryParse(valorCusto.text.replaceAll(',', '.')) ?? 0,
       },
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
-  }
-
-  Future<void> _editar(Map<String, dynamic> ordem) async {
-    final descricao = TextEditingController(text: ordem['descricao'] ?? '');
-    final ok = await showDialog<bool>(context: context, builder: (c) => AlertDialog(title: Text('Editar OS #${ordem['id']}'), content: TextField(controller: descricao, maxLines: 4, decoration: const InputDecoration(labelText: 'Descrição do serviço')), actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Salvar'))]));
-    if (ok != true || descricao.text.trim().isEmpty) return;
-    final r = await apiService.put('/api/ordens-servico/${ordem['id']}', body: {'clienteId': (ordem['cliente'] ?? {})['id'], 'piscinaId': (ordem['piscina'] ?? {})['id'], 'descricao': descricao.text.trim(), 'dataServico': ordem['dataServico'], 'valorAdicional': ordem['valorAdicional'] ?? ordem['valorCobrado'] ?? 0, 'valorCusto': ordem['valorCusto'] ?? 0});
-    if (r.statusCode >= 200 && r.statusCode < 300) _recarregar();
   }
 
   Future<void> _concluir(Map<String, dynamic> ordem) async {
@@ -257,7 +261,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
       text: (ordem['valorCobrado'] ?? ordem['valorAdicional'] ?? 0).toString(),
     );
     String pagador = 'EMPRESA';
-    final temResponsavel = ordem['criadoPor'] != null || ((ordem['piscina'] ?? {})['responsavel'] != null);
+    final temCriador = ordem['criadoPor'] != null;
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -275,7 +279,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                       decimal: true,
                     ),
                     decoration: const InputDecoration(
-                      labelText: 'Valor pago pelo colaborador (se diferente)',
+                      labelText: 'Valor pago/custo',
                       prefixText: 'R\$ ',
                     ),
                   ),
@@ -304,11 +308,11 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                     groupValue: pagador,
                     title: const Text('Pago pelo funcionário'),
                     subtitle: Text(
-                      temResponsavel
-                          ? 'Gera cobrança e reembolso para o responsável pela piscina. Se o custo ficar R\$ 0,00, usa o valor cobrado.'
+                      temCriador
+                          ? 'Gera cobrança e reembolso para quem criou a OS.'
                           : 'Indisponível: esta OS não possui funcionário criador.',
                     ),
-                    onChanged: temResponsavel
+                    onChanged: temCriador
                         ? (v) => setLocal(() => pagador = v!)
                         : null,
                   ),
@@ -390,6 +394,43 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
+  Future<void> _excluir(Map<String, dynamic> ordem) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Excluir OS #${ordem['id']}?'),
+        content: const Text(
+          'A ordem ainda não gerou financeiro e será removida definitivamente.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+    final resposta = await apiService.delete(
+      '/api/ordens-servico/${ordem['id']}',
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Não foi possível excluir a OS (${resposta.statusCode}).',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _detalhar(Map<String, dynamic> ordem) async {
     await showDialog<void>(
       context: context,
@@ -445,6 +486,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                 'Registre o serviço; o gestor define quem pagou ao concluir.',
             acao: Wrap(
               spacing: 10,
+              runSpacing: 8,
               children: [
                 OutlinedButton.icon(
                   onPressed: _gerarRelatorio,
@@ -464,6 +506,8 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
               labelText: 'Pesquisar cliente ou serviço',
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(),
             ),
             onChanged: (valor) =>
@@ -476,14 +520,14 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
               if (!estado.hasData) return const SizedBox.shrink();
               final clientes =
                   estado.data!
-                      .map((o) => (o['cliente'] ?? {})['nome'].toString())
+                      .map((item) => (item['cliente'] ?? {})['nome'].toString())
                       .toSet()
                       .toList()
                     ..sort();
               final meses =
                   estado.data!
-                      .map((o) => _mes(o['dataServico']))
-                      .where((m) => m.isNotEmpty)
+                      .map((item) => _mes(item['dataServico']))
+                      .where((mes) => mes.isNotEmpty)
                       .toSet()
                       .toList()
                     ..sort();
@@ -525,54 +569,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                     itemBuilder: (_, indice) {
                       final ordem = ordens[indice] as Map<String, dynamic>;
                       final aberta = ordem['status'] == 'ABERTA';
-                      final celular = MediaQuery.of(context).size.width < 600;
-                      if (celular) {
-                        return ListTile(
-                          onTap: () => _detalhar(ordem),
-                          leading: CircleAvatar(child: Text('#${ordem['id']}')),
-                          title: Text(
-                            (ordem['cliente'] ?? {})['nome'] ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Text(
-                            '${ordem['descricao']}\n${ordem['dataServico']} • ${ordem['status']} • ${formatarMoeda((ordem['valorCobrado'] as num?) ?? 0)}',
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          isThreeLine: true,
-                          trailing: PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert),
-                            onSelected: (acao) {
-                              if (acao == 'ver') _detalhar(ordem);
-                              if (acao == 'editar') _editar(ordem);
-                              if (acao == 'concluir') _concluir(ordem);
-                              if (acao == 'cancelar') _cancelar(ordem);
-                            },
-                            itemBuilder: (_) => [
-                              const PopupMenuItem(
-                                value: 'ver',
-                                child: Text('Ver detalhes'),
-                              ),
-                              if (widget.gestor && aberta)
-                                const PopupMenuItem(
-                                  value: 'editar',
-                                  child: Text('Editar OS'),
-                                ),
-                              if (widget.gestor && aberta)
-                                const PopupMenuItem(
-                                  value: 'concluir',
-                                  child: Text('Concluir OS'),
-                                ),
-                              if (aberta)
-                                const PopupMenuItem(
-                                  value: 'cancelar',
-                                  child: Text('Cancelar OS'),
-                                ),
-                            ],
-                          ),
-                        );
-                      }
+                      final excluivel = ordem['financeiroLancado'] != true;
                       return ListTile(
                         onTap: () => _detalhar(ordem),
                         leading: CircleAvatar(child: Text('#${ordem['id']}')),
@@ -606,6 +603,15 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                                 onPressed: () => _cancelar(ordem),
                                 icon: const Icon(
                                   Icons.cancel_outlined,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            if (widget.gestor && excluivel)
+                              IconButton(
+                                tooltip: 'Excluir OS',
+                                onPressed: () => _excluir(ordem),
+                                icon: const Icon(
+                                  Icons.delete_outline,
                                   color: Colors.red,
                                 ),
                               ),

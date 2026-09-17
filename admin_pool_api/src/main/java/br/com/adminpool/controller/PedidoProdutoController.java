@@ -83,15 +83,16 @@ public class PedidoProdutoController {
         if (!gestor(auth)) {
             throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem concluir pedidos.");
         }
-        return servico.concluir(codigo, requisicao.pagoPor());
+        return servico.concluir(codigo, requisicao.pagoPor(), requisicao.desconto());
     }
 
-    @PutMapping("/codigo/{codigo}/reabrir")
-    public List<PedidoProduto> reabrir(@PathVariable Long codigo, Authentication auth) {
+    @DeleteMapping("/codigo/{codigo}")
+    public ResponseEntity<Void> excluir(@PathVariable Long codigo, Authentication auth) {
         if (!gestor(auth)) {
-            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem reabrir pedidos.");
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem excluir pedidos.");
         }
-        return servico.reabrir(codigo);
+        servico.excluir(codigo);
+        return ResponseEntity.noContent().build();
     }
 
     private boolean gestor(Authentication auth) {
