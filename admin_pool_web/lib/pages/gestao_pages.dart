@@ -866,15 +866,17 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
           }).toList(),
           Builder(builder: (_) {
             final vinculados = rotas.map((r) => '${r['clienteId']}').toSet();
-            final semRota = clientes.where((cliente) => !vinculados.contains('${cliente['id']}')).cast<Map<String, dynamic>>().toList()
+            final listaClientes = clientes.cast<Map<String, dynamic>>().toList()
               ..sort((a, b) => '${a['nome']}'.compareTo('${b['nome']}'));
+            final semRota = listaClientes.where((cliente) => !vinculados.contains('${cliente['id']}')).length;
             return SizedBox(width: 280, child: Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('CLIENTES SEM ROTA', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+              const Text('CLIENTES', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
               const Divider(),
-              if (semRota.isEmpty) const Text('Todos os clientes estão vinculados.') else ...semRota.map((cliente) {
-                return Row(children: [Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text('${cliente['nome']}'))), PopupMenuButton<String>(tooltip: 'Adicionar à rota', icon: const Icon(Icons.add_circle_outline, size: 20), onSelected: (dia) => _salvarRota('/api/roteiro', 'POST', {'clienteId': cliente['id'], 'diaAtendimento': dia}), itemBuilder: (_) => dias.map((d) => PopupMenuItem(value: d, child: Text('Colocar em $d'))).toList())]);
+              ...listaClientes.map((cliente) {
+                final semVinculo = !vinculados.contains('${cliente['id']}');
+                return Row(children: [Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text('${cliente['nome']}${semVinculo ? ' • sem rota' : ''}', style: semVinculo ? const TextStyle(color: Colors.deepOrange) : null))), PopupMenuButton<String>(tooltip: 'Adicionar à rota', icon: const Icon(Icons.add_circle_outline, size: 20), onSelected: (dia) => _salvarRota('/api/roteiro', 'POST', {'clienteId': cliente['id'], 'diaAtendimento': dia}), itemBuilder: (_) => dias.map((d) => PopupMenuItem(value: d, child: Text('Adicionar em $d'))).toList())]);
               }),
-              const Divider(), Text('${semRota.length} cliente(s) sem rota', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const Divider(), Text('$semRota cliente(s) sem rota', style: const TextStyle(fontWeight: FontWeight.bold)),
             ]))));
           }),
         ],
