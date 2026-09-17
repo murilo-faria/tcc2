@@ -177,16 +177,24 @@ class _DialogoReembolsos extends StatefulWidget {
 
 class _DialogoReembolsosState extends State<_DialogoReembolsos> {
   late Future<List<dynamic>> _reembolsos;
+  late Future<List<dynamic>> _vales;
 
   @override
   void initState() {
     super.initState();
     _reembolsos = _carregar();
+    _vales = _carregarVales();
   }
 
   Future<List<dynamic>> _carregar() async {
     final resposta = await apiService.get('/api/salarios/${widget.funcionario['id']}/reembolsos?referencia=${widget.referencia}');
     if (resposta.statusCode != 200) throw Exception('Não foi possível carregar os reembolsos.');
+    return jsonDecode(resposta.body) as List<dynamic>;
+  }
+
+  Future<List<dynamic>> _carregarVales() async {
+    final resposta = await apiService.get('/api/salarios/vales?funcionarioId=${widget.funcionario['id']}&referencia=${widget.referencia}');
+    if (resposta.statusCode != 200) throw Exception('Não foi possível carregar os vales.');
     return jsonDecode(resposta.body) as List<dynamic>;
   }
 
@@ -206,7 +214,10 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
     final resposta = await apiService.put('/api/salarios/reembolsos/${reembolso['id']}/pagar');
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       widget.aoAtualizar();
-      setState(() => _reembolsos = _carregar());
+      setState(() {
+        _reembolsos = _carregar();
+        _vales = _carregarVales();
+      });
     }
   }
 
@@ -214,7 +225,7 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
   Widget build(BuildContext context) {
     final usuario = widget.funcionario['usuario'] ?? {};
     return AlertDialog(
-      title: Text('Reembolsos — ${usuario['nome'] ?? ''}'),
+      title: Text('Detalhes — ${usuario['nome'] ?? ''}'),
       content: SizedBox(
         width: 650,
         height: 430,
@@ -223,24 +234,44 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
           builder: (_, estado) {
             if (!estado.hasData) return const Center(child: CircularProgressIndicator());
             if (estado.hasError) return Center(child: Text('${estado.error}'));
-            if (estado.data!.isEmpty) return const Center(child: Text('Nenhum reembolso lançado neste mês.'));
-            return ListView.separated(
-              itemCount: estado.data!.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (_, indice) {
-                final reembolso = estado.data![indice] as Map<String, dynamic>;
-                final pendente = reembolso['status'] == 'PENDENTE';
-                return ListTile(
-                  leading: Icon(pendente ? Icons.pending_actions : Icons.check_circle, color: pendente ? Colors.orange : Colors.green),
-                  title: Text(reembolso['descricao'] ?? ''),
-                  subtitle: Text('${reembolso['dataLancamento']} • ${reembolso['status']}'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(formatarMoeda((reembolso['valor'] as num?) ?? 0), style: const TextStyle(fontWeight: FontWeight.bold)),
-                      if (widget.gestor && pendente) IconButton(tooltip: 'Confirmar reembolso', onPressed: () => _pagar(reembolso), icon: const Icon(Icons.check_circle_outline, color: Colors.green)),
-                    ],
-                  ),
+            return FutureBuilder<List<dynamic>>(
+              future: _vales,
+              builder: (_, estadoVales) {
+                if (!estadoVales.hasData) return const Center(child: CircularProgressIndicator());
+                if (estadoVales.hasError) return Center(child: Text('${estadoVales.error}'));
+                final reembolsos = estado.data!;
+                final vales = estadoVales.data!;
+                return ListView(
+                  children: [
+                    const Padding(padding: EdgeInsets.only(bottom: 8), child: Text('Reembolsos', style: TextStyle(fontWeight: FontWeight.bold))),
+                    if (reembolsos.isEmpty) const Padding(padding: EdgeInsets.only(bottom: 12), child: Text('Nenhum reembolso lançado neste mês.')),
+                    ...reembolsos.map((item) {
+                      final reembolso = item as Map<String, dynamic>;
+                      final pendente = reembolso['status'] == 'PENDENTE';
+                      return ListTile(
+                        leading: Icon(pendente ? Icons.pending_actions : Icons.check_circle, color: pendente ? Colors.orange : Colors.green),
+                        title: Text(reembolso['descricao'] ?? ''),
+                        subtitle: Text('${reembolso['dataLancamento']} • ${reembolso['status']}'),
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(formatarMoeda((reembolso['valor'] as num?) ?? 0), style: const TextStyle(fontWeight: FontWeight.bold)),
+                          if (widget.gestor && pendente) IconButton(tooltip: 'Confirmar reembolso', onPressed: () => _pagar(reembolso), icon: const Icon(Icons.check_circle_outline, color: Colors.green)),
+                        ]),
+                      );
+                    }),
+                    const Divider(height: 28),
+                    const Padding(padding: EdgeInsets.only(bottom: 8), child: Text('Vales lançados', style: TextStyle(fontWeight: FontWeight.bold))),
+                    if (vales.isEmpty) const Text('Nenhum vale lançado neste mês.'),
+                    ...vales.map((item) {
+                      final vale = item as Map<String, dynamic>;
+                      final tipo = vale['tipo'] == 'DINHEIRO_CLIENTE' ? 'Dinheiro recebido de cliente' : 'Adiantamento';
+                      return ListTile(
+                        leading: const Icon(Icons.payments_outlined, color: Colors.orange),
+                        title: Text(tipo),
+                        subtitle: Text('${vale['dataLancamento']} • ${vale['observacao'] ?? ''}'),
+                        trailing: Text('- ${formatarMoeda((vale['valor'] as num?) ?? 0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      );
+                    }),
+                  ],
                 );
               },
             );
