@@ -91,8 +91,8 @@ public class SalarioController {
                 .map(p -> p.getCliente())
                 .collect(Collectors.toMap(Cliente::getId, cliente -> cliente, (a, b) -> a))
                 .values();
-        BigDecimal baseMensal = clientes.stream()
-                .map(Cliente::getValorMensalidade)
+        BigDecimal baseMensal = piscinasVinculadas.stream()
+                .map(br.com.adminpool.model.Piscina::getValorMensalidade)
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal salario = baseMensal.multiply(funcionario.getPercentualMensalidade())

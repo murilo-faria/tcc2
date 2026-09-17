@@ -1,6 +1,7 @@
 package br.com.adminpool.model;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 
 @Entity
 @Table(name = "piscinas")
@@ -10,6 +11,7 @@ public class Piscina {
     @Column(nullable = false) private String nome;
     private String tipo;
     private Integer volumeLitros;
+    @Column(precision = 12, scale = 2) private BigDecimal valorMensalidade = BigDecimal.ZERO;
     @Column(length = 500) private String endereco;
     @ManyToOne @JoinColumn(name = "responsavel_id") private Funcionario responsavel;
     @Column(length = 20) private String diaAtendimento;
@@ -19,6 +21,7 @@ public class Piscina {
     public String getNome(){return nome;} public void setNome(String v){nome=v;}
     public String getTipo(){return tipo;} public void setTipo(String v){tipo=v;}
     public Integer getVolumeLitros(){return volumeLitros;} public void setVolumeLitros(Integer v){volumeLitros=v;}
+    public BigDecimal getValorMensalidade(){return valorMensalidade;} public void setValorMensalidade(BigDecimal v){valorMensalidade=v;}
     public String getEndereco(){return endereco;} public void setEndereco(String v){endereco=v;}
     public Funcionario getResponsavel(){return responsavel;} public void setResponsavel(Funcionario v){responsavel=v;}
     public String getDiaAtendimento(){return diaAtendimento;} public void setDiaAtendimento(String v){diaAtendimento=v;}
