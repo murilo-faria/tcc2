@@ -19,8 +19,23 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
   final itens = <Map<String, int>>[
     {'produtoId': produtos.first['id'] as int, 'quantidade': 1},
   ];
+  final rolagem = ScrollController();
+  final chavesQuantidade = <GlobalKey>[GlobalKey()];
+  void mostrarQuantidade(GlobalKey chave) {
+    Future<void>.delayed(const Duration(milliseconds: 250), () {
+      final alvo = chave.currentContext;
+      if (alvo != null) {
+        Scrollable.ensureVisible(
+          alvo,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOut,
+          alignment: 0.28,
+        );
+      }
+    });
+  }
 
-  return showDialog<Map<String, dynamic>>(
+  final resultado = await showDialog<Map<String, dynamic>>(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setLocal) {
@@ -39,6 +54,8 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
           content: SizedBox(
             width: celular ? double.maxFinite : 650,
             child: SingleChildScrollView(
+              controller: rolagem,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -123,12 +140,14 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                     final quantidadeCampo = SizedBox(
                       width: celular ? double.infinity : 115,
                       child: TextFormField(
-                        key: ValueKey('qtd-$indice-${item['produtoId']}'),
+                        key: chavesQuantidade[indice],
                         initialValue: '${item['quantidade']}',
                         keyboardType: TextInputType.number,
+                        scrollPadding: const EdgeInsets.only(bottom: 180),
                         decoration: const InputDecoration(
                           labelText: 'Quantidade',
                         ),
+                        onTap: () => mostrarQuantidade(chavesQuantidade[indice]),
                         onChanged: (valor) => setLocal(
                           () => item['quantidade'] = int.tryParse(valor) ?? 1,
                         ),
@@ -137,7 +156,10 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                     final remover = IconButton(
                       onPressed: itens.length == 1
                           ? null
-                          : () => setLocal(() => itens.removeAt(indice)),
+                          : () => setLocal(() {
+                              itens.removeAt(indice);
+                              chavesQuantidade.removeAt(indice);
+                            }),
                       icon: const Icon(
                         Icons.remove_circle_outline,
                         color: Colors.red,
@@ -173,10 +195,10 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                     alignment: Alignment.centerLeft,
                     child: TextButton.icon(
                       onPressed: () => setLocal(
-                        () => itens.add({
-                          'produtoId': produtos.first['id'] as int,
-                          'quantidade': 1,
-                        }),
+                        () {
+                          itens.add({'produtoId': produtos.first['id'] as int, 'quantidade': 1});
+                          chavesQuantidade.add(GlobalKey());
+                        },
                       ),
                       icon: const Icon(Icons.add),
                       label: const Text('Adicionar outro produto'),
@@ -217,4 +239,6 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
       },
     ),
   );
+  rolagem.dispose();
+  return resultado;
 }
