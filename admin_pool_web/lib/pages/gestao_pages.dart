@@ -756,44 +756,46 @@ class _RoteiroSemanal extends StatefulWidget {
 }
 
 class _RoteiroSemanalState extends State<_RoteiroSemanal> {
-  late Future<http.Response> _dados;
+  late Future<List<List<dynamic>>> _dados;
 
   @override
   void initState() {
     super.initState();
-    _dados = apiService.get('/api/piscinas');
+    _dados = _carregar();
   }
 
-  Future<void> _mudarDia(List<dynamic> piscinas, String dia) async {
-    final respostas = await Future.wait(piscinas.map((p) => apiService.put('/api/piscinas/${p['id']}/rota', body: {'diaAtendimento': dia})));
+  Future<List<List<dynamic>>> _carregar() async {
+    final respostas = await Future.wait([apiService.get('/api/roteiro'), apiService.get('/api/clientes')]);
+    if (respostas.any((r) => r.statusCode != 200)) throw Exception('Não foi possível carregar o roteiro.');
+    return respostas.map((r) => jsonDecode(r.body) as List<dynamic>).toList();
+  }
+
+  Future<void> _salvarRota(String rota, String metodo, Map<String, dynamic>? corpo) async {
+    final resposta = metodo == 'POST' ? await apiService.post(rota, body: corpo) : metodo == 'PUT' ? await apiService.put(rota, body: corpo) : await apiService.delete(rota);
     if (!mounted) return;
-    if (respostas.any((r) => r.statusCode < 200 || r.statusCode >= 300)) {
+    if (resposta.statusCode < 200 || resposta.statusCode >= 300) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível atualizar a rota.')));
       return;
     }
-    setState(() => _dados = apiService.get('/api/piscinas'));
+    setState(() => _dados = _carregar());
   }
 
   @override
-  Widget build(BuildContext c) => FutureBuilder<http.Response>(
+  Widget build(BuildContext c) => FutureBuilder<List<List<dynamic>>>(
     future: _dados,
     builder: (_, s) {
+      if (s.hasError) return const Text('Não foi possível carregar o roteiro.');
       if (!s.hasData) return const Center(child: CircularProgressIndicator());
-      if (s.data!.statusCode != 200) return const SizedBox();
-      final dados = jsonDecode(s.data!.body) as List<dynamic>;
+      final rotas = s.data![0];
+      final clientes = s.data![1];
       const dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
       return Wrap(
         spacing: 12,
         runSpacing: 12,
-        children: dias.map((dia) {
-          final grupos = <String, List<dynamic>>{};
-          for (final p in dados.where((p) => (p['diaAtendimento'] ?? '') == dia)) {
-            final cliente = (p['cliente'] ?? {}) as Map<String, dynamic>;
-            final chave = '${cliente['id'] ?? p['id']}';
-            grupos.putIfAbsent(chave, () => []).add(p);
-          }
-          final clientes = grupos.values.toList()
-            ..sort((a, b) => '${(a.first['cliente'] ?? {})['nome'] ?? a.first['nome']}'.compareTo('${(b.first['cliente'] ?? {})['nome'] ?? b.first['nome']}'));
+        children: [
+          ...dias.map((dia) {
+          final visitas = rotas.where((r) => r['diaAtendimento'] == dia).cast<Map<String, dynamic>>().toList()
+            ..sort((a, b) => '${a['clienteNome']}'.compareTo('${b['clienteNome']}'));
           return SizedBox(
             width: 220,
             child: Card(
@@ -807,22 +809,24 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const Divider(),
-                    ...clientes.map((piscinas) {
-                      final piscina = piscinas.first as Map<String, dynamic>;
-                      final nome = (piscina['cliente'] ?? {})['nome'] ?? piscina['nome'];
+                    ...visitas.map((visita) {
                       return Row(children: [
-                        Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text(nome))),
+                        Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text('${visita['clienteNome']}'))),
                         PopupMenuButton<String>(
                           tooltip: 'Mudar dia',
                           icon: const Icon(Icons.edit_calendar_outlined, size: 19),
-                          onSelected: (novoDia) => _mudarDia(piscinas, novoDia),
-                          itemBuilder: (_) => dias.map((d) => PopupMenuItem(value: d, child: Text(d))).toList(),
+                          onSelected: (novoDia) => _salvarRota('/api/roteiro/${visita['id']}', novoDia == '_REMOVER_' ? 'DELETE' : 'PUT', novoDia == '_REMOVER_' ? null : {'clienteId': visita['clienteId'], 'diaAtendimento': novoDia}),
+                          itemBuilder: (_) => [
+                            ...dias.map((d) => PopupMenuItem(value: d, child: Text(d))),
+                            const PopupMenuDivider(),
+                            const PopupMenuItem(value: '_REMOVER_', child: Text('Remover da rota', style: TextStyle(color: Colors.red))),
+                          ],
                         ),
                       ]);
                     }),
                     const Divider(),
                     Text(
-                      '${clientes.length} cliente(s)',
+                      '${visitas.length} cliente(s)',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -830,7 +834,21 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
               ),
             ),
           );
-        }).toList(),
+          }).toList(),
+          Builder(builder: (_) {
+            final vinculados = rotas.map((r) => '${r['clienteId']}').toSet();
+            final semRota = clientes.where((cliente) => !vinculados.contains('${cliente['id']}')).cast<Map<String, dynamic>>().toList()
+              ..sort((a, b) => '${a['nome']}'.compareTo('${b['nome']}'));
+            return SizedBox(width: 280, child: Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('CLIENTES SEM ROTA', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+              const Divider(),
+              if (semRota.isEmpty) const Text('Todos os clientes estão vinculados.') else ...semRota.map((cliente) {
+                return Row(children: [Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text('${cliente['nome']}'))), PopupMenuButton<String>(tooltip: 'Adicionar à rota', icon: const Icon(Icons.add_circle_outline, size: 20), onSelected: (dia) => _salvarRota('/api/roteiro', 'POST', {'clienteId': cliente['id'], 'diaAtendimento': dia}), itemBuilder: (_) => dias.map((d) => PopupMenuItem(value: d, child: Text('Colocar em $d'))).toList())]);
+              }),
+              const Divider(), Text('${semRota.length} cliente(s) sem rota', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ]))));
+          }),
+        ],
       );
     },
   );

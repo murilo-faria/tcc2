@@ -6,6 +6,8 @@ import br.com.adminpool.model.Piscina;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.FuncionarioRepository;
 import br.com.adminpool.repository.PiscinaRepository;
+import br.com.adminpool.repository.RoteiroAtendimentoRepository;
+import br.com.adminpool.model.RoteiroAtendimento;
 import jakarta.transaction.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +26,13 @@ public class ClienteController {
     private final ClienteRepository clientes;
     private final PiscinaRepository piscinas;
     private final FuncionarioRepository funcionarios;
+    private final RoteiroAtendimentoRepository roteiro;
 
-    public ClienteController(ClienteRepository clientes, PiscinaRepository piscinas, FuncionarioRepository funcionarios) {
+    public ClienteController(ClienteRepository clientes, PiscinaRepository piscinas, FuncionarioRepository funcionarios, RoteiroAtendimentoRepository roteiro) {
         this.clientes = clientes;
         this.piscinas = piscinas;
         this.funcionarios = funcionarios;
+        this.roteiro = roteiro;
     }
 
     @GetMapping
@@ -67,6 +71,12 @@ public class ClienteController {
             piscina.setResponsavel(funcionarios.findById(requisicao.responsavelId()).orElseThrow());
         }
         piscinas.save(piscina);
+        if (requisicao.diaAtendimento() != null && !requisicao.diaAtendimento().isBlank()) {
+            RoteiroAtendimento atendimento = new RoteiroAtendimento();
+            atendimento.setCliente(clienteSalvo);
+            atendimento.setDiaAtendimento(requisicao.diaAtendimento());
+            roteiro.save(atendimento);
+        }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(clienteSalvo);
     }
