@@ -170,16 +170,27 @@ class _Menu extends StatelessWidget {
           ),
         ),
       ),
-      ...List.generate(
-        menu.length,
-        (i) => ListTile(
-          selected: pagina == i,
+      ...List.generate(menu.length, (i) {
+        const cores = [
+          Colors.indigo,
+          Colors.orange,
+          Colors.teal,
+          Colors.deepPurple,
+          Colors.green,
+          Colors.pink,
+          Colors.red,
+          Colors.blue,
+          Colors.amber,
+        ];
+        final selecionado = pagina == i;
+        return ListTile(
+          selected: selecionado,
           selectedTileColor: const Color(0xFFE3F2FD),
-          leading: Icon(menu[i].icone),
+          leading: Icon(menu[i].icone, color: selecionado ? Colors.blue : cores[i % cores.length]),
           title: Text(menu[i].titulo),
           onTap: () => aoSelecionar(i),
-        ),
-      ),
+        );
+      }),
     ],
   );
 }
