@@ -766,6 +766,7 @@ class _RoteiroSemanal extends StatelessWidget {
           final clientes = dados
               .where((p) => (p['diaAtendimento'] ?? '') == dia)
               .map((p) => (p['cliente'] ?? {})['nome'] ?? p['nome'])
+              .toSet()
               .toList();
           return SizedBox(
             width: 220,
