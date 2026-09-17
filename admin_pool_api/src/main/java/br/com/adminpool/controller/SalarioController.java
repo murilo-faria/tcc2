@@ -51,12 +51,13 @@ public class SalarioController {
     @DeleteMapping("/vales/{id}") public ResponseEntity<Void> excluirVale(@PathVariable Long id, Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem excluir vales."); vales.deleteById(id); return ResponseEntity.noContent().build(); }
 
     @GetMapping
-    public List<Map<String, Object>> listar(Authentication auth) {
+    public List<Map<String, Object>> listar(@RequestParam(required = false) String referencia, Authentication auth) {
         boolean gestor = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_GESTOR"));
+        YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
         return funcionarios.findAll().stream()
                 .filter(f -> gestor || f.getUsuario().getLogin().equalsIgnoreCase(auth.getName()))
-                .map(this::resumo)
+                .map(f -> resumo(f, mes))
                 .toList();
     }
 
@@ -85,8 +86,13 @@ public class SalarioController {
         return ResponseEntity.noContent().build();
     }
 
-    private Map<String, Object> resumo(Funcionario funcionario) {
-        var piscinasVinculadas = piscinas.findByResponsavelId(funcionario.getId());
+    private Map<String, Object> resumo(Funcionario funcionario, YearMonth mes) {
+        var piscinasVinculadas = piscinas.findByResponsavelId(funcionario.getId()).stream()
+                .filter(piscina -> {
+                    LocalDate primeiroVencimento = piscina.getCliente().getPrimeiroVencimento();
+                    return primeiroVencimento == null || !primeiroVencimento.isAfter(mes.atEndOfMonth());
+                })
+                .toList();
         var clientes = piscinasVinculadas.stream()
                 .map(p -> p.getCliente())
                 .collect(Collectors.toMap(Cliente::getId, cliente -> cliente, (a, b) -> a))
@@ -99,9 +105,11 @@ public class SalarioController {
                 .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
         BigDecimal totalReembolsos = reembolsos
                 .findByFuncionarioIdAndStatusOrderByDataLancamentoAsc(funcionario.getId(), StatusReembolso.PENDENTE)
-                .stream().map(ReembolsoColaborador::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
-        YearMonth mesAtual = YearMonth.now();
-        BigDecimal totalVales = vales.findByFuncionarioIdAndDataLancamentoBetweenOrderByDataLancamentoDesc(funcionario.getId(), mesAtual.atDay(1), mesAtual.atEndOfMonth()).stream().map(ValeColaborador::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
+                .stream()
+                .filter(reembolso -> !reembolso.getDataLancamento().isBefore(mes.atDay(1))
+                        && !reembolso.getDataLancamento().isAfter(mes.atEndOfMonth()))
+                .map(ReembolsoColaborador::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalVales = vales.findByFuncionarioIdAndDataLancamentoBetweenOrderByDataLancamentoDesc(funcionario.getId(), mes.atDay(1), mes.atEndOfMonth()).stream().map(ValeColaborador::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
         Map<String, Object> resultado = new LinkedHashMap<>();
         resultado.put("funcionario", funcionario);
         resultado.put("piscinas", piscinasVinculadas.size());
@@ -111,6 +119,7 @@ public class SalarioController {
         resultado.put("reembolsos", totalReembolsos);
         resultado.put("vales", totalVales);
         resultado.put("totalPagar", salario.add(totalReembolsos).subtract(totalVales).max(BigDecimal.ZERO));
+        resultado.put("referencia", mes.toString());
         return resultado;
     }
 

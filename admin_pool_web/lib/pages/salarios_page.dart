@@ -10,15 +10,33 @@ class _SalariosPageNova extends StatefulWidget {
 
 class _SalariosPageNovaState extends State<_SalariosPageNova> {
   late Future<List<dynamic>> _salarios;
+  late DateTime _mesSelecionado;
+
+  String get _referencia => '${_mesSelecionado.year}-${_mesSelecionado.month.toString().padLeft(2, '0')}';
+  DateTime get _mesAtual {
+    final agora = DateTime.now();
+    return DateTime(agora.year, agora.month);
+  }
+  DateTime get _proximoMes => DateTime(_mesAtual.year, _mesAtual.month + 1);
+  bool _mesIgual(DateTime primeiro, DateTime segundo) => primeiro.year == segundo.year && primeiro.month == segundo.month;
+
+  String _nomeMes(DateTime mes) {
+    const nomes = [
+      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+    ];
+    return '${nomes[mes.month - 1]} de ${mes.year}';
+  }
 
   @override
   void initState() {
     super.initState();
+    _mesSelecionado = _mesAtual;
     _salarios = _carregar();
   }
 
   Future<List<dynamic>> _carregar() async {
-    final resposta = await apiService.get('/api/salarios');
+    final resposta = await apiService.get('/api/salarios?referencia=$_referencia');
     if (resposta.statusCode != 200) throw Exception('Não foi possível carregar os salários.');
     return jsonDecode(resposta.body) as List<dynamic>;
   }
@@ -30,6 +48,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
       builder: (_) => _DialogoReembolsos(
         funcionario: funcionario,
         gestor: widget.gestor,
+        referencia: _referencia,
         aoAtualizar: () => setState(() => _salarios = _carregar()),
       ),
     );
@@ -83,6 +102,30 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
           const SizedBox(height: 6),
           const Text('A comissão e os reembolsos são calculados separadamente.'),
           if (widget.gestor) Align(alignment: Alignment.centerRight, child: OutlinedButton.icon(onPressed: _abrirVales, icon: const Icon(Icons.payments_outlined), label: const Text('Vale'))),
+          const SizedBox(height: 12),
+          Text('Referência: ${_nomeMes(_mesSelecionado)}', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: Text('Mês atual — ${_nomeMes(_mesAtual)}'),
+                selected: _mesIgual(_mesSelecionado, _mesAtual),
+                onSelected: (_) => setState(() {
+                  _mesSelecionado = _mesAtual;
+                  _salarios = _carregar();
+                }),
+              ),
+              ChoiceChip(
+                label: Text('Próximo mês — ${_nomeMes(_proximoMes)}'),
+                selected: _mesIgual(_mesSelecionado, _proximoMes),
+                onSelected: (_) => setState(() {
+                  _mesSelecionado = _proximoMes;
+                  _salarios = _carregar();
+                }),
+              ),
+            ],
+          ),
           const SizedBox(height: 18),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
@@ -122,9 +165,10 @@ Future<void> excluir(Map<String,dynamic> vale)async{final r=await apiService.del
 @override Widget build(BuildContext c)=>AlertDialog(title:const Text('Vales dos colaboradores'),content:SizedBox(width:650,height:420,child:FutureBuilder<List<dynamic>>(future:vales,builder:(_,s){if(!s.hasData)return const Center(child:CircularProgressIndicator());if(s.hasError)return Center(child:Text('${s.error}'));return ListView.separated(itemCount:s.data!.length,separatorBuilder:(_,__)=>const Divider(),itemBuilder:(_,i){final v=s.data![i] as Map<String,dynamic>;final f=v['funcionario']??{},u=f['usuario']??{};return ListTile(onTap:()=>formulario(v),leading:CircleAvatar(backgroundColor:[Colors.blue,Colors.green,Colors.orange,Colors.deepPurple][(f['id'] as int? ?? 0)%4].withValues(alpha:.15),child:const Icon(Icons.person_outline)),title:Text(u['nome']??''),subtitle:Text('${v['tipo']} • ${v['dataLancamento']}\n${v['observacao']??''}'),isThreeLine:true,trailing:Row(mainAxisSize:MainAxisSize.min,children:[Text(formatarMoeda((v['valor'] as num?)??0)),IconButton(onPressed:()=>formulario(v),icon:const Icon(Icons.edit_outlined)),IconButton(onPressed:()=>excluir(v),icon:const Icon(Icons.delete_outline,color:Colors.red))]));});})),actions:[OutlinedButton.icon(onPressed:()=>formulario(),icon:const Icon(Icons.add),label:const Text('Novo vale')),TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Fechar'))]); }
 
 class _DialogoReembolsos extends StatefulWidget {
-  const _DialogoReembolsos({required this.funcionario, required this.gestor, required this.aoAtualizar});
+  const _DialogoReembolsos({required this.funcionario, required this.gestor, required this.referencia, required this.aoAtualizar});
   final Map<String, dynamic> funcionario;
   final bool gestor;
+  final String referencia;
   final VoidCallback aoAtualizar;
 
   @override
@@ -141,7 +185,7 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
   }
 
   Future<List<dynamic>> _carregar() async {
-    final resposta = await apiService.get('/api/salarios/${widget.funcionario['id']}/reembolsos');
+    final resposta = await apiService.get('/api/salarios/${widget.funcionario['id']}/reembolsos?referencia=${widget.referencia}');
     if (resposta.statusCode != 200) throw Exception('Não foi possível carregar os reembolsos.');
     return jsonDecode(resposta.body) as List<dynamic>;
   }
