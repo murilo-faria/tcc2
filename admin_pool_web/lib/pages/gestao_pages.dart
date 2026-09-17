@@ -869,20 +869,12 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
             final listaClientes = clientes.cast<Map<String, dynamic>>().toList()
               ..sort((a, b) => '${a['nome']}'.compareTo('${b['nome']}'));
             final clientesSemRota = listaClientes.where((cliente) => !vinculados.contains('${cliente['id']}')).toList();
-            return Wrap(spacing: 12, runSpacing: 12, children: [
-              SizedBox(width: 280, child: Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('CLIENTES', style: TextStyle(fontWeight: FontWeight.bold)),
-                const Text('Use o + para adicionar outra visita.'),
-                const Divider(),
-                ...listaClientes.map((cliente) => Row(children: [Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text('${cliente['nome']}'))), PopupMenuButton<String>(tooltip: 'Adicionar à rota', icon: const Icon(Icons.add_circle_outline, size: 20), onSelected: (dia) => _salvarRota('/api/roteiro', 'POST', {'clienteId': cliente['id'], 'diaAtendimento': dia}), itemBuilder: (_) => dias.map((d) => PopupMenuItem(value: d, child: Text('Adicionar em $d'))).toList())])),
-              ])))),
-              SizedBox(width: 280, child: Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            return SizedBox(width: 280, child: Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('CLIENTES SEM ROTA', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
                 const Divider(),
                 if (clientesSemRota.isEmpty) const Text('Todos os clientes estão na agenda.') else ...clientesSemRota.map((cliente) => Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text('${cliente['nome']}'))),
                 const Divider(), Text('${clientesSemRota.length} cliente(s) sem rota', style: const TextStyle(fontWeight: FontWeight.bold)),
-              ])))),
-            ]);
+            ]))));
           }),
         ],
       );
