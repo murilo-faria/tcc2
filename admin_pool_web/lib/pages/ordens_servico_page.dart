@@ -214,8 +214,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                     decoration: const InputDecoration(
                       labelText: 'Valor sugerido para cobrar do cliente',
                       prefixText: 'R\$ ',
-                      helperText:
-                          'O gestor poderá confirmar ou alterar este valor ao concluir.',
+                      helperText: 'O gestor poderá confirmar ou alterar este valor ao concluir.',
                     ),
                   ),
                 ],
@@ -399,34 +398,20 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Excluir OS #${ordem['id']}?'),
-        content: const Text(
-          'A ordem ainda não gerou financeiro e será removida definitivamente.',
-        ),
+        content: const Text('A ordem será removida definitivamente. Se estiver concluída, a cobrança e o reembolso vinculados também serão desfeitos.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
         ],
       ),
     );
     if (confirmar != true) return;
-    final resposta = await apiService.delete(
-      '/api/ordens-servico/${ordem['id']}',
-    );
+    final resposta = await apiService.delete('/api/ordens-servico/${ordem['id']}');
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Não foi possível excluir a OS (${resposta.statusCode}).',
-          ),
-        ),
+        SnackBar(content: Text('Não foi possível excluir a OS (${resposta.statusCode}).')),
       );
     }
   }
@@ -569,7 +554,6 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                     itemBuilder: (_, indice) {
                       final ordem = ordens[indice] as Map<String, dynamic>;
                       final aberta = ordem['status'] == 'ABERTA';
-                      final excluivel = ordem['financeiroLancado'] != true;
                       return ListTile(
                         onTap: () => _detalhar(ordem),
                         leading: CircleAvatar(child: Text('#${ordem['id']}')),
@@ -578,43 +562,18 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                           '${ordem['descricao']}\n${ordem['dataServico']} • ${ordem['status']}',
                         ),
                         isThreeLine: true,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if ((ordem['valorCobrado'] as num?) != null)
-                              Text(formatarMoeda(ordem['valorCobrado'] as num)),
-                            IconButton(
-                              tooltip: 'Ver detalhes',
-                              onPressed: () => _detalhar(ordem),
-                              icon: const Icon(Icons.visibility_outlined),
-                            ),
-                            if (widget.gestor && aberta)
-                              IconButton(
-                                tooltip: 'Concluir OS',
-                                onPressed: () => _concluir(ordem),
-                                icon: const Icon(
-                                  Icons.check_circle_outline,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            if (aberta)
-                              IconButton(
-                                tooltip: 'Cancelar OS',
-                                onPressed: () => _cancelar(ordem),
-                                icon: const Icon(
-                                  Icons.cancel_outlined,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            if (widget.gestor && excluivel)
-                              IconButton(
-                                tooltip: 'Excluir OS',
-                                onPressed: () => _excluir(ordem),
-                                icon: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.red,
-                                ),
-                              ),
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (acao) {
+                            if (acao == 'ver') _detalhar(ordem);
+                            if (acao == 'concluir') _concluir(ordem);
+                            if (acao == 'cancelar') _cancelar(ordem);
+                            if (acao == 'excluir') _excluir(ordem);
+                          },
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(value: 'ver', child: Text('Ver detalhes')),
+                            if (widget.gestor && aberta) const PopupMenuItem(value: 'concluir', child: Text('Concluir OS')),
+                            if (aberta) const PopupMenuItem(value: 'cancelar', child: Text('Cancelar OS')),
+                            if (widget.gestor) const PopupMenuItem(value: 'excluir', child: Text('Excluir OS')),
                           ],
                         ),
                       );

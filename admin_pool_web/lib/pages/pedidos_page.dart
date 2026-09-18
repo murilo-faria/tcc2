@@ -491,7 +491,20 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                           '${grupo.value.length} produto(s) • ${_nomeStatus(primeiro['status'])} • ${primeiro['dataPedido']}',
                         ),
                         trailing: compacto
-                            ? Text(formatarMoeda(total), style: const TextStyle(fontWeight: FontWeight.bold))
+                            ? PopupMenuButton<String>(
+                                onSelected: (acao) {
+                                  if (acao == 'ver') _detalhar(grupo.key);
+                                  if (acao == 'andamento') _alterarStatus(grupo.key, primeiro['status']);
+                                  if (acao == 'concluir') _concluir(grupo.key);
+                                  if (acao == 'excluir') _excluir(grupo.key);
+                                },
+                                itemBuilder: (_) => [
+                                  PopupMenuItem(value: 'ver', child: Text('Ver produtos • ${formatarMoeda(total)}')),
+                                  if (!concluido) const PopupMenuItem(value: 'andamento', child: Text('Atualizar andamento')),
+                                  if (widget.gestor && !concluido) const PopupMenuItem(value: 'concluir', child: Text('Concluir pedido')),
+                                  if (widget.gestor) const PopupMenuItem(value: 'excluir', child: Text('Excluir pedido')),
+                                ],
+                              )
                             : Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -524,7 +537,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                   color: Colors.green,
                                 ),
                               ),
-                            if (widget.gestor && !concluido)
+                            if (widget.gestor)
                               IconButton(
                                 tooltip: 'Excluir pedido, inclusive concluído',
                                 onPressed: () => _excluir(grupo.key),
