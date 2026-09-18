@@ -97,7 +97,9 @@ class _LoginPageState extends State<LoginPage> {
                           TextField(
                             controller: usuarioController,
                             autofillHints: const [AutofillHints.username],
-                            keyboardType: TextInputType.emailAddress,
+                            keyboardType: TextInputType.text,
+                            autocorrect: false,
+                            enableSuggestions: false,
                             textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
                               labelText: 'Usuário',
@@ -109,6 +111,9 @@ class _LoginPageState extends State<LoginPage> {
                           TextField(
                             controller: senhaController,
                             autofillHints: const [AutofillHints.password],
+                            keyboardType: TextInputType.visiblePassword,
+                            autocorrect: false,
+                            enableSuggestions: false,
                             textInputAction: TextInputAction.done,
                             onSubmitted: (_) => entrar(),
                             obscureText: ocultarSenha,
