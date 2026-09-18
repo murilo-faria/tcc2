@@ -13,6 +13,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
   String _filtro = '';
   String? _clienteSelecionado;
   String? _mesSelecionado;
+  bool _mostrarFiltros = false;
   DateTime? _dataInicial;
   DateTime? _dataFinal;
 
@@ -499,6 +500,13 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                 setState(() => _filtro = valor.trim().toLowerCase()),
           ),
           const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: () => setState(() => _mostrarFiltros = !_mostrarFiltros),
+            icon: Icon(_mostrarFiltros ? Icons.expand_less : Icons.expand_more),
+            label: Text(_mostrarFiltros ? 'Ocultar filtros' : 'Filtros'),
+          ),
+          if (_mostrarFiltros) ...[
+          const SizedBox(height: 12),
           FutureBuilder<List<dynamic>>(
             future: _ordens,
             builder: (_, estado) {
@@ -535,6 +543,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
               );
             },
           ),
+          ],
           const SizedBox(height: 12),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
