@@ -93,7 +93,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           grupo.value.fold<double>(
             0,
             (subtotal, item) =>
-                subtotal + ((item['totalLiquido'] as num?) ?? (item['totalVenda'] as num?) ?? 0).toDouble(),
+                subtotal +
+                ((item['totalLiquido'] as num?) ??
+                        (item['totalVenda'] as num?) ??
+                        0)
+                    .toDouble(),
           ),
     );
     await showDialog<void>(
@@ -130,7 +134,10 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                             0,
                             (soma, item) =>
                                 soma +
-                                ((item['totalLiquido'] as num?) ?? (item['totalVenda'] as num?) ?? 0).toDouble(),
+                                ((item['totalLiquido'] as num?) ??
+                                        (item['totalVenda'] as num?) ??
+                                        0)
+                                    .toDouble(),
                           );
                           return ListTile(
                             title: Text(
@@ -155,6 +162,25 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
         ],
       ),
     );
+  }
+
+  Future<void> _baixarRelatorio() async {
+    final consulta = consultaPdf({
+      'clienteId': _clienteSelecionado == null
+          ? null
+          : (await _pedidos)
+                .firstWhere(
+                  (p) => (p['cliente'] ?? {})['nome'] == _clienteSelecionado,
+                )['cliente']['id']
+                .toString(),
+      'mes': _mesSelecionado,
+      'inicio': _dataInicial?.toIso8601String().substring(0, 10),
+      'fim': _dataFinal?.toIso8601String().substring(0, 10),
+    });
+    final resposta = await apiService.get(
+      '/api/pedidos-produto/relatorio.pdf?$consulta',
+    );
+    if (resposta.statusCode == 200) abrirPdf(resposta, 'relatorio-pedidos.pdf');
   }
 
   Future<void> _novoPedido() async {
@@ -258,11 +284,14 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 ),
                 TextField(
                   controller: desconto,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Desconto do pedido',
                     prefixText: 'R\$ ',
-                    helperText: 'Opcional. Será abatido antes de gerar a cobrança.',
+                    helperText:
+                        'Opcional. Será abatido antes de gerar a cobrança.',
                   ),
                 ),
                 const Divider(),
@@ -302,16 +331,33 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Excluir Pedido #$codigo?'),
-        content: const Text('O pedido será removido definitivamente. Se estiver concluído, a cobrança vinculada também será desfeita.'),
+        content: const Text(
+          'O pedido será removido definitivamente. Se estiver concluído, a cobrança vinculada também será desfeita.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
         ],
       ),
     );
     if (confirmar != true) return;
-    final resposta = await apiService.delete('/api/pedidos-produto/codigo/$codigo');
+    final resposta = await apiService.delete(
+      '/api/pedidos-produto/codigo/$codigo',
+    );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+  }
+
+  Future<void> _compartilharPedido(int codigo) async {
+    final resposta = await apiService.get(
+      '/api/pedidos-produto/codigo/$codigo/pdf',
+    );
+    if (resposta.statusCode == 200) abrirPdf(resposta, 'pedido-$codigo.pdf');
   }
 
   Future<void> _detalhar(int codigo) async {
@@ -335,7 +381,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                     '${linha['quantidade']} unidade(s) • venda ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}${((linha['desconto'] as num?) ?? 0) > 0 ? ' • desconto ${formatarMoeda(linha['desconto'] as num)}' : ''}',
                   ),
                   trailing: Text(
-                    formatarMoeda((linha['totalLiquido'] as num?) ?? (linha['totalVenda'] as num?) ?? 0),
+                    formatarMoeda(
+                      (linha['totalLiquido'] as num?) ??
+                          (linha['totalVenda'] as num?) ??
+                          0,
+                    ),
                   ),
                 );
               }).toList(),
@@ -388,7 +438,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
               runSpacing: 8,
               children: [
                 OutlinedButton.icon(
-                  onPressed: _gerarRelatorio,
+                  onPressed: _baixarRelatorio,
                   icon: const Icon(Icons.summarize_outlined),
                   label: const Text('Gerar relatório'),
                 ),
@@ -419,47 +469,48 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
             label: Text(_mostrarFiltros ? 'Ocultar filtros' : 'Filtros'),
           ),
           if (_mostrarFiltros) ...[
-          const SizedBox(height: 12),
-          FutureBuilder<List<dynamic>>(
-            future: _pedidos,
-            builder: (_, estado) {
-              if (!estado.hasData) return const SizedBox.shrink();
-              final grupos = _agrupar(estado.data!);
-              final clientes =
-                  grupos.values
-                      .map(
-                        (grupo) =>
-                            (grupo.first['cliente'] ?? {})['nome'].toString(),
-                      )
-                      .toSet()
-                      .toList()
-                    ..sort();
-              final meses =
-                  grupos.values
-                      .map((grupo) => _mes(grupo.first['dataPedido']))
-                      .where((mes) => mes.isNotEmpty)
-                      .toSet()
-                      .toList()
-                    ..sort();
-              return _FiltrosRelatorio(
-                clientes: clientes,
-                meses: meses,
-                clienteSelecionado: _clienteSelecionado,
-                mesSelecionado: _mesSelecionado,
-                dataInicial: _dataInicial,
-                dataFinal: _dataFinal,
-                aoMudarCliente: (v) => setState(() => _clienteSelecionado = v),
-                aoMudarMes: (v) => setState(() => _mesSelecionado = v),
-                aoEscolherData: _escolherData,
-                aoLimpar: () => setState(() {
-                  _clienteSelecionado = null;
-                  _mesSelecionado = null;
-                  _dataInicial = null;
-                  _dataFinal = null;
-                }),
-              );
-            },
-          ),
+            const SizedBox(height: 12),
+            FutureBuilder<List<dynamic>>(
+              future: _pedidos,
+              builder: (_, estado) {
+                if (!estado.hasData) return const SizedBox.shrink();
+                final grupos = _agrupar(estado.data!);
+                final clientes =
+                    grupos.values
+                        .map(
+                          (grupo) =>
+                              (grupo.first['cliente'] ?? {})['nome'].toString(),
+                        )
+                        .toSet()
+                        .toList()
+                      ..sort();
+                final meses =
+                    grupos.values
+                        .map((grupo) => _mes(grupo.first['dataPedido']))
+                        .where((mes) => mes.isNotEmpty)
+                        .toSet()
+                        .toList()
+                      ..sort();
+                return _FiltrosRelatorio(
+                  clientes: clientes,
+                  meses: meses,
+                  clienteSelecionado: _clienteSelecionado,
+                  mesSelecionado: _mesSelecionado,
+                  dataInicial: _dataInicial,
+                  dataFinal: _dataFinal,
+                  aoMudarCliente: (v) =>
+                      setState(() => _clienteSelecionado = v),
+                  aoMudarMes: (v) => setState(() => _mesSelecionado = v),
+                  aoEscolherData: _escolherData,
+                  aoLimpar: () => setState(() {
+                    _clienteSelecionado = null;
+                    _mesSelecionado = null;
+                    _dataInicial = null;
+                    _dataFinal = null;
+                  }),
+                );
+              },
+            ),
           ],
           const SizedBox(height: 12),
           Expanded(
@@ -485,7 +536,10 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                         0,
                         (soma, item) =>
                             soma +
-                            ((item['totalLiquido'] as num?) ?? (item['totalVenda'] as num?) ?? 0).toDouble(),
+                            ((item['totalLiquido'] as num?) ??
+                                    (item['totalVenda'] as num?) ??
+                                    0)
+                                .toDouble(),
                       );
                       final compacto = MediaQuery.of(context).size.width < 600;
                       return ListTile(
@@ -503,57 +557,91 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                             ? PopupMenuButton<String>(
                                 onSelected: (acao) {
                                   if (acao == 'ver') _detalhar(grupo.key);
-                                  if (acao == 'andamento') _alterarStatus(grupo.key, primeiro['status']);
+                                  if (acao == 'andamento')
+                                    _alterarStatus(
+                                      grupo.key,
+                                      primeiro['status'],
+                                    );
                                   if (acao == 'concluir') _concluir(grupo.key);
                                   if (acao == 'excluir') _excluir(grupo.key);
                                 },
                                 itemBuilder: (_) => [
-                                  PopupMenuItem(value: 'ver', child: Text('Ver produtos • ${formatarMoeda(total)}')),
-                                  if (!concluido) const PopupMenuItem(value: 'andamento', child: Text('Atualizar andamento')),
-                                  if (widget.gestor && !concluido) const PopupMenuItem(value: 'concluir', child: Text('Concluir pedido')),
-                                  if (widget.gestor) const PopupMenuItem(value: 'excluir', child: Text('Excluir pedido')),
+                                  PopupMenuItem(
+                                    value: 'ver',
+                                    child: Text(
+                                      'Ver produtos • ${formatarMoeda(total)}',
+                                    ),
+                                  ),
+                                  if (!concluido)
+                                    const PopupMenuItem(
+                                      value: 'andamento',
+                                      child: Text('Atualizar andamento'),
+                                    ),
+                                  if (widget.gestor && !concluido)
+                                    const PopupMenuItem(
+                                      value: 'concluir',
+                                      child: Text('Concluir pedido'),
+                                    ),
+                                  if (widget.gestor)
+                                    const PopupMenuItem(
+                                      value: 'excluir',
+                                      child: Text('Excluir pedido'),
+                                    ),
                                 ],
                               )
                             : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              formatarMoeda(total),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    formatarMoeda(total),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Ver produtos',
+                                    onPressed: () => _detalhar(grupo.key),
+                                    icon: const Icon(Icons.visibility_outlined),
+                                  ),
+                                  IconButton(
+                                    tooltip:
+                                        'PDF para compartilhar no WhatsApp',
+                                    onPressed: () =>
+                                        _compartilharPedido(grupo.key),
+                                    icon: const Icon(Icons.share_outlined),
+                                  ),
+                                  if (!concluido)
+                                    IconButton(
+                                      tooltip: 'Atualizar andamento',
+                                      onPressed: () => _alterarStatus(
+                                        grupo.key,
+                                        primeiro['status'],
+                                      ),
+                                      icon: const Icon(
+                                        Icons.local_shipping_outlined,
+                                      ),
+                                    ),
+                                  if (widget.gestor)
+                                    IconButton(
+                                      tooltip: 'Concluir pedido',
+                                      onPressed: () => _concluir(grupo.key),
+                                      icon: const Icon(
+                                        Icons.check_circle_outline,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                  if (widget.gestor)
+                                    IconButton(
+                                      tooltip:
+                                          'Excluir pedido, inclusive concluído',
+                                      onPressed: () => _excluir(grupo.key),
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                ],
                               ),
-                            ),
-                            IconButton(
-                              tooltip: 'Ver produtos',
-                              onPressed: () => _detalhar(grupo.key),
-                              icon: const Icon(Icons.visibility_outlined),
-                            ),
-                            if (!concluido)
-                              IconButton(
-                                tooltip: 'Atualizar andamento',
-                                onPressed: () => _alterarStatus(
-                                  grupo.key,
-                                  primeiro['status'],
-                                ),
-                                icon: const Icon(Icons.local_shipping_outlined),
-                              ),
-                            if (widget.gestor)
-                              IconButton(
-                                tooltip: 'Concluir pedido',
-                                onPressed: () => _concluir(grupo.key),
-                                icon: const Icon(
-                                  Icons.check_circle_outline,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            if (widget.gestor)
-                              IconButton(
-                                tooltip: 'Excluir pedido, inclusive concluído',
-                                onPressed: () => _excluir(grupo.key),
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              ),
-                          ],
-                        ),
                       );
                     },
                   ),
@@ -603,7 +691,9 @@ class _ResultadoProdutosCard extends StatelessWidget {
                   itemBuilder: (_, indice) {
                     final pedido = pedidos[indice];
                     final lucro =
-                        ((pedido['totalLiquido'] as num?) ?? (pedido['totalVenda'] as num?) ?? 0) -
+                        ((pedido['totalLiquido'] as num?) ??
+                            (pedido['totalVenda'] as num?) ??
+                            0) -
                         ((pedido['totalCompra'] as num?) ?? 0);
                     return ListTile(
                       leading: const Icon(Icons.shopping_bag_outlined),

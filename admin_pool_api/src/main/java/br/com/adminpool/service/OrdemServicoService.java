@@ -65,7 +65,6 @@ public class OrdemServicoService {
                 ? BigDecimal.ZERO : requisicao.valorAdicional();
         ordem.setValorAdicional(valorSugerido);
         ordem.setValorCobrado(valorSugerido);
-        ordem.setValorCusto(requisicao.valorCusto() == null ? BigDecimal.ZERO : requisicao.valorCusto());
         ordem.setCriadoPor(funcionarios.findByUsuarioLoginIgnoreCase(auth.getName()).orElse(null));
         ordem.setStatus("ABERTA");
         return ordens.save(ordem);
@@ -83,18 +82,15 @@ public class OrdemServicoService {
         if (pagador == null) {
             throw new IllegalArgumentException("Informe quem pagou a ordem de serviço.");
         }
-        Funcionario funcionarioReembolso = ordem.getPiscina() == null ? ordem.getCriadoPor() : ordem.getPiscina().getResponsavel();
-        if (funcionarioReembolso == null) funcionarioReembolso = ordem.getCriadoPor();
-        if (pagador == ResponsavelPagamento.FUNCIONARIO && funcionarioReembolso == null) {
-            throw new IllegalArgumentException("A OS não possui um colaborador responsável para receber o reembolso.");
+        if (pagador == ResponsavelPagamento.FUNCIONARIO && ordem.getCriadoPor() == null) {
+            throw new IllegalArgumentException("A OS não possui um colaborador criador para receber o reembolso.");
         }
-        BigDecimal valorReembolso = custo.compareTo(BigDecimal.ZERO) > 0 ? custo : cobrado;
         if (pagador != ResponsavelPagamento.CLIENTE && cobrado.compareTo(BigDecimal.ZERO) > 0) {
             cobrancas.adicionarLancamento(ordem.getCliente().getId(), TipoLancamentoCobranca.ORDEM_SERVICO,
                     ordem.getId(), "OS #" + ordem.getId() + " - " + ordem.getDescricao(), cobrado);
         }
-        if (pagador == ResponsavelPagamento.FUNCIONARIO && valorReembolso.compareTo(BigDecimal.ZERO) > 0) {
-            criarReembolso(ordem, valorReembolso, funcionarioReembolso);
+        if (pagador == ResponsavelPagamento.FUNCIONARIO && custo.compareTo(BigDecimal.ZERO) > 0) {
+            criarReembolso(ordem, custo);
         }
         ordem.setValorCusto(custo);
         ordem.setValorCobrado(cobrado);
@@ -103,21 +99,6 @@ public class OrdemServicoService {
         ordem.setFinanceiroLancado(true);
         ordem.setDataConclusao(LocalDate.now());
         ordem.setStatus("CONCLUIDA");
-        return ordens.save(ordem);
-    }
-
-    @Transactional
-    public OrdemServico editar(Long id, NovaOrdemServicoRequest requisicao) {
-        OrdemServico ordem = ordens.findById(id).orElseThrow();
-        if (ordem.isFinanceiroLancado()) throw new IllegalStateException("Uma OS concluída não pode ser editada.");
-        var cliente = clientes.findById(requisicao.clienteId()).orElseThrow();
-        var piscina = piscinas.findById(requisicao.piscinaId()).orElseThrow();
-        if (!piscina.getCliente().getId().equals(cliente.getId())) throw new IllegalArgumentException("A piscina não pertence ao cliente.");
-        ordem.setCliente(cliente); ordem.setPiscina(piscina); ordem.setDescricao(requisicao.descricao());
-        ordem.setDataServico(requisicao.dataServico() == null ? ordem.getDataServico() : requisicao.dataServico());
-        BigDecimal valor = requisicao.valorAdicional() == null ? BigDecimal.ZERO : requisicao.valorAdicional();
-        ordem.setValorAdicional(valor); ordem.setValorCobrado(valor);
-        ordem.setValorCusto(requisicao.valorCusto() == null ? ordem.getValorCusto() : requisicao.valorCusto());
         return ordens.save(ordem);
     }
 
@@ -131,7 +112,18 @@ public class OrdemServicoService {
         ordens.save(ordem);
     }
 
-    private void criarReembolso(OrdemServico ordem, BigDecimal custo, Funcionario funcionario) {
+    /** Remove uma OS, inclusive lançamentos financeiros que ela tenha criado.
+     *  Exclusão é restrita ao gestor pelo controller. */
+    @Transactional
+    public void excluir(Long id) {
+        OrdemServico ordem = ordens.findById(id).orElseThrow();
+        cobrancas.removerLancamento(TipoLancamentoCobranca.ORDEM_SERVICO, id);
+        reembolsos.findByOrdemServicoId(id).ifPresent(reembolsos::delete);
+        ordens.delete(ordem);
+    }
+
+    private void criarReembolso(OrdemServico ordem, BigDecimal custo) {
+        Funcionario funcionario = ordem.getCriadoPor();
         ReembolsoColaborador reembolso = new ReembolsoColaborador();
         reembolso.setFuncionario(funcionario);
         reembolso.setOrdemServico(ordem);

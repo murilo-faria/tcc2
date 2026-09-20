@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'dart:convert';
+import 'dart:html' as html;
 
 import 'core/atualizadores.dart';
 import 'core/formatadores.dart';
@@ -18,6 +19,23 @@ part 'pages/ordens_servico_page.dart';
 part 'pages/salarios_page.dart';
 
 void main() => runApp(const AdminPoolApp());
+
+void abrirPdf(http.Response resposta, String arquivo) {
+  final blob = html.Blob([resposta.bodyBytes], 'application/pdf');
+  final url = html.Url.createObjectUrlFromBlob(blob);
+  html.AnchorElement(href: url)
+    ..target = '_blank'
+    ..download = arquivo
+    ..click();
+  html.Url.revokeObjectUrl(url);
+}
+
+String consultaPdf(Map<String, String?> parametros) => Uri(
+  queryParameters: {
+    for (final item in parametros.entries)
+      if (item.value != null && item.value!.isNotEmpty) item.key: item.value!,
+  },
+).query;
 
 class AdminPoolApp extends StatelessWidget {
   const AdminPoolApp({super.key});

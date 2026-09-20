@@ -4,24 +4,28 @@ import br.com.adminpool.dto.BaixaCobrancaRequest;
 import br.com.adminpool.dto.BaixaItensRequest;
 import br.com.adminpool.dto.ResumoCobrancaCliente;
 import br.com.adminpool.dto.FluxoCaixaEntrada;
+import br.com.adminpool.dto.LinhaRelatorioPdf;
 import br.com.adminpool.model.CobrancaMensal;
 import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.service.CobrancaService;
+import br.com.adminpool.service.RelatorioPdfService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.math.BigDecimal;
 import java.time.YearMonth;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/cobrancas")
 public class CobrancaController {
 
     private final CobrancaService cobrancaService;
+    private final RelatorioPdfService relatorios;
 
-    public CobrancaController(CobrancaService cobrancaService) {
+    public CobrancaController(CobrancaService cobrancaService, RelatorioPdfService relatorios) {
         this.cobrancaService = cobrancaService;
+        this.relatorios = relatorios;
     }
 
     @GetMapping
@@ -40,6 +44,24 @@ public class CobrancaController {
     @GetMapping("/clientes")
     public List<ResumoCobrancaCliente> listarClientes() {
         return cobrancaService.listarResumoClientes();
+    }
+
+    @GetMapping(value = "/relatorio.pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> relatorio(@RequestParam(required = false) Long clienteId,
+                                             @RequestParam(required = false) String referencia,
+                                             @RequestParam(required = false) Integer diaVencimento,
+                                             @RequestParam(required = false) java.time.LocalDate inicio,
+                                             @RequestParam(required = false) java.time.LocalDate fim) {
+        var linhas = cobrancaService.listarReferencias().stream()
+                .flatMap(ref -> cobrancaService.listarPorReferencia(ref).stream())
+                .filter(c -> clienteId == null || c.getCliente().getId().equals(clienteId))
+                .filter(c -> referencia == null || referencia.isBlank() || c.getReferencia().equals(referencia))
+                .filter(c -> diaVencimento == null || c.getVencimento().getDayOfMonth() == diaVencimento)
+                .filter(c -> inicio == null || !c.getVencimento().isBefore(inicio))
+                .filter(c -> fim == null || !c.getVencimento().isAfter(fim))
+                .map(c -> new LinhaRelatorioPdf(c.getCliente().getNome(), "Cobrança " + c.getReferencia(), c.getVencimento().toString(), c.getTotal())).toList();
+        return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio-cobrancas.pdf")
+                .body(relatorios.gerar("Relatório de cobranças", "Filtros aplicados na tela", linhas));
     }
 
     @GetMapping("/fluxo-caixa")

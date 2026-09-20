@@ -5,15 +5,19 @@ import br.com.adminpool.dto.ItemPedidoRequest;
 import br.com.adminpool.dto.NovoPedidoLoteRequest;
 import br.com.adminpool.dto.NovoPedidoRequest;
 import br.com.adminpool.dto.ResultadoProdutos;
+import br.com.adminpool.dto.LinhaRelatorioPdf;
 import br.com.adminpool.model.PedidoProduto;
 import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.service.PedidoProdutoService;
+import br.com.adminpool.service.RelatorioPdfService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.YearMonth;
+import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -22,10 +26,12 @@ public class PedidoProdutoController {
 
     private final PedidoProdutoRepository pedidos;
     private final PedidoProdutoService servico;
+    private final RelatorioPdfService relatorios;
 
-    public PedidoProdutoController(PedidoProdutoRepository pedidos, PedidoProdutoService servico) {
+    public PedidoProdutoController(PedidoProdutoRepository pedidos, PedidoProdutoService servico, RelatorioPdfService relatorios) {
         this.pedidos = pedidos;
         this.servico = servico;
+        this.relatorios = relatorios;
     }
 
     @GetMapping
@@ -44,6 +50,19 @@ public class PedidoProdutoController {
         return pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
     }
 
+    @GetMapping(value = "/codigo/{codigo}/pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> pedidoPdf(@PathVariable Long codigo) {
+        var itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
+        if (itens.isEmpty()) throw new IllegalArgumentException("Pedido não encontrado.");
+        var primeiro = itens.get(0);
+        var linhas = itens.stream().map(p -> new LinhaRelatorioPdf(primeiro.getCliente().getNome(),
+                p.getProduto().getNome() + " • " + p.getQuantidade() + " un.", primeiro.getDataPedido().toString(),
+                p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
+        String endereco = primeiro.getPiscina() == null ? "Endereço: a informar" : "Endereço: " + primeiro.getPiscina().getEndereco();
+        return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
+                .body(relatorios.gerar("Pedido #" + codigo, endereco, linhas));
+    }
+
     @GetMapping("/abertos")
     public List<PedidoProduto> listarAbertos() {
         return pedidos.findAllByOrderByDataPedidoDesc().stream()
@@ -55,6 +74,23 @@ public class PedidoProdutoController {
     public ResultadoProdutos resultado(@RequestParam(required = false) String referencia) {
         return servico.resultado(referencia == null || referencia.isBlank()
                 ? YearMonth.now() : YearMonth.parse(referencia));
+    }
+
+    @GetMapping(value = "/relatorio.pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> relatorio(@RequestParam(required = false) Long clienteId,
+                                             @RequestParam(required = false) String mes,
+                                             @RequestParam(required = false) LocalDate inicio,
+                                             @RequestParam(required = false) LocalDate fim) {
+        List<PedidoProduto> lista = pedidos.findAllByOrderByDataPedidoDesc().stream()
+                .filter(p -> clienteId == null || p.getCliente().getId().equals(clienteId))
+                .filter(p -> mes == null || mes.isBlank() || p.getDataPedido().toString().startsWith(mes))
+                .filter(p -> inicio == null || !p.getDataPedido().isBefore(inicio))
+                .filter(p -> fim == null || !p.getDataPedido().isAfter(fim)).toList();
+        var linhas = lista.stream().map(p -> new LinhaRelatorioPdf(p.getCliente().getNome(),
+                p.getProduto().getNome() + " • " + p.getQuantidade() + " un.", p.getDataPedido().toString(),
+                p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
+        return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio-pedidos.pdf")
+                .body(relatorios.gerar("Relatório de pedidos", "Filtros aplicados na tela", linhas));
     }
 
     @PostMapping

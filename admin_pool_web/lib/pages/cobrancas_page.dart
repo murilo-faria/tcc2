@@ -153,6 +153,30 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
     );
   }
 
+  Future<void> _baixarRelatorio() async {
+    final dados = await _dados;
+    final resumos = dados['resumos'] as List<dynamic>;
+    final cliente = _clienteSelecionado == null
+        ? null
+        : resumos
+              .firstWhere(
+                (c) => c['clienteNome'] == _clienteSelecionado,
+              )['clienteId']
+              .toString();
+    final consulta = consultaPdf({
+      'clienteId': cliente,
+      'referencia': _mesSelecionado,
+      'diaVencimento': _diaVencimentoSelecionado?.toString(),
+      'inicio': _dataInicial?.toIso8601String().substring(0, 10),
+      'fim': _dataFinal?.toIso8601String().substring(0, 10),
+    });
+    final resposta = await apiService.get(
+      '/api/cobrancas/relatorio.pdf?$consulta',
+    );
+    if (resposta.statusCode == 200)
+      abrirPdf(resposta, 'relatorio-cobrancas.pdf');
+  }
+
   Future<void> _abrirCliente(Map<String, dynamic> cliente) async {
     await showDialog<void>(
       context: context,
@@ -175,108 +199,121 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
             subtitulo:
                 'Abra um cliente para conferir, detalhar e baixar cada valor.',
             acao: OutlinedButton.icon(
-              onPressed: _gerarRelatorio,
+              onPressed: _baixarRelatorio,
               icon: const Icon(Icons.summarize_outlined),
               label: const Text('Gerar relatório'),
             ),
           ),
           const SizedBox(height: 18),
-          OutlinedButton.icon(
-            onPressed: () => setState(() => _mostrarFiltros = !_mostrarFiltros),
-            icon: Icon(_mostrarFiltros ? Icons.expand_less : Icons.expand_more),
-            label: Text(_mostrarFiltros ? 'Ocultar filtros' : 'Filtros'),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () =>
+                  setState(() => _mostrarFiltros = !_mostrarFiltros),
+              icon: Icon(
+                _mostrarFiltros
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,
+              ),
+              label: Text(
+                _mostrarFiltros ? 'Fechar pesquisa' : 'Abrir pesquisa',
+              ),
+            ),
           ),
           if (_mostrarFiltros) ...[
-          const SizedBox(height: 12),
-          FutureBuilder<Map<String, dynamic>>(
-            future: _dados,
-            builder: (_, estado) {
-              if (!estado.hasData) return const SizedBox.shrink();
-              final dias =
-                  (estado.data!['clientesCadastrados'] as List<dynamic>)
-                      .where((cliente) => cliente['ativo'] != false)
-                      .map((cliente) => cliente['diaVencimento'])
-                      .whereType<int>()
-                      .toSet()
-                      .toList()
-                    ..sort();
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Filtrar por dia de vencimento',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('Todos'),
-                        selected: _diaVencimentoSelecionado == null,
-                        onSelected: (_) =>
-                            setState(() => _diaVencimentoSelecionado = null),
-                      ),
-                      ...dias.map(
-                        (dia) => ChoiceChip(
-                          label: Text('Dia $dia'),
-                          selected: _diaVencimentoSelecionado == dia,
+            const SizedBox(height: 12),
+            FutureBuilder<Map<String, dynamic>>(
+              future: _dados,
+              builder: (_, estado) {
+                if (!estado.hasData) return const SizedBox.shrink();
+                final dias =
+                    (estado.data!['clientesCadastrados'] as List<dynamic>)
+                        .where((cliente) => cliente['ativo'] != false)
+                        .map((cliente) => cliente['diaVencimento'])
+                        .whereType<int>()
+                        .toSet()
+                        .toList()
+                      ..sort();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Filtrar por dia de vencimento',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Todos'),
+                          selected: _diaVencimentoSelecionado == null,
                           onSelected: (_) =>
-                              setState(() => _diaVencimentoSelecionado = dia),
+                              setState(() => _diaVencimentoSelecionado = null),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              labelText: 'Pesquisar cliente',
-              border: OutlineInputBorder(),
+                        ...dias.map(
+                          (dia) => ChoiceChip(
+                            label: Text('Dia $dia'),
+                            selected: _diaVencimentoSelecionado == dia,
+                            onSelected: (_) =>
+                                setState(() => _diaVencimentoSelecionado = dia),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
-            onChanged: (valor) =>
-                setState(() => _busca = valor.trim().toLowerCase()),
-          ),
+            const SizedBox(height: 16),
+            TextField(
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                labelText: 'Pesquisar cliente',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (valor) =>
+                  setState(() => _busca = valor.trim().toLowerCase()),
+            ),
+            const SizedBox(height: 12),
+            FutureBuilder<Map<String, dynamic>>(
+              future: _dados,
+              builder: (_, estado) {
+                if (!estado.hasData) return const SizedBox.shrink();
+                final resumos = estado.data!['resumos'] as List<dynamic>;
+                final clientes =
+                    resumos
+                        .map((item) => item['clienteNome'].toString())
+                        .toList()
+                      ..sort();
+                final meses =
+                    (estado.data!['meses'] as List<dynamic>)
+                        .map((item) => item.toString())
+                        .toList()
+                      ..sort();
+                return _FiltrosRelatorio(
+                  clientes: clientes,
+                  meses: meses,
+                  clienteSelecionado: _clienteSelecionado,
+                  mesSelecionado: _mesSelecionado,
+                  dataInicial: _dataInicial,
+                  dataFinal: _dataFinal,
+                  aoMudarCliente: (v) =>
+                      setState(() => _clienteSelecionado = v),
+                  aoMudarMes: (v) => setState(() => _mesSelecionado = v),
+                  aoEscolherData: _escolherData,
+                  aoLimpar: () => setState(() {
+                    _clienteSelecionado = null;
+                    _mesSelecionado = null;
+                    _diaVencimentoSelecionado = null;
+                    _dataInicial = null;
+                    _dataFinal = null;
+                  }),
+                );
+              },
+            ),
           ],
-          const SizedBox(height: 12),
-          FutureBuilder<Map<String, dynamic>>(
-            future: _dados,
-            builder: (_, estado) {
-              if (!estado.hasData) return const SizedBox.shrink();
-              final resumos = estado.data!['resumos'] as List<dynamic>;
-              final clientes =
-                  resumos.map((item) => item['clienteNome'].toString()).toList()
-                    ..sort();
-              final meses =
-                  (estado.data!['meses'] as List<dynamic>)
-                      .map((item) => item.toString())
-                      .toList()
-                    ..sort();
-              return _FiltrosRelatorio(
-                clientes: clientes,
-                meses: meses,
-                clienteSelecionado: _clienteSelecionado,
-                mesSelecionado: _mesSelecionado,
-                dataInicial: _dataInicial,
-                dataFinal: _dataFinal,
-                aoMudarCliente: (v) => setState(() => _clienteSelecionado = v),
-                aoMudarMes: (v) => setState(() => _mesSelecionado = v),
-                aoEscolherData: _escolherData,
-                aoLimpar: () => setState(() {
-                  _clienteSelecionado = null;
-                  _mesSelecionado = null;
-                  _diaVencimentoSelecionado = null;
-                  _dataInicial = null;
-                  _dataFinal = null;
-                }),
-              );
-            },
-          ),
           const SizedBox(height: 12),
           Expanded(
             child: FutureBuilder<Map<String, dynamic>>(

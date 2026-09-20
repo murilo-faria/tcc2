@@ -137,6 +137,27 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
     );
   }
 
+  Future<void> _baixarRelatorio() async {
+    final itens = await _ordens;
+    final cliente = _clienteSelecionado == null
+        ? null
+        : itens
+              .firstWhere(
+                (o) => (o['cliente'] ?? {})['nome'] == _clienteSelecionado,
+              )['cliente']['id']
+              .toString();
+    final consulta = consultaPdf({
+      'clienteId': cliente,
+      'mes': _mesSelecionado,
+      'inicio': _dataInicial?.toIso8601String().substring(0, 10),
+      'fim': _dataFinal?.toIso8601String().substring(0, 10),
+    });
+    final resposta = await apiService.get(
+      '/api/ordens-servico/relatorio.pdf?$consulta',
+    );
+    if (resposta.statusCode == 200) abrirPdf(resposta, 'relatorio-os.pdf');
+  }
+
   Future<void> _novaOrdem() async {
     final clientes = await _buscar('/api/clientes');
     if (clientes.isEmpty || !mounted) return;
@@ -215,7 +236,8 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                     decoration: const InputDecoration(
                       labelText: 'Valor sugerido para cobrar do cliente',
                       prefixText: 'R\$ ',
-                      helperText: 'O gestor poderá confirmar ou alterar este valor ao concluir.',
+                      helperText:
+                          'O gestor poderá confirmar ou alterar este valor ao concluir.',
                     ),
                   ),
                 ],
@@ -399,20 +421,34 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Excluir OS #${ordem['id']}?'),
-        content: const Text('A ordem será removida definitivamente. Se estiver concluída, a cobrança e o reembolso vinculados também serão desfeitos.'),
+        content: const Text(
+          'A ordem será removida definitivamente. Se estiver concluída, a cobrança e o reembolso vinculados também serão desfeitos.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
         ],
       ),
     );
     if (confirmar != true) return;
-    final resposta = await apiService.delete('/api/ordens-servico/${ordem['id']}');
+    final resposta = await apiService.delete(
+      '/api/ordens-servico/${ordem['id']}',
+    );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível excluir a OS (${resposta.statusCode}).')),
+        SnackBar(
+          content: Text(
+            'Não foi possível excluir a OS (${resposta.statusCode}).',
+          ),
+        ),
       );
     }
   }
@@ -475,7 +511,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
               runSpacing: 8,
               children: [
                 OutlinedButton.icon(
-                  onPressed: _gerarRelatorio,
+                  onPressed: _baixarRelatorio,
                   icon: const Icon(Icons.summarize_outlined),
                   label: const Text('Gerar relatório'),
                 ),
@@ -506,43 +542,46 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
             label: Text(_mostrarFiltros ? 'Ocultar filtros' : 'Filtros'),
           ),
           if (_mostrarFiltros) ...[
-          const SizedBox(height: 12),
-          FutureBuilder<List<dynamic>>(
-            future: _ordens,
-            builder: (_, estado) {
-              if (!estado.hasData) return const SizedBox.shrink();
-              final clientes =
-                  estado.data!
-                      .map((item) => (item['cliente'] ?? {})['nome'].toString())
-                      .toSet()
-                      .toList()
-                    ..sort();
-              final meses =
-                  estado.data!
-                      .map((item) => _mes(item['dataServico']))
-                      .where((mes) => mes.isNotEmpty)
-                      .toSet()
-                      .toList()
-                    ..sort();
-              return _FiltrosRelatorio(
-                clientes: clientes,
-                meses: meses,
-                clienteSelecionado: _clienteSelecionado,
-                mesSelecionado: _mesSelecionado,
-                dataInicial: _dataInicial,
-                dataFinal: _dataFinal,
-                aoMudarCliente: (v) => setState(() => _clienteSelecionado = v),
-                aoMudarMes: (v) => setState(() => _mesSelecionado = v),
-                aoEscolherData: _escolherData,
-                aoLimpar: () => setState(() {
-                  _clienteSelecionado = null;
-                  _mesSelecionado = null;
-                  _dataInicial = null;
-                  _dataFinal = null;
-                }),
-              );
-            },
-          ),
+            const SizedBox(height: 12),
+            FutureBuilder<List<dynamic>>(
+              future: _ordens,
+              builder: (_, estado) {
+                if (!estado.hasData) return const SizedBox.shrink();
+                final clientes =
+                    estado.data!
+                        .map(
+                          (item) => (item['cliente'] ?? {})['nome'].toString(),
+                        )
+                        .toSet()
+                        .toList()
+                      ..sort();
+                final meses =
+                    estado.data!
+                        .map((item) => _mes(item['dataServico']))
+                        .where((mes) => mes.isNotEmpty)
+                        .toSet()
+                        .toList()
+                      ..sort();
+                return _FiltrosRelatorio(
+                  clientes: clientes,
+                  meses: meses,
+                  clienteSelecionado: _clienteSelecionado,
+                  mesSelecionado: _mesSelecionado,
+                  dataInicial: _dataInicial,
+                  dataFinal: _dataFinal,
+                  aoMudarCliente: (v) =>
+                      setState(() => _clienteSelecionado = v),
+                  aoMudarMes: (v) => setState(() => _mesSelecionado = v),
+                  aoEscolherData: _escolherData,
+                  aoLimpar: () => setState(() {
+                    _clienteSelecionado = null;
+                    _mesSelecionado = null;
+                    _dataInicial = null;
+                    _dataFinal = null;
+                  }),
+                );
+              },
+            ),
           ],
           const SizedBox(height: 12),
           Expanded(
@@ -579,10 +618,25 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                             if (acao == 'excluir') _excluir(ordem);
                           },
                           itemBuilder: (_) => [
-                            const PopupMenuItem(value: 'ver', child: Text('Ver detalhes')),
-                            if (widget.gestor && aberta) const PopupMenuItem(value: 'concluir', child: Text('Concluir OS')),
-                            if (aberta) const PopupMenuItem(value: 'cancelar', child: Text('Cancelar OS')),
-                            if (widget.gestor) const PopupMenuItem(value: 'excluir', child: Text('Excluir OS')),
+                            const PopupMenuItem(
+                              value: 'ver',
+                              child: Text('Ver detalhes'),
+                            ),
+                            if (widget.gestor && aberta)
+                              const PopupMenuItem(
+                                value: 'concluir',
+                                child: Text('Concluir OS'),
+                              ),
+                            if (aberta)
+                              const PopupMenuItem(
+                                value: 'cancelar',
+                                child: Text('Cancelar OS'),
+                              ),
+                            if (widget.gestor)
+                              const PopupMenuItem(
+                                value: 'excluir',
+                                child: Text('Excluir OS'),
+                              ),
                           ],
                         ),
                       );
