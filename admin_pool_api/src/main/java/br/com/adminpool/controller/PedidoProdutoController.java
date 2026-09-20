@@ -37,7 +37,7 @@ public class PedidoProdutoController {
     @GetMapping
     public List<PedidoProduto> listarTodos(Authentication auth) {
         return gestor(auth) ? pedidos.findAllByOrderByDataPedidoDesc()
-                : pedidos.findByPiscinaResponsavelUsuarioLoginIgnoreCaseOrderByDataPedidoDesc(auth.getName());
+                : pedidos.findVisiveisPorColaborador(auth.getName());
     }
 
     @GetMapping("/cliente/{clienteId}")
@@ -55,10 +55,12 @@ public class PedidoProdutoController {
         var itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
         if (itens.isEmpty()) throw new IllegalArgumentException("Pedido não encontrado.");
         var primeiro = itens.get(0);
-        var linhas = itens.stream().map(p -> new LinhaRelatorioPdf(primeiro.getCliente().getNome(),
+        var linhas = itens.stream().map(p -> new LinhaRelatorioPdf(destinatario(primeiro),
                 p.getProduto().getNome() + " • " + p.getQuantidade() + " un.", primeiro.getDataPedido().toString(),
                 p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
-        String endereco = primeiro.getPiscina() == null ? "Endereço: a informar" : "Endereço: " + primeiro.getPiscina().getEndereco();
+        String endereco = primeiro.getPiscina() == null
+                ? "Material de uso interno — " + destinatario(primeiro)
+                : "Endereço: " + primeiro.getPiscina().getEndereco();
         return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
                 .body(relatorios.gerar("Pedido #" + codigo, endereco, linhas));
     }
@@ -82,11 +84,11 @@ public class PedidoProdutoController {
                                              @RequestParam(required = false) LocalDate inicio,
                                              @RequestParam(required = false) LocalDate fim) {
         List<PedidoProduto> lista = pedidos.findAllByOrderByDataPedidoDesc().stream()
-                .filter(p -> clienteId == null || p.getCliente().getId().equals(clienteId))
+                .filter(p -> clienteId == null || p.getCliente() != null && p.getCliente().getId().equals(clienteId))
                 .filter(p -> mes == null || mes.isBlank() || p.getDataPedido().toString().startsWith(mes))
                 .filter(p -> inicio == null || !p.getDataPedido().isBefore(inicio))
                 .filter(p -> fim == null || !p.getDataPedido().isAfter(fim)).toList();
-        var linhas = lista.stream().map(p -> new LinhaRelatorioPdf(p.getCliente().getNome(),
+        var linhas = lista.stream().map(p -> new LinhaRelatorioPdf(destinatario(p),
                 p.getProduto().getNome() + " • " + p.getQuantidade() + " un.", p.getDataPedido().toString(),
                 p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
         return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio-pedidos.pdf")
@@ -95,7 +97,7 @@ public class PedidoProdutoController {
 
     @PostMapping
     public ResponseEntity<PedidoProduto> criar(@RequestBody NovoPedidoRequest requisicao, Authentication auth) {
-        NovoPedidoLoteRequest lote = new NovoPedidoLoteRequest(requisicao.clienteId(), requisicao.piscinaId(),
+        NovoPedidoLoteRequest lote = new NovoPedidoLoteRequest(requisicao.clienteId(), requisicao.piscinaId(), requisicao.funcionarioId(),
                 List.of(new ItemPedidoRequest(requisicao.produtoId(), requisicao.quantidade())));
         return ResponseEntity.status(HttpStatus.CREATED).body(servico.criar(lote, auth).get(0));
     }
@@ -133,5 +135,11 @@ public class PedidoProdutoController {
 
     private boolean gestor(Authentication auth) {
         return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_GESTOR"));
+    }
+
+    private String destinatario(PedidoProduto pedido) {
+        if (pedido.getCliente() != null) return pedido.getCliente().getNome();
+        if (pedido.getFuncionario() != null) return "Uso interno — " + pedido.getFuncionario().getUsuario().getNome();
+        return "Uso interno";
     }
 }

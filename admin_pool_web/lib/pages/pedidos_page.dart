@@ -74,7 +74,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     List<dynamic> linhas,
   ) => _agrupar(linhas).entries.where((grupo) {
     final primeiro = grupo.value.first;
-    final cliente = (primeiro['cliente'] ?? {})['nome'].toString();
+    final cliente = _destinatario(primeiro);
     final produtos = grupo.value
         .map((item) => (item['produto'] ?? {})['nome'].toString().toLowerCase())
         .join(' ');
@@ -82,6 +82,13 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
         _noPeriodo(primeiro['dataPedido']) &&
         (cliente.toLowerCase().contains(_filtro) || produtos.contains(_filtro));
   }).toList();
+
+  String _destinatario(Map<String, dynamic> pedido) {
+    final cliente = (pedido['cliente'] ?? {})['nome']?.toString();
+    if (cliente != null && cliente.isNotEmpty) return cliente;
+    final funcionario = (pedido['funcionario'] ?? {})['usuario']?['nome']?.toString();
+    return funcionario == null || funcionario.isEmpty ? 'Uso interno' : 'Uso interno — $funcionario';
+  }
 
   Future<void> _gerarRelatorio() async {
     final grupos = _filtrarGrupos(await _pedidos);
@@ -140,9 +147,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                     .toDouble(),
                           );
                           return ListTile(
-                            title: Text(
-                              'Pedido #${grupo.key} — ${(primeiro['cliente'] ?? {})['nome'] ?? ''}',
-                            ),
+                            title: Text('Pedido #${grupo.key} — ${_destinatario(primeiro)}'),
                             subtitle: Text(
                               '${primeiro['dataPedido']} • ${grupo.value.length} produto(s)',
                             ),
@@ -188,13 +193,15 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       _lista('/api/clientes'),
       _lista('/api/produtos'),
       _lista('/api/piscinas'),
+      _lista('/api/funcionarios'),
     ]);
-    if (!mounted || resultados[0].isEmpty || resultados[1].isEmpty) return;
+    if (!mounted || resultados[1].isEmpty) return;
     final pedido = await mostrarDialogPedidoMultiplo(
       context: context,
       clientes: resultados[0],
       produtos: resultados[1],
       piscinas: resultados[2],
+      funcionarios: resultados[3],
       titulo: 'Novo pedido de produtos',
     );
     if (pedido == null) return;
@@ -251,8 +258,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
-  Future<void> _concluir(int codigo) async {
-    String pagador = 'EMPRESA';
+  Future<void> _concluir(int codigo, {required bool usoInterno}) async {
+    String pagador = usoInterno ? 'FUNCIONARIO' : 'EMPRESA';
     final desconto = TextEditingController();
     final confirmar = await showDialog<bool>(
       context: context,
@@ -264,6 +271,13 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (usoInterno)
+                  const ListTile(
+                    leading: Icon(Icons.inventory_2_outlined),
+                    title: Text('Material entregue ao colaborador'),
+                    subtitle: Text('Este uso interno não gera cobrança para cliente.'),
+                  )
+                else ...[
                 RadioListTile<String>(
                   value: 'EMPRESA',
                   groupValue: pagador,
@@ -282,16 +296,18 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                   ),
                   onChanged: (v) => setLocal(() => pagador = v!),
                 ),
+                ],
                 TextField(
                   controller: desconto,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Desconto do pedido',
                     prefixText: 'R\$ ',
-                    helperText:
-                        'Opcional. Será abatido antes de gerar a cobrança.',
+                    helperText: usoInterno
+                        ? 'Opcional. Material interno não entra em cobrança.'
+                        : 'Opcional. Será abatido antes de gerar a cobrança.',
                   ),
                 ),
                 const Divider(),
@@ -477,6 +493,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 final grupos = _agrupar(estado.data!);
                 final clientes =
                     grupos.values
+                        .where((grupo) => grupo.first['cliente'] != null)
                         .map(
                           (grupo) =>
                               (grupo.first['cliente'] ?? {})['nome'].toString(),
@@ -546,7 +563,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                         onTap: () => _detalhar(grupo.key),
                         leading: CircleAvatar(child: Text('#${grupo.key}')),
                         title: Text(
-                          primeiro['cliente']['nome'],
+                          _destinatario(primeiro),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -562,7 +579,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                       grupo.key,
                                       primeiro['status'],
                                     );
-                                  if (acao == 'concluir') _concluir(grupo.key);
+                                  if (acao == 'concluir') _concluir(grupo.key, usoInterno: primeiro['funcionario'] != null);
                                   if (acao == 'excluir') _excluir(grupo.key);
                                 },
                                 itemBuilder: (_) => [
@@ -624,7 +641,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                   if (widget.gestor)
                                     IconButton(
                                       tooltip: 'Concluir pedido',
-                                      onPressed: () => _concluir(grupo.key),
+                                      onPressed: () => _concluir(grupo.key, usoInterno: primeiro['funcionario'] != null),
                                       icon: const Icon(
                                         Icons.check_circle_outline,
                                         color: Colors.green,

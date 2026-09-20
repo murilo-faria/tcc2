@@ -4,6 +4,7 @@ import br.com.adminpool.dto.ItemPedidoRequest;
 import br.com.adminpool.dto.NovoPedidoLoteRequest;
 import br.com.adminpool.dto.ResultadoProdutos;
 import br.com.adminpool.model.Cliente;
+import br.com.adminpool.model.Funcionario;
 import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.model.PedidoProduto;
 import br.com.adminpool.model.Piscina;
@@ -11,6 +12,7 @@ import br.com.adminpool.model.Produto;
 import br.com.adminpool.model.ResponsavelPagamento;
 import br.com.adminpool.model.TipoLancamentoCobranca;
 import br.com.adminpool.repository.ClienteRepository;
+import br.com.adminpool.repository.FuncionarioRepository;
 import br.com.adminpool.repository.ItemCobrancaRepository;
 import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.repository.PiscinaRepository;
@@ -35,16 +37,18 @@ public class PedidoProdutoService {
 
     private final PedidoProdutoRepository pedidos;
     private final ClienteRepository clientes;
+    private final FuncionarioRepository funcionarios;
     private final ProdutoRepository produtos;
     private final PiscinaRepository piscinas;
     private final ItemCobrancaRepository itensCobranca;
     private final CobrancaService cobrancas;
 
-    public PedidoProdutoService(PedidoProdutoRepository pedidos, ClienteRepository clientes,
+    public PedidoProdutoService(PedidoProdutoRepository pedidos, ClienteRepository clientes, FuncionarioRepository funcionarios,
                                 ProdutoRepository produtos, PiscinaRepository piscinas,
                                 ItemCobrancaRepository itensCobranca, CobrancaService cobrancas) {
         this.pedidos = pedidos;
         this.clientes = clientes;
+        this.funcionarios = funcionarios;
         this.produtos = produtos;
         this.piscinas = piscinas;
         this.itensCobranca = itensCobranca;
@@ -56,8 +60,19 @@ public class PedidoProdutoService {
         if (requisicao.itens() == null || requisicao.itens().isEmpty()) {
             throw new IllegalArgumentException("Inclua pelo menos um produto no pedido.");
         }
-        Cliente cliente = clientes.findById(requisicao.clienteId()).orElseThrow();
-        Piscina piscina = validarPiscina(requisicao.piscinaId(), cliente, auth);
+        boolean usoInterno = requisicao.funcionarioId() != null;
+        if (usoInterno && requisicao.clienteId() != null) {
+            throw new IllegalArgumentException("Escolha cliente ou colaborador, não os dois.");
+        }
+        if (!usoInterno && requisicao.clienteId() == null) {
+            throw new IllegalArgumentException("Selecione o cliente do pedido.");
+        }
+        if (usoInterno && !gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem registrar material para colaboradores.");
+        }
+        Cliente cliente = usoInterno ? null : clientes.findById(requisicao.clienteId()).orElseThrow();
+        Funcionario funcionario = usoInterno ? funcionarios.findById(requisicao.funcionarioId()).orElseThrow() : null;
+        Piscina piscina = usoInterno ? null : validarPiscina(requisicao.piscinaId(), cliente, auth);
         Long codigo = pedidos.proximoCodigoPedido();
         List<PedidoProduto> novos = new ArrayList<>();
         for (ItemPedidoRequest item : requisicao.itens()) {
@@ -69,6 +84,7 @@ public class PedidoProdutoService {
             pedido.setCodigoPedido(codigo);
             pedido.setCliente(cliente);
             pedido.setPiscina(piscina);
+            pedido.setFuncionario(funcionario);
             pedido.setProduto(produto);
             pedido.setQuantidade(item.quantidade());
             pedido.setPrecoCompraUnitario(produto.getPrecoCompra());
@@ -82,15 +98,19 @@ public class PedidoProdutoService {
 
     @Transactional
     public List<PedidoProduto> concluir(Long codigo, ResponsavelPagamento pagoPor, BigDecimal desconto) {
-        if (pagoPor != ResponsavelPagamento.EMPRESA && pagoPor != ResponsavelPagamento.CLIENTE) {
-            throw new IllegalArgumentException("Produto só pode ser pago pela empresa ou pelo cliente.");
-        }
         List<PedidoProduto> itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
         if (itens.isEmpty()) {
             throw new IllegalArgumentException("Pedido não encontrado.");
         }
         if (itens.stream().anyMatch(PedidoProduto::isFinanceiroLancado)) {
             throw new IllegalStateException("Este pedido já foi concluído.");
+        }
+        boolean usoInterno = itens.stream().allMatch(item -> item.getFuncionario() != null);
+        if (usoInterno && pagoPor != ResponsavelPagamento.FUNCIONARIO) {
+            throw new IllegalArgumentException("Material de colaborador deve ser concluído como uso interno.");
+        }
+        if (!usoInterno && pagoPor != ResponsavelPagamento.EMPRESA && pagoPor != ResponsavelPagamento.CLIENTE) {
+            throw new IllegalArgumentException("Produto só pode ser pago pela empresa ou pelo cliente.");
         }
         BigDecimal totalVenda = itens.stream().map(PedidoProduto::getTotalVenda)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -161,11 +181,13 @@ public class PedidoProdutoService {
     public ResultadoProdutos resultado(YearMonth mes) {
         LocalDate inicio = mes.atDay(1);
         LocalDate fim = mes.atEndOfMonth();
-        List<PedidoProduto> concluidos = pedidos
-                .findByDataConclusaoBetweenAndPagadorOrderByDataConclusaoDesc(inicio, fim, ResponsavelPagamento.EMPRESA);
-        BigDecimal compras = concluidos.stream().map(PedidoProduto::getTotalCompra)
+        List<PedidoProduto> concluidos = pedidos.findByDataConclusaoBetweenOrderByDataConclusaoDesc(inicio, fim);
+        BigDecimal compras = concluidos.stream()
+                .filter(pedido -> pedido.getPagador() == ResponsavelPagamento.EMPRESA || pedido.getPagador() == ResponsavelPagamento.FUNCIONARIO)
+                .map(PedidoProduto::getTotalCompra)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal vendas = concluidos.stream().map(PedidoProduto::getTotalLiquido)
+        BigDecimal vendas = concluidos.stream().filter(pedido -> pedido.getPagador() == ResponsavelPagamento.EMPRESA)
+                .map(PedidoProduto::getTotalLiquido)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal lucro = vendas.subtract(compras);
         BigDecimal margem = vendas.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO
@@ -190,5 +212,9 @@ public class PedidoProdutoService {
             throw new org.springframework.security.access.AccessDeniedException("Piscina não vinculada ao funcionário.");
         }
         return piscina;
+    }
+
+    private boolean gestor(Authentication auth) {
+        return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_GESTOR"));
     }
 }
