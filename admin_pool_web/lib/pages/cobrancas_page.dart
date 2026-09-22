@@ -326,6 +326,10 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                   return Center(child: Text('${estado.error}'));
                 final cobrancas = (estado.data!['cobrancas'] as List<dynamic>)
                     .cast<Map<String, dynamic>>();
+                final filtroPeriodoAtivo = _mesSelecionado != null ||
+                    _diaVencimentoSelecionado != null ||
+                    _dataInicial != null ||
+                    _dataFinal != null;
                 final clientes = (estado.data!['resumos'] as List<dynamic>)
                     .cast<Map<String, dynamic>>()
                     .where((item) {
@@ -334,11 +338,12 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       return (_clienteSelecionado == null ||
                               nome == _clienteSelecionado) &&
                           nome.toLowerCase().contains(_busca) &&
-                          cobrancas.any(
-                            (c) =>
-                                (c['cliente'] ?? {})['id'] == id &&
-                                _noPeriodo(c),
-                          );
+                          (!filtroPeriodoAtivo ||
+                              cobrancas.any(
+                                (c) =>
+                                    (c['cliente'] ?? {})['id'] == id &&
+                                    _noPeriodo(c),
+                              ));
                     })
                     .toList();
                 if (clientes.isEmpty)
