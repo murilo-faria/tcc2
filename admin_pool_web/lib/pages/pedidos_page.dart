@@ -189,19 +189,20 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   }
 
   Future<void> _novoPedido() async {
-    final resultados = await Future.wait([
+    final requisicoes = <Future<List<dynamic>>>[
       _lista('/api/clientes'),
       _lista('/api/produtos'),
       _lista('/api/piscinas'),
-      _lista('/api/funcionarios'),
-    ]);
+      if (widget.gestor) _lista('/api/funcionarios'),
+    ];
+    final resultados = await Future.wait(requisicoes);
     if (!mounted || resultados[1].isEmpty) return;
     final pedido = await mostrarDialogPedidoMultiplo(
       context: context,
       clientes: resultados[0],
       produtos: resultados[1],
       piscinas: resultados[2],
-      funcionarios: resultados[3],
+      funcionarios: widget.gestor ? resultados[3] : const [],
       titulo: 'Novo pedido de produtos',
     );
     if (pedido == null) return;
