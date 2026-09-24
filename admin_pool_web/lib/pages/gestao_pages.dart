@@ -443,14 +443,23 @@ class _PiscinasPageState extends State<_PiscinasPage> {
     String? tipoSelecionado = ['Fibra', 'Alvenaria'].contains(p['tipo']) ? p['tipo'] as String : null;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => StatefulBuilder(builder: (_, setLocal) {
+      builder: (_) => StatefulBuilder(builder: (contextoFormulario, setLocal) {
         final metragem = _medida(comprimento.text) * _medida(largura.text);
         final litragem = _litragem(comprimento.text, largura.text, profundidade.text, perdaEscada.text);
+        final midia = MediaQuery.of(contextoFormulario);
+        final alturaDisponivel = (midia.size.height - midia.viewInsets.bottom - 210)
+            .clamp(190.0, 520.0)
+            .toDouble();
         return AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         title: const Text('Editar piscina'),
         content: SizedBox(
           width: 440,
-          child: Column(
+          height: alturaDisponivel,
+          child: Scrollbar(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
@@ -484,6 +493,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
               TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
               DropdownButtonFormField<int?>(initialValue: responsavel, decoration: const InputDecoration(labelText: 'Colaborador responsável'), items: [const DropdownMenuItem<int?>(value: null, child: Text('Definir depois')), ...funcs.map<DropdownMenuItem<int?>>((f) => DropdownMenuItem<int?>(value: f['id'], child: Text((f['usuario'] ?? {})['nome'] ?? '')))], onChanged: (v) => setLocal(() => responsavel = v)),
             ],
+              ),
+            ),
           ),
         ),
         actions: [
