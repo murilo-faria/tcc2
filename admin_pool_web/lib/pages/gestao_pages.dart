@@ -245,6 +245,8 @@ class _PiscinasPage extends StatefulWidget {
 class _PiscinasPageState extends State<_PiscinasPage> {
   late Future<List<dynamic>> dados;
   String filtro = '';
+  double _medida(String valor) =>
+      double.tryParse(valor.replaceAll(',', '.')) ?? 0;
   @override
   void initState() {
     super.initState();
@@ -267,11 +269,14 @@ class _PiscinasPageState extends State<_PiscinasPage> {
     String? tipoSelecionado;
     final nome = TextEditingController(),
         endereco = TextEditingController(),
-        valor = TextEditingController(), volume = TextEditingController();
+        valor = TextEditingController(), volume = TextEditingController(),
+        comprimento = TextEditingController(), largura = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (_, setL) => AlertDialog(
+        builder: (_, setL) {
+          final metragem = _medida(comprimento.text) * _medida(largura.text);
+          return AlertDialog(
           title: const Text('Nova piscina'),
           content: SizedBox(
             width: 500,
@@ -315,6 +320,12 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                     onChanged: (valor) => setL(() => tipoSelecionado = valor),
                   ),
                   TextField(controller: volume, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Volume em litros')),
+                  Row(children: [
+                    Expanded(child: TextField(controller: comprimento, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setL(() {}), decoration: const InputDecoration(labelText: 'Comprimento (m)'))),
+                    const SizedBox(width: 16),
+                    Expanded(child: TextField(controller: largura, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setL(() {}), decoration: const InputDecoration(labelText: 'Largura (m)'))),
+                  ]),
+                  Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Metragem: ${metragem.toStringAsFixed(2)} m²', style: const TextStyle(fontWeight: FontWeight.bold)))),
                   TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
                   DropdownButtonFormField<int>(
                     initialValue: responsavel,
@@ -345,7 +356,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
               child: const Text('Cadastrar'),
             ),
           ],
-        ),
+          );
+        },
       ),
     );
     if (ok != true) return;
@@ -357,6 +369,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
         'endereco': endereco.text.trim(),
         'tipo': tipoSelecionado ?? '',
         'volumeLitros': int.tryParse(volume.text) ?? 0,
+        'comprimento': _medida(comprimento.text),
+        'largura': _medida(largura.text),
         'responsavelId': responsavel,
         'observacoes': '',
         'valorMensalidade': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
@@ -410,12 +424,16 @@ class _PiscinasPageState extends State<_PiscinasPage> {
     final nome = TextEditingController(text: p['nome'] ?? ''),
         endereco = TextEditingController(text: p['endereco'] ?? ''),
         valor = TextEditingController(text: (p['valorMensalidade'] ?? 0).toString()),
-        volume = TextEditingController(text: (p['volumeLitros'] ?? 0).toString());
+        volume = TextEditingController(text: (p['volumeLitros'] ?? 0).toString()),
+        comprimento = TextEditingController(text: (p['comprimento'] ?? '').toString()),
+        largura = TextEditingController(text: (p['largura'] ?? '').toString());
     int? responsavel = (p['responsavel'] ?? {})['id'];
     String? tipoSelecionado = ['Fibra', 'Alvenaria'].contains(p['tipo']) ? p['tipo'] as String : null;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => StatefulBuilder(builder: (_, setLocal) => AlertDialog(
+      builder: (_) => StatefulBuilder(builder: (_, setLocal) {
+        final metragem = _medida(comprimento.text) * _medida(largura.text);
+        return AlertDialog(
         title: const Text('Editar piscina'),
         content: SizedBox(
           width: 440,
@@ -440,6 +458,12 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                 onChanged: (valor) => setLocal(() => tipoSelecionado = valor),
               ),
               TextField(controller: volume, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Volume em litros')),
+              Row(children: [
+                Expanded(child: TextField(controller: comprimento, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Comprimento (m)'))),
+                const SizedBox(width: 16),
+                Expanded(child: TextField(controller: largura, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Largura (m)'))),
+              ]),
+              Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Metragem: ${metragem.toStringAsFixed(2)} m²', style: const TextStyle(fontWeight: FontWeight.bold)))),
               TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
               DropdownButtonFormField<int?>(initialValue: responsavel, decoration: const InputDecoration(labelText: 'Colaborador responsável'), items: [const DropdownMenuItem<int?>(value: null, child: Text('Definir depois')), ...funcs.map<DropdownMenuItem<int?>>((f) => DropdownMenuItem<int?>(value: f['id'], child: Text((f['usuario'] ?? {})['nome'] ?? '')))], onChanged: (v) => setLocal(() => responsavel = v)),
             ],
@@ -455,7 +479,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
             child: const Text('Salvar'),
           ),
         ],
-      )),
+        );
+      }),
     );
     if (ok == true) {
       final r = await apiService.put(
@@ -467,6 +492,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
           'endereco': endereco.text.trim(),
           'tipo': tipoSelecionado ?? '',
           'volumeLitros': int.tryParse(volume.text) ?? 0,
+          'comprimento': _medida(comprimento.text),
+          'largura': _medida(largura.text),
           'observacoes': p['observacoes'] ?? '',
           'valorMensalidade': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
         },
@@ -829,7 +856,8 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
             ]),
           ),
           actions: [TextButton(onPressed: () => Navigator.pop(contexto), child: const Text('Cancelar'))],
-        ),
+        );
+        },
         ),
     );
     busca.dispose();

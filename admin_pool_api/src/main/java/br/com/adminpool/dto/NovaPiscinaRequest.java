@@ -12,5 +12,7 @@ public record NovaPiscinaRequest(
         Long responsavelId,
         String diaAtendimento,
         String observacoes,
-        BigDecimal valorMensalidade) {
+        BigDecimal valorMensalidade,
+        BigDecimal comprimento,
+        BigDecimal largura) {
 }

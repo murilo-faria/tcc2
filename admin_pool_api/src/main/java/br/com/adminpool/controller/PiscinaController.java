@@ -54,6 +54,8 @@ public class PiscinaController {
         piscina.setNome(requisicao.nome());
         piscina.setTipo(requisicao.tipo());
         piscina.setVolumeLitros(requisicao.volumeLitros());
+        piscina.setComprimento(medida(requisicao.comprimento(), "comprimento"));
+        piscina.setLargura(medida(requisicao.largura(), "largura"));
         piscina.setEndereco(requisicao.endereco());
         if(requisicao.responsavelId()!=null) piscina.setResponsavel(funcionarios.findById(requisicao.responsavelId()).orElseThrow());
         piscina.setDiaAtendimento(requisicao.diaAtendimento());
@@ -68,7 +70,7 @@ public class PiscinaController {
         if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar piscinas.");
         Piscina piscina = piscinas.findById(id).orElseThrow();
         piscina.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
-        piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); piscina.setVolumeLitros(requisicao.volumeLitros()); piscina.setEndereco(requisicao.endereco()); piscina.setDiaAtendimento(requisicao.diaAtendimento()); piscina.setObservacoes(requisicao.observacoes());
+        piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); piscina.setVolumeLitros(requisicao.volumeLitros()); piscina.setComprimento(medida(requisicao.comprimento(), "comprimento")); piscina.setLargura(medida(requisicao.largura(), "largura")); piscina.setEndereco(requisicao.endereco()); piscina.setDiaAtendimento(requisicao.diaAtendimento()); piscina.setObservacoes(requisicao.observacoes());
         piscina.setResponsavel(requisicao.responsavelId()==null ? null : funcionarios.findById(requisicao.responsavelId()).orElseThrow());
         piscina.setValorMensalidade(requisicao.valorMensalidade() == null ? piscina.getValorMensalidade() : requisicao.valorMensalidade());
         return piscinas.save(piscina);
@@ -86,4 +88,9 @@ public class PiscinaController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> excluir(@PathVariable Long id, Authentication auth) { if(!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem excluir piscinas."); piscinas.deleteById(id); return ResponseEntity.noContent().build(); }
     private boolean gestor(Authentication a){return a.getAuthorities().stream().anyMatch(x->x.getAuthority().equals("ROLE_GESTOR"));}
+    private BigDecimal medida(BigDecimal valor, String campo) {
+        if (valor == null) return null;
+        if (valor.compareTo(BigDecimal.ZERO) < 0) throw new IllegalArgumentException("A " + campo + " não pode ser negativa.");
+        return valor;
+    }
 }

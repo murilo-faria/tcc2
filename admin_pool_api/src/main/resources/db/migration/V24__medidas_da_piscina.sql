@@ -1,0 +1,2 @@
+ALTER TABLE piscinas ADD COLUMN comprimento NUMERIC(10,2);
+ALTER TABLE piscinas ADD COLUMN largura NUMERIC(10,2);
