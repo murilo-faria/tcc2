@@ -59,9 +59,7 @@ public class PedidoProdutoController {
         var linhas = itens.stream().map(p -> new LinhaRelatorioPdf(destinatario(primeiro),
                 p.getProduto().getNome() + " • " + p.getQuantidade() + " un.", primeiro.getDataPedido().toString(),
                 p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
-        String endereco = primeiro.getPiscina() == null
-                ? "Material de uso interno — " + destinatario(primeiro)
-                : "Endereço: " + primeiro.getPiscina().getEndereco();
+        String endereco = enderecoEntrega(primeiro);
         return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
                 .body(relatorios.gerar("Pedido #" + codigo, endereco, linhas));
     }
@@ -152,5 +150,19 @@ public class PedidoProdutoController {
         if (pedido.getCliente() != null) return pedido.getCliente().getNome();
         if (pedido.getFuncionario() != null) return "Uso interno — " + pedido.getFuncionario().getUsuario().getNome();
         return "Uso interno";
+    }
+
+    private String enderecoEntrega(PedidoProduto pedido) {
+        if (pedido.getPiscina() != null && possuiTexto(pedido.getPiscina().getEndereco())) {
+            return "Endereço: " + pedido.getPiscina().getEndereco().trim();
+        }
+        if (pedido.getCliente() != null && possuiTexto(pedido.getCliente().getEndereco())) {
+            return "Endereço: " + pedido.getCliente().getEndereco().trim();
+        }
+        return pedido.getCliente() != null ? "Endereço não informado." : "Material de uso interno — " + destinatario(pedido);
+    }
+
+    private boolean possuiTexto(String valor) {
+        return valor != null && !valor.isBlank();
     }
 }
