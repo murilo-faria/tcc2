@@ -152,10 +152,11 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 18),
                       SegmentedButton<Perfil>(
+                        showSelectedIcon: false,
                         style: const ButtonStyle(
                           visualDensity: VisualDensity.compact,
                           padding: WidgetStatePropertyAll(
-                            EdgeInsets.symmetric(horizontal: 12),
+                            EdgeInsets.symmetric(horizontal: 8),
                           ),
                         ),
                         segments: const [
@@ -165,7 +166,12 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           ButtonSegment(
                             value: Perfil.funcionario,
-                            label: Text('Colaborador'),
+                            label: Text(
+                              'Colaborador',
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                         selected: {perfil},
