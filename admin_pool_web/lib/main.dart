@@ -150,7 +150,6 @@ class _HomePageState extends State<HomePage> {
       : const [
           _MenuItem('Visão geral', Icons.dashboard_outlined),
           _MenuItem('Clientes', Icons.people_outline),
-          _MenuItem('Piscinas', Icons.pool_outlined),
           _MenuItem('Produtos', Icons.inventory_2_outlined),
           _MenuItem('Pedidos', Icons.shopping_cart_outlined),
           _MenuItem('Ordens de serviço', Icons.build_outlined),
