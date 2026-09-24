@@ -86,8 +86,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   String _destinatario(Map<String, dynamic> pedido) {
     final cliente = (pedido['cliente'] ?? {})['nome']?.toString();
     if (cliente != null && cliente.isNotEmpty) return cliente;
-    final funcionario = (pedido['funcionario'] ?? {})['usuario']?['nome']?.toString();
-    return funcionario == null || funcionario.isEmpty ? 'Uso interno' : 'Uso interno — $funcionario';
+    final funcionario = (pedido['funcionario'] ?? {})['usuario']?['nome']
+        ?.toString();
+    return funcionario == null || funcionario.isEmpty
+        ? 'Uso interno'
+        : 'Uso interno — $funcionario';
   }
 
   Future<void> _gerarRelatorio() async {
@@ -147,7 +150,9 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                     .toDouble(),
                           );
                           return ListTile(
-                            title: Text('Pedido #${grupo.key} — ${_destinatario(primeiro)}'),
+                            title: Text(
+                              'Pedido #${grupo.key} — ${_destinatario(primeiro)}',
+                            ),
                             subtitle: Text(
                               '${primeiro['dataPedido']} • ${grupo.value.length} produto(s)',
                             ),
@@ -190,7 +195,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
         abrirPdf(resposta, 'relatorio-pedidos.pdf');
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível gerar o relatório (${resposta.statusCode}).')),
+          SnackBar(
+            content: Text(
+              'Não foi possível gerar o relatório (${resposta.statusCode}).',
+            ),
+          ),
         );
       }
     } catch (_) {
@@ -247,15 +256,23 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       produtos: resultados[1],
       piscinas: resultados[2],
       funcionarios: resultados[3],
-      clienteFixo: usoInterno ? null : (primeiro['cliente'] ?? {})['id'] as int?,
-      piscinaFixa: usoInterno ? null : (primeiro['piscina'] ?? {})['id'] as int?,
-      funcionarioFixo: usoInterno ? (primeiro['funcionario'] ?? {})['id'] as int? : null,
+      clienteFixo: usoInterno
+          ? null
+          : (primeiro['cliente'] ?? {})['id'] as int?,
+      piscinaFixa: usoInterno
+          ? null
+          : (primeiro['piscina'] ?? {})['id'] as int?,
+      funcionarioFixo: usoInterno
+          ? (primeiro['funcionario'] ?? {})['id'] as int?
+          : null,
       usoInternoInicial: usoInterno,
       itensIniciais: itensAtuais
-          .map((item) => <String, int>{
-                'produtoId': (item['produto'] ?? {})['id'] as int,
-                'quantidade': item['quantidade'] as int,
-              })
+          .map(
+            (item) => <String, int>{
+              'produtoId': (item['produto'] ?? {})['id'] as int,
+              'quantidade': item['quantidade'] as int,
+            },
+          )
           .toList(),
       titulo: 'Editar pedido #$codigo',
     );
@@ -268,12 +285,20 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       _recarregar();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pedido atualizado. O solicitante também verá a alteração.')),
+          const SnackBar(
+            content: Text(
+              'Pedido atualizado. O solicitante também verá a alteração.',
+            ),
+          ),
         );
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível editar o pedido (${resposta.statusCode}).')),
+        SnackBar(
+          content: Text(
+            'Não foi possível editar o pedido (${resposta.statusCode}).',
+          ),
+        ),
       );
     }
   }
@@ -341,27 +366,29 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                   const ListTile(
                     leading: Icon(Icons.inventory_2_outlined),
                     title: Text('Material entregue ao colaborador'),
-                    subtitle: Text('Este uso interno não gera cobrança para cliente.'),
+                    subtitle: Text(
+                      'Este uso interno não gera cobrança para cliente.',
+                    ),
                   )
                 else ...[
-                RadioListTile<String>(
-                  value: 'EMPRESA',
-                  groupValue: pagador,
-                  title: const Text('Pago pela empresa'),
-                  subtitle: const Text(
-                    'Entra na cobrança do cliente e no resultado de produtos.',
+                  RadioListTile<String>(
+                    value: 'EMPRESA',
+                    groupValue: pagador,
+                    title: const Text('Pago pela empresa'),
+                    subtitle: const Text(
+                      'Entra na cobrança do cliente e no resultado de produtos.',
+                    ),
+                    onChanged: (v) => setLocal(() => pagador = v!),
                   ),
-                  onChanged: (v) => setLocal(() => pagador = v!),
-                ),
-                RadioListTile<String>(
-                  value: 'CLIENTE',
-                  groupValue: pagador,
-                  title: const Text('Pago pelo cliente na Beluga'),
-                  subtitle: const Text(
-                    'Conclui sem cobrança e sem lucro para a empresa.',
+                  RadioListTile<String>(
+                    value: 'CLIENTE',
+                    groupValue: pagador,
+                    title: const Text('Pago pelo cliente na Beluga'),
+                    subtitle: const Text(
+                      'Conclui sem cobrança e sem lucro para a empresa.',
+                    ),
+                    onChanged: (v) => setLocal(() => pagador = v!),
                   ),
-                  onChanged: (v) => setLocal(() => pagador = v!),
-                ),
                 ],
                 TextField(
                   controller: desconto,
@@ -441,21 +468,34 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
         '/api/pedidos-produto/codigo/$codigo/pdf',
       );
       if (resposta.statusCode == 200) {
-        final compartilhou = await compartilharPdf(resposta, 'pedido-$codigo.pdf');
+        final compartilhou = await compartilharPdf(
+          resposta,
+          'pedido-$codigo.pdf',
+        );
         if (!compartilhou && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('PDF baixado. Use Compartilhar para enviar no WhatsApp.')),
+            const SnackBar(
+              content: Text(
+                'PDF baixado. Use Compartilhar para enviar no WhatsApp.',
+              ),
+            ),
           );
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Não foi possível gerar o PDF do pedido (${resposta.statusCode}).')),
+          SnackBar(
+            content: Text(
+              'Não foi possível gerar o PDF do pedido (${resposta.statusCode}).',
+            ),
+          ),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível gerar o PDF do pedido.')),
+          const SnackBar(
+            content: Text('Não foi possível gerar o PDF do pedido.'),
+          ),
         );
       }
     }
@@ -658,29 +698,17 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                         trailing: compacto
                             ? PopupMenuButton<String>(
                                 onSelected: (acao) {
-                                  if (acao == 'ver') _detalhar(grupo.key);
-                                  if (acao == 'andamento')
-                                    _alterarStatus(
-                                      grupo.key,
-                                      primeiro['status'],
-                                    );
                                   if (acao == 'editar')
                                     _editarPedido(grupo.key, grupo.value);
-                                  if (acao == 'concluir') _concluir(grupo.key, usoInterno: primeiro['funcionario'] != null);
+                                  if (acao == 'concluir')
+                                    _concluir(
+                                      grupo.key,
+                                      usoInterno:
+                                          primeiro['funcionario'] != null,
+                                    );
                                   if (acao == 'excluir') _excluir(grupo.key);
                                 },
                                 itemBuilder: (_) => [
-                                  PopupMenuItem(
-                                    value: 'ver',
-                                    child: Text(
-                                      'Ver produtos • ${formatarMoeda(total)}',
-                                    ),
-                                  ),
-                                  if (!concluido)
-                                    const PopupMenuItem(
-                                      value: 'andamento',
-                                      child: Text('Atualizar andamento'),
-                                    ),
                                   if (widget.gestor && !concluido)
                                     const PopupMenuItem(
                                       value: 'editar',
@@ -708,28 +736,12 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                     ),
                                   ),
                                   IconButton(
-                                    tooltip: 'Ver produtos',
-                                    onPressed: () => _detalhar(grupo.key),
-                                    icon: const Icon(Icons.visibility_outlined),
-                                  ),
-                                  IconButton(
                                     tooltip:
                                         'PDF para compartilhar no WhatsApp',
                                     onPressed: () =>
                                         _compartilharPedido(grupo.key),
                                     icon: const Icon(Icons.share_outlined),
                                   ),
-                                  if (!concluido)
-                                    IconButton(
-                                      tooltip: 'Atualizar andamento',
-                                      onPressed: () => _alterarStatus(
-                                        grupo.key,
-                                        primeiro['status'],
-                                      ),
-                                      icon: const Icon(
-                                        Icons.local_shipping_outlined,
-                                      ),
-                                    ),
                                   if (widget.gestor && !concluido)
                                     IconButton(
                                       tooltip: 'Editar pedido',
@@ -740,7 +752,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                   if (widget.gestor)
                                     IconButton(
                                       tooltip: 'Concluir pedido',
-                                      onPressed: () => _concluir(grupo.key, usoInterno: primeiro['funcionario'] != null),
+                                      onPressed: () => _concluir(
+                                        grupo.key,
+                                        usoInterno:
+                                            primeiro['funcionario'] != null,
+                                      ),
                                       icon: const Icon(
                                         Icons.check_circle_outline,
                                         color: Colors.green,
