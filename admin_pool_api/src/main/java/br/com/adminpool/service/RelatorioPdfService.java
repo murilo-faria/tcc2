@@ -5,6 +5,7 @@ import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
+import com.lowagie.text.Image;
 import com.lowagie.text.PageSize;
 import com.lowagie.text.Paragraph;
 import com.lowagie.text.Phrase;
@@ -12,8 +13,11 @@ import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
 import org.springframework.stereotype.Service;
+import org.springframework.core.io.ClassPathResource;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.awt.Color;
 import java.math.BigDecimal;
 import java.text.NumberFormat;
@@ -32,7 +36,7 @@ public class RelatorioPdfService {
             PdfWriter.getInstance(documento, arquivo);
             documento.open();
 
-            documento.add(new Paragraph("Admin Pool", fonte(18, Font.BOLD, AZUL)));
+            adicionarLogo(documento);
             documento.add(new Paragraph(titulo, fonte(14, Font.BOLD, Color.DARK_GRAY)));
             int tamanhoDetalhe = filtros != null && filtros.startsWith("Endereço:") ? 12 : 9;
             documento.add(new Paragraph(filtros, fonte(tamanhoDetalhe, Font.NORMAL, Color.DARK_GRAY)));
@@ -69,6 +73,15 @@ public class RelatorioPdfService {
 
     private Font fonte(int tamanho, int estilo, Color cor) {
         return new Font(Font.HELVETICA, tamanho, estilo, cor);
+    }
+
+    private void adicionarLogo(Document documento) throws IOException, DocumentException {
+        try (InputStream arquivo = new ClassPathResource("pdf/logo-tibum.png").getInputStream()) {
+            Image logo = Image.getInstance(arquivo.readAllBytes());
+            logo.scaleToFit(170, 70);
+            logo.setAlignment(Element.ALIGN_LEFT);
+            documento.add(logo);
+        }
     }
 
     private void adicionarCabecalho(PdfPTable tabela, String texto, int alinhamento) {
