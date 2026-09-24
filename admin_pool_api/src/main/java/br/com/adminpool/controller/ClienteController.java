@@ -104,8 +104,11 @@ public class ClienteController {
         Cliente cliente = clientes.findById(id).orElseThrow();
         cliente.setAtivo(requisicao.ativo());
         if (requisicao.ativo()) {
-            // A volta do cliente inicia um novo ciclo, sem gerar mensalidade no mesmo dia.
-            cliente.setPrimeiroVencimento(LocalDate.now().plusDays(30));
+            // A volta do cliente reinicia o ciclo: a primeira mensalidade é em 30 dias
+            // e este dia passa a ser a referência dos próximos vencimentos.
+            LocalDate novoVencimento = LocalDate.now().plusDays(30);
+            cliente.setPrimeiroVencimento(novoVencimento);
+            cliente.setDiaVencimento(novoVencimento.getDayOfMonth());
         }
         return clientes.save(cliente);
     }

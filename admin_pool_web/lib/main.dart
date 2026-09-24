@@ -1217,9 +1217,35 @@ class _ListaClientesState extends State<_ListaClientes> {
 
   Future<void> alternarAtivo(Map<String, dynamic> cliente) async {
     final estaAtivo = cliente['ativo'] != false;
+    final proximoAtivo = !estaAtivo;
+    final proximoVencimento = DateTime.now().add(const Duration(days: 30));
+    final dataFormatada =
+        '${proximoVencimento.day.toString().padLeft(2, '0')}/${proximoVencimento.month.toString().padLeft(2, '0')}/${proximoVencimento.year}';
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        title: Text(proximoAtivo ? 'Reativar cliente?' : 'Inativar cliente?'),
+        content: Text(
+          proximoAtivo
+              ? 'A próxima mensalidade de ${cliente['nome']} vencerá em $dataFormatada. Os próximos vencimentos passarão a ser todo dia ${proximoVencimento.day}.'
+              : 'Não serão geradas novas mensalidades para ${cliente['nome']} enquanto ele estiver inativo. As cobranças já existentes serão mantidas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(contexto, true),
+            child: Text(proximoAtivo ? 'Reativar' : 'Inativar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmou != true || !mounted) return;
     final resposta = await apiService.put(
       '/api/clientes/${cliente['id']}/ativo',
-      body: {'ativo': !estaAtivo},
+      body: {'ativo': proximoAtivo},
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       atualizacaoClientes.value++;
@@ -1231,7 +1257,7 @@ class _ListaClientesState extends State<_ListaClientes> {
             content: Text(
               estaAtivo
                   ? 'Cliente inativado. Não haverá nova mensalidade.'
-                  : 'Cliente reativado. A próxima mensalidade vence em 30 dias.',
+                  : 'Cliente reativado. Próximo vencimento: $dataFormatada.',
             ),
           ),
         );
@@ -1939,21 +1965,16 @@ class _ListaClientesState extends State<_ListaClientes> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (widget.gestor)
+                                Switch(
+                                  value: ativo,
+                                  activeTrackColor: Colors.green.shade300,
+                                  onChanged: (_) => alternarAtivo(cliente),
+                                ),
+                              if (widget.gestor)
                                 Text(
                                   'R\$ $valor',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              if (widget.gestor)
-                                IconButton(
-                                  tooltip: ativo ? 'Inativar cliente' : 'Reativar cliente',
-                                  onPressed: () => alternarAtivo(cliente),
-                                  icon: Icon(
-                                    ativo
-                                        ? Icons.radio_button_checked
-                                        : Icons.radio_button_unchecked,
-                                    color: ativo ? Colors.green : Colors.grey,
                                   ),
                                 ),
                               if (widget.gestor)
