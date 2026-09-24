@@ -204,6 +204,8 @@ class _HomePageState extends State<HomePage> {
       ),
       drawer: compacta
           ? Drawer(
+              backgroundColor: const Color(0xFF17395F),
+              surfaceTintColor: const Color(0xFF17395F),
               child: _Menu(
                 menu: menu,
                 pagina: pagina,
