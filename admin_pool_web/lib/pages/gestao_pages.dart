@@ -573,6 +573,11 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                     final cl = p['cliente'] ?? {},
                         resp = p['responsavel'] ?? {},
                         u = resp['usuario'] ?? {};
+                    final comprimento = (p['comprimento'] as num?)?.toDouble();
+                    final largura = (p['largura'] as num?)?.toDouble();
+                    final medidas = comprimento != null && largura != null
+                        ? ' ${comprimento.toStringAsFixed(2).replaceAll('.', ',')} m × ${largura.toStringAsFixed(2).replaceAll('.', ',')} m • ${(comprimento * largura).toStringAsFixed(2).replaceAll('.', ',')} m²'
+                        : '';
                     final celular = MediaQuery.of(context).size.width < 600;
                     if (celular) {
                       return ListTile(
@@ -583,7 +588,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
-                          '${cl['nome'] ?? ''}\n${p['endereco'] ?? 'Endereço não informado'}',
+                          '${cl['nome'] ?? ''}$medidas\n${p['endereco'] ?? 'Endereço não informado'}',
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -613,7 +618,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                       leading: const CircleAvatar(child: Icon(Icons.pool)),
                       title: Text(p['nome'] ?? ''),
                       subtitle: Text(
-                        '${cl['nome'] ?? ''} • ${p['endereco'] ?? 'endereço não informado'}',
+                        '${cl['nome'] ?? ''}$medidas • ${p['endereco'] ?? 'endereço não informado'}',
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
