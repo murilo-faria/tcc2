@@ -2431,6 +2431,8 @@ class _NotificacaoOperacionalCard extends StatelessWidget {
           height: 420,
           child: itens.isEmpty
               ? const Center(child: Text('Nenhuma pendência.'))
+              : tipo == _TipoNotificacao.produto
+                  ? _listaPedidos(context, itens)
               : ListView.separated(
                   itemCount: itens.length,
                   separatorBuilder: (_, _) => const Divider(),
@@ -2459,6 +2461,65 @@ class _NotificacaoOperacionalCard extends StatelessWidget {
     );
   }
 
+  Widget _listaPedidos(BuildContext context, List<dynamic> itens) {
+    final pedidos = <int, List<Map<String, dynamic>>>{};
+    for (final valor in itens) {
+      final item = valor as Map<String, dynamic>;
+      final codigo = (item['codigoPedido'] ?? item['id']) as int;
+      pedidos.putIfAbsent(codigo, () => []).add(item);
+    }
+    return ListView.separated(
+      itemCount: pedidos.length,
+      separatorBuilder: (_, _) => const Divider(),
+      itemBuilder: (_, indice) {
+        final grupo = pedidos.entries.elementAt(indice);
+        final primeiro = grupo.value.first;
+        final cliente = (primeiro['cliente'] ?? {})['nome']?.toString() ??
+            'Uso interno — ${(primeiro['funcionario'] ?? {})['usuario']?['nome'] ?? ''}';
+        return ListTile(
+          onTap: () => _mostrarItensPedido(context, grupo.key, grupo.value),
+          leading: Icon(icone, color: cor),
+          title: Text('Pedido #${grupo.key} — $cliente'),
+          subtitle: Text('${grupo.value.length} produto(s) • ${primeiro['dataPedido']}'),
+          trailing: const Icon(Icons.chevron_right),
+        );
+      },
+    );
+  }
+
+  void _mostrarItensPedido(
+    BuildContext context,
+    int codigo,
+    List<Map<String, dynamic>> itens,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Pedido #$codigo'),
+        content: SizedBox(
+          width: 520,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: itens.length,
+            separatorBuilder: (_, _) => const Divider(),
+            itemBuilder: (_, indice) {
+              final item = itens[indice];
+              final produto = (item['produto'] ?? {})['nome']?.toString() ?? '';
+              return ListTile(
+                leading: Icon(Icons.inventory_2_outlined, color: cor),
+                title: Text(produto),
+                subtitle: Text('Quantidade: ${item['quantidade']}'),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Voltar')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<int>(
     valueListenable: atualizacaoOperacional,
@@ -2466,7 +2527,9 @@ class _NotificacaoOperacionalCard extends StatelessWidget {
       future: carregar(),
       builder: (context, snapshot) {
         final itens = snapshot.data ?? const <dynamic>[];
-        final quantidade = itens.length;
+        final quantidade = tipo == _TipoNotificacao.produto
+            ? itens.map((item) => item['codigoPedido'] ?? item['id']).toSet().length
+            : itens.length;
         return SizedBox(
           width: 230,
           child: Card(
