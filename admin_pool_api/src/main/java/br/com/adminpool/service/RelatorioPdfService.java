@@ -34,7 +34,8 @@ public class RelatorioPdfService {
 
             documento.add(new Paragraph("Admin Pool", fonte(18, Font.BOLD, AZUL)));
             documento.add(new Paragraph(titulo, fonte(14, Font.BOLD, Color.DARK_GRAY)));
-            documento.add(new Paragraph(filtros, fonte(9, Font.NORMAL, Color.DARK_GRAY)));
+            int tamanhoDetalhe = filtros != null && filtros.startsWith("Endereço:") ? 12 : 9;
+            documento.add(new Paragraph(filtros, fonte(tamanhoDetalhe, Font.NORMAL, Color.DARK_GRAY)));
             documento.add(new Paragraph(" "));
 
             PdfPTable tabela = new PdfPTable(new float[]{1.45f, 2.55f, 1.05f, 1.15f});
@@ -53,6 +54,10 @@ public class RelatorioPdfService {
             }
 
             documento.add(tabela);
+            Paragraph total = new Paragraph("Total: " + formatarValor(total(linhas)), fonte(12, Font.BOLD, AZUL));
+            total.setAlignment(Element.ALIGN_RIGHT);
+            total.setSpacingBefore(12);
+            documento.add(total);
             documento.close();
             return arquivo.toByteArray();
         } catch (DocumentException e) {
@@ -86,5 +91,12 @@ public class RelatorioPdfService {
 
     private String formatarValor(BigDecimal valor) {
         return NumberFormat.getCurrencyInstance(BRASIL).format(valor == null ? BigDecimal.ZERO : valor);
+    }
+
+    private BigDecimal total(List<LinhaRelatorioPdf> linhas) {
+        return linhas.stream()
+                .map(LinhaRelatorioPdf::getValor)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
