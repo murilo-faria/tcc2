@@ -270,7 +270,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
     final nome = TextEditingController(),
         endereco = TextEditingController(),
         valor = TextEditingController(), volume = TextEditingController(),
-        comprimento = TextEditingController(), largura = TextEditingController();
+        comprimento = TextEditingController(text: '0'), largura = TextEditingController(text: '0');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -425,8 +425,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
         endereco = TextEditingController(text: p['endereco'] ?? ''),
         valor = TextEditingController(text: (p['valorMensalidade'] ?? 0).toString()),
         volume = TextEditingController(text: (p['volumeLitros'] ?? 0).toString()),
-        comprimento = TextEditingController(text: (p['comprimento'] ?? '').toString()),
-        largura = TextEditingController(text: (p['largura'] ?? '').toString());
+        comprimento = TextEditingController(text: (p['comprimento'] ?? 0).toString()),
+        largura = TextEditingController(text: (p['largura'] ?? 0).toString());
     int? responsavel = (p['responsavel'] ?? {})['id'];
     String? tipoSelecionado = ['Fibra', 'Alvenaria'].contains(p['tipo']) ? p['tipo'] as String : null;
     final ok = await showDialog<bool>(
