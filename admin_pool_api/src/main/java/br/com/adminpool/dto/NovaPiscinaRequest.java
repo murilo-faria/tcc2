@@ -14,5 +14,7 @@ public record NovaPiscinaRequest(
         String observacoes,
         BigDecimal valorMensalidade,
         BigDecimal comprimento,
-        BigDecimal largura) {
+        BigDecimal largura,
+        BigDecimal profundidade,
+        BigDecimal descontoEscada) {
 }

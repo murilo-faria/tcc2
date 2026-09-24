@@ -53,9 +53,7 @@ public class PiscinaController {
         piscina.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
         piscina.setNome(requisicao.nome());
         piscina.setTipo(requisicao.tipo());
-        piscina.setVolumeLitros(requisicao.volumeLitros());
-        piscina.setComprimento(medida(requisicao.comprimento(), "comprimento"));
-        piscina.setLargura(medida(requisicao.largura(), "largura"));
+        aplicarMedidas(piscina, requisicao, true);
         piscina.setEndereco(requisicao.endereco());
         if(requisicao.responsavelId()!=null) piscina.setResponsavel(funcionarios.findById(requisicao.responsavelId()).orElseThrow());
         piscina.setDiaAtendimento(requisicao.diaAtendimento());
@@ -70,7 +68,7 @@ public class PiscinaController {
         if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar piscinas.");
         Piscina piscina = piscinas.findById(id).orElseThrow();
         piscina.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
-        piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); piscina.setVolumeLitros(requisicao.volumeLitros()); piscina.setComprimento(medida(requisicao.comprimento(), "comprimento")); piscina.setLargura(medida(requisicao.largura(), "largura")); piscina.setEndereco(requisicao.endereco()); piscina.setDiaAtendimento(requisicao.diaAtendimento()); piscina.setObservacoes(requisicao.observacoes());
+        piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); aplicarMedidas(piscina, requisicao, false); piscina.setEndereco(requisicao.endereco()); piscina.setDiaAtendimento(requisicao.diaAtendimento()); piscina.setObservacoes(requisicao.observacoes());
         piscina.setResponsavel(requisicao.responsavelId()==null ? null : funcionarios.findById(requisicao.responsavelId()).orElseThrow());
         piscina.setValorMensalidade(requisicao.valorMensalidade() == null ? piscina.getValorMensalidade() : requisicao.valorMensalidade());
         return piscinas.save(piscina);
@@ -92,5 +90,18 @@ public class PiscinaController {
         if (valor == null) return null;
         if (valor.compareTo(BigDecimal.ZERO) < 0) throw new IllegalArgumentException("A " + campo + " não pode ser negativa.");
         return valor;
+    }
+    private void aplicarMedidas(Piscina piscina, NovaPiscinaRequest requisicao, boolean nova) {
+        BigDecimal comprimento = medida(requisicao.comprimento(), "comprimento");
+        BigDecimal largura = medida(requisicao.largura(), "largura");
+        BigDecimal profundidade = medida(requisicao.profundidade(), "profundidade");
+        BigDecimal descontoEscada = medida(requisicao.descontoEscada(), "perda da escada");
+        piscina.setComprimento(comprimento == null ? (nova ? BigDecimal.ZERO : piscina.getComprimento()) : comprimento);
+        piscina.setLargura(largura == null ? (nova ? BigDecimal.ZERO : piscina.getLargura()) : largura);
+        piscina.setProfundidade(profundidade == null ? (nova ? new BigDecimal("1.40") : piscina.getProfundidade()) : profundidade);
+        piscina.setDescontoEscada(descontoEscada == null ? (nova ? new BigDecimal("15") : piscina.getDescontoEscada()) : descontoEscada);
+        if (piscina.getDescontoEscada().compareTo(new BigDecimal("100")) > 0)
+            throw new IllegalArgumentException("A perda da escada não pode ultrapassar 100%.");
+        piscina.setVolumeLitros(piscina.getLitragemCalculada().intValue());
     }
 }

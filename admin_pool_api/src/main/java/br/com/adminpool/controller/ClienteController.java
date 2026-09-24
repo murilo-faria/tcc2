@@ -65,7 +65,11 @@ public class ClienteController {
         piscina.setCliente(clienteSalvo);
         piscina.setNome(requisicao.piscinaNome().trim());
         piscina.setTipo(requisicao.piscinaTipo());
-        piscina.setVolumeLitros(requisicao.piscinaVolumeLitros());
+        piscina.setComprimento(BigDecimal.ZERO);
+        piscina.setLargura(BigDecimal.ZERO);
+        piscina.setProfundidade(new BigDecimal("1.40"));
+        piscina.setDescontoEscada(new BigDecimal("15"));
+        piscina.setVolumeLitros(piscina.getLitragemCalculada().intValue());
         piscina.setEndereco(requisicao.piscinaEndereco());
         piscina.setDiaAtendimento(requisicao.diaAtendimento());
         piscina.setValorMensalidade(requisicao.piscinaValorMensalidade() == null
