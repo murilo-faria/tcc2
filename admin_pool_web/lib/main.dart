@@ -87,6 +87,10 @@ class AdminPoolApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textoPadrao = GoogleFonts.interTextTheme().apply(
+      bodyColor: const Color(0xFF20242B),
+      displayColor: const Color(0xFF20242B),
+    );
     return MaterialApp(
       title: 'Admin Pool',
       debugShowCheckedModeBanner: false,
@@ -107,9 +111,18 @@ class AdminPoolApp extends StatelessWidget {
           secondary: const Color(0xFF90CAF9),
         ),
         useMaterial3: true,
-        textTheme: GoogleFonts.interTextTheme().apply(
-          bodyColor: const Color(0xFF20242B),
-          displayColor: const Color(0xFF20242B),
+        textTheme: textoPadrao,
+        // Clientes é a referência visual das listas: nome em Inter semibold
+        // e descrição em Inter regular. Ao centralizar isso no tema, Piscinas,
+        // Produtos, Pedidos, OS, Cobranças e Salários não ficam com fontes
+        // aparentando pertencer a telas diferentes.
+        listTileTheme: ListTileThemeData(
+          titleTextStyle: textoPadrao.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          subtitleTextStyle: textoPadrao.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w400,
+          ),
         ),
         scaffoldBackgroundColor: const Color(0xFFF7FAFF),
         appBarTheme: const AppBarTheme(
