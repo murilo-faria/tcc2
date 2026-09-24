@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import br.com.adminpool.repository.UsuarioRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
@@ -50,8 +51,9 @@ public class SecurityConfig {
                 // cabeçalho auxiliar.
                 .requestMatchers(HttpMethod.GET,
                     "/api/pedidos-produto/relatorio.pdf",
-                    "/api/pedidos-produto/codigo/*/pdf",
                     "/api/ordens-servico/relatorio.pdf").authenticated()
+                .requestMatchers(new AntPathRequestMatcher(
+                    "/api/pedidos-produto/codigo/*/pdf", HttpMethod.GET.name())).authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/cobrancas/relatorio.pdf").hasRole("GESTOR")
                 .requestMatchers(req -> !"AdminPool".equals(req.getHeader("X-Requested-With"))).denyAll()
                 .requestMatchers("/api/auth/me").authenticated()
