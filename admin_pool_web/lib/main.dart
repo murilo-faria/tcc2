@@ -3164,10 +3164,15 @@ class _Indicador extends StatelessWidget {
                   children: [
                     Text(titulo, style: const TextStyle(color: Colors.black54)),
                     const SizedBox(height: 4),
-                    Text(
-                      valor,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        valor,
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
