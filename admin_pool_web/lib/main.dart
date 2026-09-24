@@ -2232,59 +2232,34 @@ class _ListaClientesState extends State<_ListaClientes> {
                             foregroundColor: corResponsavel,
                             child: const Icon(Icons.person),
                           ),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  cliente['nome'] ?? '',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              if (widget.gestor)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 3,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: ativo
-                                        ? const Color(0xFFE1F5E8)
-                                        : const Color(0xFFF0F2F5),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    ativo ? 'Ativo' : 'Inativo',
-                                    style: TextStyle(
-                                      color: ativo
-                                          ? const Color(0xFF238B45)
-                                          : const Color(0xFF667085),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                          title: Text(
+                            cliente['nome'] ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           subtitle: Text(
-                            [
-                              if (widget.gestor) dia,
-                              if (!ativo) 'INATIVO',
-                              if ((cliente['telefone'] ?? '')
-                                  .toString()
-                                  .isNotEmpty)
-                                cliente['telefone'],
-                              if ((cliente['endereco'] ?? '')
-                                  .toString()
-                                  .isNotEmpty)
-                                cliente['endereco'],
-                              'Clique para abrir os serviços',
-                            ].join(' • '),
+                            celular && widget.gestor
+                                ? '${ativo ? 'Ativo' : 'Inativo'} • $dia • ${formatarMoeda((cliente['valorMensalidade'] as num?) ?? 0)}\nToque para abrir os serviços'
+                                : [
+                                    if (widget.gestor) dia,
+                                    if (!ativo) 'INATIVO',
+                                    if ((cliente['telefone'] ?? '')
+                                        .toString()
+                                        .isNotEmpty)
+                                      cliente['telefone'],
+                                    if ((cliente['endereco'] ?? '')
+                                        .toString()
+                                        .isNotEmpty)
+                                      cliente['endereco'],
+                                    'Clique para abrir os serviços',
+                                  ].join(' • '),
+                            maxLines: celular ? 2 : null,
+                            overflow: celular ? TextOverflow.ellipsis : null,
                           ),
                           trailing: celular
                               ? SizedBox(
-                                  width: widget.gestor ? 154 : 30,
+                                  width: widget.gestor ? 98 : 30,
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -2300,24 +2275,6 @@ class _ListaClientesState extends State<_ListaClientes> {
                                                   Colors.green.shade300,
                                               onChanged: (_) =>
                                                   alternarAtivo(cliente),
-                                            ),
-                                          ),
-                                        ),
-                                      if (widget.gestor)
-                                        SizedBox(
-                                          width: 60,
-                                          child: Text(
-                                            formatarMoeda(
-                                              (cliente['valorMensalidade']
-                                                      as num?) ??
-                                                  0,
-                                            ),
-                                            textAlign: TextAlign.end,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.clip,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
                                             ),
                                           ),
                                         ),
