@@ -61,129 +61,142 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 430),
-            child: Card(
-              elevation: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Icon(
-                      Icons.pool_rounded,
-                      size: 64,
-                      color: Color(0xFF1565C0),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Admin Pool',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Gestão inteligente de piscinas',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    AutofillGroup(
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: usuarioController,
-                            autofillHints: const [AutofillHints.username],
-                            keyboardType: TextInputType.text,
-                            autocorrect: false,
-                            enableSuggestions: false,
-                            textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Usuário',
-                              prefixIcon: Icon(Icons.person_outline),
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          TextField(
-                            controller: senhaController,
-                            autofillHints: const [AutofillHints.password],
-                            keyboardType: TextInputType.visiblePassword,
-                            autocorrect: false,
-                            enableSuggestions: false,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => entrar(),
-                            obscureText: ocultarSenha,
-                            decoration: InputDecoration(
-                              labelText: 'Senha',
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              border: const OutlineInputBorder(),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  ocultarSenha
-                                      ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined,
-                                ),
-                                onPressed: () {
-                                  setState(() => ocultarSenha = !ocultarSenha);
-                                },
+      backgroundColor: const Color(0xFF17395F),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Card(
+                color: Colors.white,
+                surfaceTintColor: Colors.white,
+                elevation: 6,
+                shadowColor: Colors.black38,
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(
+                        Icons.pool_rounded,
+                        size: 64,
+                        color: Color(0xFF1565C0),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Admin Pool',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Gestão inteligente de piscinas',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      AutofillGroup(
+                        child: Column(
+                          children: [
+                            TextField(
+                              controller: usuarioController,
+                              autofillHints: const [AutofillHints.username],
+                              keyboardType: TextInputType.text,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(
+                                labelText: 'Usuário',
+                                prefixIcon: Icon(Icons.person_outline),
+                                border: OutlineInputBorder(),
                               ),
                             ),
+                            const SizedBox(height: 16),
+                            TextField(
+                              controller: senhaController,
+                              autofillHints: const [AutofillHints.password],
+                              keyboardType: TextInputType.visiblePassword,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) => entrar(),
+                              obscureText: ocultarSenha,
+                              decoration: InputDecoration(
+                                labelText: 'Senha',
+                                prefixIcon: const Icon(Icons.lock_outline),
+                                border: const OutlineInputBorder(),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    ocultarSenha
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                  ),
+                                  onPressed: () {
+                                    setState(
+                                      () => ocultarSenha = !ocultarSenha,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      SegmentedButton<Perfil>(
+                        segments: const [
+                          ButtonSegment(
+                            value: Perfil.gestor,
+                            label: Text('Gestor'),
+                            icon: Icon(Icons.admin_panel_settings_outlined),
+                          ),
+                          ButtonSegment(
+                            value: Perfil.funcionario,
+                            label: Text('Colaborador'),
+                            icon: Icon(Icons.engineering_outlined),
                           ),
                         ],
+                        selected: {perfil},
+                        onSelectionChanged: (itens) {
+                          setState(() => perfil = itens.first);
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 18),
-                    SegmentedButton<Perfil>(
-                      segments: const [
-                        ButtonSegment(
-                          value: Perfil.gestor,
-                          label: Text('Gestor'),
-                          icon: Icon(Icons.admin_panel_settings_outlined),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        onPressed: entrando ? null : entrar,
+                        icon: const Icon(Icons.login),
+                        label: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text('Entrar'),
                         ),
-                        ButtonSegment(
-                          value: Perfil.funcionario,
-                          label: Text('Colaborador'),
-                          icon: Icon(Icons.engineering_outlined),
-                        ),
-                      ],
-                      selected: {perfil},
-                      onSelectionChanged: (itens) {
-                        setState(() => perfil = itens.first);
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton.icon(
-                      onPressed: entrando ? null : entrar,
-                      icon: const Icon(Icons.login),
-                      label: const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Text('Entrar'),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => AlertDialog(
-                          title: const Text('Recuperar senha'),
-                          content: const Text(
-                            'Peça ao gestor para redefinir sua senha no cadastro de colaboradores. Por segurança, a senha não é enviada por e-mail nem exibida no sistema.',
+                      TextButton(
+                        onPressed: () => showDialog<void>(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('Recuperar senha'),
+                            content: const Text(
+                              'Peça ao gestor para redefinir sua senha no cadastro de colaboradores. Por segurança, a senha não é enviada por e-mail nem exibida no sistema.',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Entendi'),
+                              ),
+                            ],
                           ),
-                          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendi'))],
                         ),
+                        child: const Text('Esqueci minha senha'),
                       ),
-                      child: const Text('Esqueci minha senha'),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Use o usuário correspondente ao perfil escolhido.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Colors.black54),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Use o usuário correspondente ao perfil escolhido.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

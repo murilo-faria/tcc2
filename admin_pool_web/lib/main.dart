@@ -262,7 +262,10 @@ class _Menu extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 18),
           leading: Icon(menu[i].icone),
-          title: Text(menu[i].titulo, style: const TextStyle(fontWeight: FontWeight.w500)),
+          title: Text(
+            menu[i].titulo,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
           onTap: () => aoSelecionar(i),
         ),
       ),
@@ -1197,12 +1200,18 @@ class _ListaClientesState extends State<_ListaClientes> {
       if (respostaPiscinas.statusCode != 200) return const [];
       final piscinas = jsonDecode(respostaPiscinas.body) as List<dynamic>;
       final clientes = <int, dynamic>{};
+      final piscinasPorCliente = <int, List<dynamic>>{};
       for (final piscina in piscinas) {
         final cliente = piscina['cliente'];
         if (cliente != null) {
+          final clienteId = cliente['id'] as int;
           cliente['_responsavelCor'] = piscina['responsavel'];
-          clientes[cliente['id'] as int] = cliente;
+          clientes[clienteId] = cliente;
+          piscinasPorCliente.putIfAbsent(clienteId, () => []).add(piscina);
         }
+      }
+      for (final cliente in clientes.values) {
+        cliente['_piscinas'] = piscinasPorCliente[cliente['id']] ?? [];
       }
       return clientes.values.toList();
     }
@@ -1215,14 +1224,19 @@ class _ListaClientesState extends State<_ListaClientes> {
     final lista = jsonDecode(respostas[0].body) as List<dynamic>;
     if (respostas[1].statusCode == 200) {
       final responsaveis = <dynamic, dynamic>{};
+      final piscinasPorCliente = <dynamic, List<dynamic>>{};
       for (final piscina in jsonDecode(respostas[1].body) as List<dynamic>) {
         final clienteId = (piscina['cliente'] ?? {})['id'];
         if (clienteId != null && !responsaveis.containsKey(clienteId)) {
           responsaveis[clienteId] = piscina['responsavel'];
         }
+        if (clienteId != null) {
+          piscinasPorCliente.putIfAbsent(clienteId, () => []).add(piscina);
+        }
       }
       for (final cliente in lista) {
         cliente['_responsavelCor'] = responsaveis[cliente['id']];
+        cliente['_piscinas'] = piscinasPorCliente[cliente['id']] ?? [];
       }
     }
     return lista;
@@ -1283,7 +1297,11 @@ class _ListaClientesState extends State<_ListaClientes> {
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível alterar o cliente (${resposta.statusCode}).')),
+        SnackBar(
+          content: Text(
+            'Não foi possível alterar o cliente (${resposta.statusCode}).',
+          ),
+        ),
       );
     }
   }
@@ -1904,7 +1922,9 @@ class _ListaClientesState extends State<_ListaClientes> {
         Card(
           elevation: 1,
           surfaceTintColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
@@ -1922,7 +1942,8 @@ class _ListaClientesState extends State<_ListaClientes> {
                   borderSide: const BorderSide(color: Color(0xFFD7E0EA)),
                 ),
               ),
-              onChanged: (texto) => setState(() => filtro = texto.toLowerCase()),
+              onChanged: (texto) =>
+                  setState(() => filtro = texto.toLowerCase()),
             ),
           ),
         ),
@@ -1954,7 +1975,9 @@ class _ListaClientesState extends State<_ListaClientes> {
               return Card(
                 elevation: 1,
                 surfaceTintColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 child: ListView.separated(
                   itemCount: dados.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
@@ -1981,7 +2004,9 @@ class _ListaClientesState extends State<_ListaClientes> {
                                 : cliente['id'] as int,
                           ),
                           leading: CircleAvatar(
-                            backgroundColor: corResponsavel.withValues(alpha: .16),
+                            backgroundColor: corResponsavel.withValues(
+                              alpha: .16,
+                            ),
                             foregroundColor: corResponsavel,
                             child: const Icon(Icons.person),
                           ),
@@ -1990,12 +2015,17 @@ class _ListaClientesState extends State<_ListaClientes> {
                               Expanded(
                                 child: Text(
                                   cliente['nome'] ?? '',
-                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                               if (widget.gestor)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: ativo
                                         ? const Color(0xFFE1F5E8)
@@ -2041,8 +2071,10 @@ class _ListaClientesState extends State<_ListaClientes> {
                                           scale: .78,
                                           child: Switch(
                                             value: ativo,
-                                            activeTrackColor: Colors.green.shade300,
-                                            onChanged: (_) => alternarAtivo(cliente),
+                                            activeTrackColor:
+                                                Colors.green.shade300,
+                                            onChanged: (_) =>
+                                                alternarAtivo(cliente),
                                           ),
                                         ),
                                       if (widget.gestor)
@@ -2050,95 +2082,186 @@ class _ListaClientesState extends State<_ListaClientes> {
                                           child: Text(
                                             'R\$ $valor',
                                             textAlign: TextAlign.end,
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                            ),
                                           ),
                                         ),
                                       if (widget.gestor)
                                         PopupMenuButton<String>(
                                           icon: const Icon(Icons.more_vert),
                                           onSelected: (acao) {
-                                            if (acao == 'editar') editar(cliente);
-                                            if (acao == 'excluir') excluir(cliente['id'] as int);
+                                            if (acao == 'editar')
+                                              editar(cliente);
+                                            if (acao == 'excluir')
+                                              excluir(cliente['id'] as int);
                                           },
                                           itemBuilder: (_) => const [
-                                            PopupMenuItem(value: 'editar', child: Text('Editar')),
-                                            PopupMenuItem(value: 'excluir', child: Text('Excluir')),
+                                            PopupMenuItem(
+                                              value: 'editar',
+                                              child: Text('Editar'),
+                                            ),
+                                            PopupMenuItem(
+                                              value: 'excluir',
+                                              child: Text('Excluir'),
+                                            ),
                                           ],
                                         )
                                       else
-                                        Icon(selecionado ? Icons.expand_less : Icons.expand_more),
+                                        Icon(
+                                          selecionado
+                                              ? Icons.expand_less
+                                              : Icons.expand_more,
+                                        ),
                                     ],
                                   ),
                                 )
                               : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (widget.gestor)
-                                Switch(
-                                  value: ativo,
-                                  activeTrackColor: Colors.green.shade300,
-                                  onChanged: (_) => alternarAtivo(cliente),
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (widget.gestor)
+                                      Switch(
+                                        value: ativo,
+                                        activeTrackColor: Colors.green.shade300,
+                                        onChanged: (_) =>
+                                            alternarAtivo(cliente),
+                                      ),
+                                    if (widget.gestor)
+                                      Text(
+                                        'R\$ $valor',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    if (widget.gestor)
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined),
+                                        onPressed: () => editar(cliente),
+                                      ),
+                                    if (widget.gestor)
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.delete_outline,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () =>
+                                            excluir(cliente['id'] as int),
+                                      ),
+                                    Icon(
+                                      selecionado
+                                          ? Icons.expand_less
+                                          : Icons.expand_more,
+                                    ),
+                                  ],
                                 ),
-                              if (widget.gestor)
-                                Text(
-                                  'R\$ $valor',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              if (widget.gestor)
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined),
-                                  onPressed: () => editar(cliente),
-                                ),
-                              if (widget.gestor)
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () =>
-                                      excluir(cliente['id'] as int),
-                                ),
-                              Icon(
-                                selecionado
-                                    ? Icons.expand_less
-                                    : Icons.expand_more,
-                              ),
-                            ],
-                          ),
                         ),
                         if (selecionado)
                           Container(
                             color: const Color(0xFFE3F2FD),
                             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: FilledButton.tonalIcon(
-                                    onPressed: () => abrirPiscinas(cliente),
-                                    icon: const Icon(Icons.pool_outlined),
-                                    label: const Text('Piscinas'),
-                                  ),
+                                const Text(
+                                  'Piscinas vinculadas',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: FilledButton.tonalIcon(
-                                    onPressed: () => abrirOrdemServico(cliente),
-                                    icon: const Icon(Icons.build_outlined),
-                                    label: const Text('Ordem de serviço'),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: FilledButton.tonalIcon(
-                                    onPressed: () => abrirPedido(cliente),
-                                    icon: const Icon(
-                                      Icons.shopping_cart_outlined,
-                                    ),
-                                    label: const Text('Produtos'),
-                                  ),
-                                ),
+                                const SizedBox(height: 8),
+                                ...((cliente['_piscinas'] as List<dynamic>? ??
+                                        const [])
+                                    .map((piscina) {
+                                      final p = piscina as Map<String, dynamic>;
+                                      final comprimento =
+                                          p['comprimento'] is num
+                                          ? (p['comprimento'] as num).toDouble()
+                                          : 0.0;
+                                      final largura = p['largura'] is num
+                                          ? (p['largura'] as num).toDouble()
+                                          : 0.0;
+                                      final profundidade =
+                                          p['profundidade'] is num
+                                          ? (p['profundidade'] as num)
+                                                .toDouble()
+                                          : 1.4;
+                                      final litragem =
+                                          ((p['volumeLitros'] as num?) ?? 0)
+                                              .toDouble() /
+                                          1000;
+                                      final responsavel =
+                                          ((p['responsavel'] ??
+                                                  {})['usuario'] ??
+                                              {})['nome'] ??
+                                          'Sem responsável';
+                                      final mensalidade =
+                                          (p['valorMensalidade'] ?? 0)
+                                              .toString()
+                                              .replaceAll('.', ',');
+                                      return Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(0xFFD8E3F1),
+                                          ),
+                                        ),
+                                        child: ListTile(
+                                          leading: CircleAvatar(
+                                            backgroundColor: const Color(
+                                              0xFFE1F0FF,
+                                            ),
+                                            foregroundColor: const Color(
+                                              0xFF1565C0,
+                                            ),
+                                            child: const Icon(
+                                              Icons.pool_outlined,
+                                            ),
+                                          ),
+                                          title: Text(
+                                            p['nome'] ?? 'Piscina',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          subtitle: Text(
+                                            '${p['tipo'] ?? 'Tipo não informado'} • ${comprimento.toStringAsFixed(1).replaceAll('.', ',')} m × ${largura.toStringAsFixed(1).replaceAll('.', ',')} m × ${profundidade.toStringAsFixed(1).replaceAll('.', ',')} m\nLitragem: ${litragem.toStringAsFixed(1).replaceAll('.', ',')} m³ • Mensalidade: R\$ $mensalidade\nResponsável: $responsavel',
+                                          ),
+                                          isThreeLine: true,
+                                          trailing: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: ativo
+                                                  ? const Color(0xFFE1F5E8)
+                                                  : const Color(0xFFF0F2F5),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              ativo ? 'Ativo' : 'Inativo',
+                                              style: TextStyle(
+                                                color: ativo
+                                                    ? const Color(0xFF238B45)
+                                                    : const Color(0xFF667085),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    })),
+                                if ((cliente['_piscinas'] as List<dynamic>? ??
+                                        const [])
+                                    .isEmpty)
+                                  const Text('Nenhuma piscina vinculada.'),
                               ],
                             ),
                           ),
@@ -2637,7 +2760,7 @@ class _NotificacaoOperacionalCard extends StatelessWidget {
           child: itens.isEmpty
               ? const Center(child: Text('Nenhuma pendência.'))
               : tipo == _TipoNotificacao.produto
-                  ? _listaPedidos(context, itens)
+              ? _listaPedidos(context, itens)
               : ListView.separated(
                   itemCount: itens.length,
                   separatorBuilder: (_, _) => const Divider(),
@@ -2679,13 +2802,16 @@ class _NotificacaoOperacionalCard extends StatelessWidget {
       itemBuilder: (_, indice) {
         final grupo = pedidos.entries.elementAt(indice);
         final primeiro = grupo.value.first;
-        final cliente = (primeiro['cliente'] ?? {})['nome']?.toString() ??
+        final cliente =
+            (primeiro['cliente'] ?? {})['nome']?.toString() ??
             'Uso interno — ${(primeiro['funcionario'] ?? {})['usuario']?['nome'] ?? ''}';
         return ListTile(
           onTap: () => _mostrarItensPedido(context, grupo.key, grupo.value),
           leading: Icon(icone, color: cor),
           title: Text('Pedido #${grupo.key} — $cliente'),
-          subtitle: Text('${grupo.value.length} produto(s) • ${primeiro['dataPedido']}'),
+          subtitle: Text(
+            '${grupo.value.length} produto(s) • ${primeiro['dataPedido']}',
+          ),
           trailing: const Icon(Icons.chevron_right),
         );
       },
@@ -2719,7 +2845,10 @@ class _NotificacaoOperacionalCard extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Voltar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Voltar'),
+          ),
         ],
       ),
     );
@@ -2733,7 +2862,10 @@ class _NotificacaoOperacionalCard extends StatelessWidget {
       builder: (context, snapshot) {
         final itens = snapshot.data ?? const <dynamic>[];
         final quantidade = tipo == _TipoNotificacao.produto
-            ? itens.map((item) => item['codigoPedido'] ?? item['id']).toSet().length
+            ? itens
+                  .map((item) => item['codigoPedido'] ?? item['id'])
+                  .toSet()
+                  .length
             : itens.length;
         return SizedBox(
           width: 230,
