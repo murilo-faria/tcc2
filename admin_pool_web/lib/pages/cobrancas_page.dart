@@ -177,7 +177,11 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
       abrirPdf(resposta, 'relatorio-cobrancas.pdf');
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível gerar o relatório (${resposta.statusCode}).')),
+        SnackBar(
+          content: Text(
+            'Não foi possível gerar o relatório (${resposta.statusCode}).',
+          ),
+        ),
       );
     }
   }
@@ -331,7 +335,8 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                   return Center(child: Text('${estado.error}'));
                 final cobrancas = (estado.data!['cobrancas'] as List<dynamic>)
                     .cast<Map<String, dynamic>>();
-                final filtroPeriodoAtivo = _mesSelecionado != null ||
+                final filtroPeriodoAtivo =
+                    _mesSelecionado != null ||
                     _diaVencimentoSelecionado != null ||
                     _dataInicial != null ||
                     _dataFinal != null;
@@ -611,11 +616,13 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
 
   @override
   Widget build(BuildContext context) {
+    final celular = MediaQuery.of(context).size.width < 600;
     return AlertDialog(
+      insetPadding: EdgeInsets.all(celular ? 18 : 24),
       title: Text('Valores a receber — ${widget.cliente['clienteNome']}'),
       content: SizedBox(
-        width: 780,
-        height: 520,
+        width: celular ? double.maxFinite : 780,
+        height: celular ? 470 : 520,
         child: Column(
           children: [
             Wrap(
@@ -658,7 +665,13 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                       final item = estado.data![indice] as Map<String, dynamic>;
                       final aberto = _aberto(item);
                       final id = item['id'] as int;
+                      final valor = formatarMoeda(
+                        (item['saldoPendente'] as num?) ?? 0,
+                      );
                       return ListTile(
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: celular ? 2 : 16,
+                        ),
                         onTap: () => _abrirDetalhes(item),
                         leading: Checkbox(
                           value: _selecionados.contains(id),
@@ -670,38 +683,61 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                 )
                               : null,
                         ),
-                        title: Text(item['descricao'] ?? item['tipo'] ?? ''),
+                        title: Text(
+                          item['descricao'] ?? item['tipo'] ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         subtitle: Text(
-                          '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
+                          celular
+                              ? '${item['referencia']} • vence ${item['vencimento']}\n$valor • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}'
+                              : '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              formatarMoeda(
-                                (item['saldoPendente'] as num?) ?? 0,
+                        trailing: celular
+                            ? (aberto
+                                  ? PopupMenuButton<String>(
+                                      tooltip: 'Opções da cobrança',
+                                      onSelected: (opcao) {
+                                        if (opcao == 'confirmar') {
+                                          _baixarItem(item);
+                                        }
+                                      },
+                                      itemBuilder: (_) => const [
+                                        PopupMenuItem(
+                                          value: 'confirmar',
+                                          child: Text('Confirmar pagamento'),
+                                        ),
+                                      ],
+                                    )
+                                  : null)
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    valor,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Ver detalhes',
+                                    onPressed: () => _abrirDetalhes(item),
+                                    icon: const Icon(Icons.visibility_outlined),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Confirmar pagamento',
+                                    onPressed: aberto
+                                        ? () => _baixarItem(item)
+                                        : null,
+                                    icon: Icon(
+                                      Icons.check_circle_outline,
+                                      color: aberto ? Colors.green : null,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'Ver detalhes',
-                              onPressed: () => _abrirDetalhes(item),
-                              icon: const Icon(Icons.visibility_outlined),
-                            ),
-                            IconButton(
-                              tooltip: 'Confirmar pagamento',
-                              onPressed: aberto
-                                  ? () => _baixarItem(item)
-                                  : null,
-                              icon: Icon(
-                                Icons.check_circle_outline,
-                                color: aberto ? Colors.green : null,
-                              ),
-                            ),
-                          ],
-                        ),
                       );
                     },
                   );
