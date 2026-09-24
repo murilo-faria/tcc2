@@ -882,8 +882,7 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
             ]),
           ),
           actions: [TextButton(onPressed: () => Navigator.pop(contexto), child: const Text('Cancelar'))],
-        );
-        },
+        ),
         ),
     );
     busca.dispose();
