@@ -1,6 +1,7 @@
 package br.com.adminpool.controller;
 
 import br.com.adminpool.dto.NovoClienteRequest;
+import br.com.adminpool.dto.AlterarStatusClienteRequest;
 import br.com.adminpool.model.Cliente;
 import br.com.adminpool.model.Piscina;
 import br.com.adminpool.repository.ClienteRepository;
@@ -86,6 +87,22 @@ public class ClienteController {
     @PutMapping("/{id}")
     public Cliente atualizar(@PathVariable Long id, @RequestBody Cliente cliente) {
         cliente.setId(id);
+        return clientes.save(cliente);
+    }
+
+    @PutMapping("/{id}/ativo")
+    public Cliente alterarAtivo(@PathVariable Long id,
+                                @RequestBody AlterarStatusClienteRequest requisicao,
+                                Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem inativar clientes.");
+        }
+        Cliente cliente = clientes.findById(id).orElseThrow();
+        cliente.setAtivo(requisicao.ativo());
+        if (requisicao.ativo()) {
+            // A volta do cliente inicia um novo ciclo, sem gerar mensalidade no mesmo dia.
+            cliente.setPrimeiroVencimento(LocalDate.now().plusDays(30));
+        }
         return clientes.save(cliente);
     }
 

@@ -1186,6 +1186,34 @@ class _ListaClientesState extends State<_ListaClientes> {
     setState(() => clientes = carregar());
   }
 
+  Future<void> alternarAtivo(Map<String, dynamic> cliente) async {
+    final estaAtivo = cliente['ativo'] != false;
+    final resposta = await apiService.put(
+      '/api/clientes/${cliente['id']}/ativo',
+      body: {'ativo': !estaAtivo},
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      atualizacaoClientes.value++;
+      atualizacaoFinanceira.value++;
+      setState(() => clientes = carregar());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              estaAtivo
+                  ? 'Cliente inativado. Não haverá nova mensalidade.'
+                  : 'Cliente reativado. A próxima mensalidade vence em 30 dias.',
+            ),
+          ),
+        );
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível alterar o cliente (${resposta.statusCode}).')),
+      );
+    }
+  }
+
   Future<void> cadastrar() async {
     final nome = TextEditingController();
     final telefone = TextEditingController();
@@ -1844,6 +1872,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                     final dia = cliente['diaVencimento'] == null
                         ? 'Vencimento não informado'
                         : 'Vence dia ${cliente['diaVencimento']}';
+                    final ativo = cliente['ativo'] != false;
                     final selecionado = clienteSelecionado == cliente['id'];
                     return Column(
                       children: [
@@ -1860,6 +1889,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                           subtitle: Text(
                             [
                               if (widget.gestor) dia,
+                              if (!ativo) 'INATIVO',
                               if ((cliente['telefone'] ?? '')
                                   .toString()
                                   .isNotEmpty)
@@ -1879,6 +1909,17 @@ class _ListaClientesState extends State<_ListaClientes> {
                                   'R\$ $valor',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              if (widget.gestor)
+                                IconButton(
+                                  tooltip: ativo ? 'Inativar cliente' : 'Reativar cliente',
+                                  onPressed: () => alternarAtivo(cliente),
+                                  icon: Icon(
+                                    ativo
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_unchecked,
+                                    color: ativo ? Colors.green : Colors.grey,
                                   ),
                                 ),
                               if (widget.gestor)

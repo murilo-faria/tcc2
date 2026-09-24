@@ -98,7 +98,8 @@ public class CobrancaService {
     public List<ResumoCobrancaCliente> listarResumoClientes() {
         gerarMes(YearMonth.now());
         atualizarAtrasos();
-        return clientes.findAll().stream().filter(Cliente::isAtivo).map(cliente -> {
+        // Clientes inativos continuam aparecendo caso ainda tenham débitos antigos.
+        return clientes.findAll().stream().map(cliente -> {
             List<ItemCobranca> pendentes = itens
                     .findByCobrancaClienteIdAndStatusInOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(
                             cliente.getId(), STATUS_EM_ABERTO);
