@@ -107,8 +107,8 @@ class AdminPoolApp extends StatelessWidget {
         textTheme: GoogleFonts.interTextTheme(),
         scaffoldBackgroundColor: const Color(0xFFF7FAFF),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF172033),
+          backgroundColor: Color(0xFF17395F),
+          foregroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
         ),
@@ -169,7 +169,13 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
-          if (!compacta) Chip(label: Text(nomePerfil)),
+          if (!compacta)
+            Chip(
+              backgroundColor: Colors.white.withValues(alpha: .16),
+              labelStyle: const TextStyle(color: Colors.white),
+              side: BorderSide.none,
+              label: Text(nomePerfil),
+            ),
           const SizedBox(width: 12),
           IconButton(
             tooltip: 'Sair',
