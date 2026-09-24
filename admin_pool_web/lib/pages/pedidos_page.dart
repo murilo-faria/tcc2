@@ -578,11 +578,12 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
               spacing: 10,
               runSpacing: 8,
               children: [
-                OutlinedButton.icon(
-                  onPressed: _baixarRelatorio,
-                  icon: const Icon(Icons.summarize_outlined),
-                  label: const Text('Gerar relatório'),
-                ),
+                if (widget.gestor)
+                  OutlinedButton.icon(
+                    onPressed: _baixarRelatorio,
+                    icon: const Icon(Icons.summarize_outlined),
+                    label: const Text('Gerar relatório'),
+                  ),
                 FilledButton.icon(
                   onPressed: _novoPedido,
                   icon: const Icon(Icons.add),
@@ -712,10 +713,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                   if (acao == 'excluir') _excluir(grupo.key);
                                 },
                                 itemBuilder: (_) => [
-                                  const PopupMenuItem(
-                                    value: 'compartilhar',
-                                    child: Text('Compartilhar PDF'),
-                                  ),
+                                  if (widget.gestor)
+                                    const PopupMenuItem(
+                                      value: 'compartilhar',
+                                      child: Text('Compartilhar PDF'),
+                                    ),
                                   if (widget.gestor && !concluido)
                                     const PopupMenuItem(
                                       value: 'editar',
@@ -742,13 +744,14 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  IconButton(
-                                    tooltip:
-                                        'PDF para compartilhar no WhatsApp',
-                                    onPressed: () =>
-                                        _compartilharPedido(grupo.key),
-                                    icon: const Icon(Icons.share_outlined),
-                                  ),
+                                  if (widget.gestor)
+                                    IconButton(
+                                      tooltip:
+                                          'PDF para compartilhar no WhatsApp',
+                                      onPressed: () =>
+                                          _compartilharPedido(grupo.key),
+                                      icon: const Icon(Icons.share_outlined),
+                                    ),
                                   if (widget.gestor && !concluido)
                                     IconButton(
                                       tooltip: 'Editar pedido',

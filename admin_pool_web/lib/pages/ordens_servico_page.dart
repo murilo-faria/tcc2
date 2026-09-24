@@ -159,7 +159,11 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
       abrirPdf(resposta, 'relatorio-os.pdf');
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível gerar o relatório (${resposta.statusCode}).')),
+        SnackBar(
+          content: Text(
+            'Não foi possível gerar o relatório (${resposta.statusCode}).',
+          ),
+        ),
       );
     }
   }
@@ -283,7 +287,9 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
 
   Future<void> _editar(Map<String, dynamic> ordem) async {
     if (ordem['status'] != 'ABERTA') return;
-    final descricao = TextEditingController(text: ordem['descricao']?.toString() ?? '');
+    final descricao = TextEditingController(
+      text: ordem['descricao']?.toString() ?? '',
+    );
     final valor = TextEditingController(
       text: (ordem['valorAdicional'] ?? ordem['valorCobrado'] ?? 0).toString(),
     );
@@ -295,54 +301,88 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
           title: Text('Editar OS #${ordem['id']}'),
           content: SizedBox(
             width: 520,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                controller: descricao,
-                maxLines: 4,
-                decoration: const InputDecoration(labelText: 'Descrição do serviço *'),
-              ),
-              TextField(
-                controller: valor,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Valor sugerido', prefixText: 'R\$ '),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Data do serviço'),
-                subtitle: Text('${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}'),
-                trailing: const Icon(Icons.calendar_month_outlined),
-                onTap: () async {
-                  final escolhida = await showDatePicker(
-                    context: context, initialDate: data,
-                    firstDate: DateTime(2020), lastDate: DateTime(2100),
-                  );
-                  if (escolhida != null) setLocal(() => data = escolhida);
-                },
-              ),
-              const Text('O colaborador que abriu a OS continua vinculado e verá a atualização.'),
-            ]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: descricao,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Descrição do serviço *',
+                  ),
+                ),
+                TextField(
+                  controller: valor,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Valor sugerido',
+                    prefixText: 'R\$ ',
+                  ),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Data do serviço'),
+                  subtitle: Text(
+                    '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}',
+                  ),
+                  trailing: const Icon(Icons.calendar_month_outlined),
+                  onTap: () async {
+                    final escolhida = await showDatePicker(
+                      context: context,
+                      initialDate: data,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2100),
+                    );
+                    if (escolhida != null) setLocal(() => data = escolhida);
+                  },
+                ),
+                const Text(
+                  'O colaborador que abriu a OS continua vinculado e verá a atualização.',
+                ),
+              ],
+            ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Salvar alterações')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Salvar alterações'),
+            ),
           ],
         ),
       ),
     );
     if (salvar != true || descricao.text.trim().isEmpty) return;
-    final resposta = await apiService.put('/api/ordens-servico/${ordem['id']}', body: {
-      'descricao': descricao.text.trim(),
-      'dataServico': data.toIso8601String().substring(0, 10),
-      'valorAdicional': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
-    });
+    final resposta = await apiService.put(
+      '/api/ordens-servico/${ordem['id']}',
+      body: {
+        'descricao': descricao.text.trim(),
+        'dataServico': data.toIso8601String().substring(0, 10),
+        'valorAdicional': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
+      },
+    );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OS atualizada. O colaborador solicitante também verá a alteração.')),
-      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'OS atualizada. O colaborador solicitante também verá a alteração.',
+            ),
+          ),
+        );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível editar a OS (${resposta.statusCode}).')),
+        SnackBar(
+          content: Text(
+            'Não foi possível editar a OS (${resposta.statusCode}).',
+          ),
+        ),
       );
     }
   }
@@ -582,11 +622,12 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
               spacing: 10,
               runSpacing: 8,
               children: [
-                OutlinedButton.icon(
-                  onPressed: _baixarRelatorio,
-                  icon: const Icon(Icons.summarize_outlined),
-                  label: const Text('Gerar relatório'),
-                ),
+                if (widget.gestor)
+                  OutlinedButton.icon(
+                    onPressed: _baixarRelatorio,
+                    icon: const Icon(Icons.summarize_outlined),
+                    label: const Text('Gerar relatório'),
+                  ),
                 FilledButton.icon(
                   onPressed: _novaOrdem,
                   icon: const Icon(Icons.add),
