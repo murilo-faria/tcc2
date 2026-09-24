@@ -158,11 +158,172 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
   }
 }
 
-class _DialogoVales extends StatefulWidget { const _DialogoVales({required this.aoAtualizar}); final VoidCallback aoAtualizar; @override State<_DialogoVales> createState()=>_DialogoValesState(); }
-class _DialogoValesState extends State<_DialogoVales> { late Future<List<dynamic>> vales; @override void initState(){super.initState();vales=carregar();} Future<List<dynamic>> carregar()async{final r=await apiService.get('/api/salarios/vales');if(r.statusCode!=200)throw Exception('Não foi possível carregar os vales.');return jsonDecode(r.body);} void recarregar(){widget.aoAtualizar();setState(()=>vales=carregar());}
-Future<void> formulario([Map<String,dynamic>? vale]) async { final funcionarios=await apiService.get('/api/funcionarios');if(funcionarios.statusCode!=200||!mounted)return;final lista=jsonDecode(funcionarios.body) as List<dynamic>;int funcionario=(vale?['funcionario']??{})['id']??lista.first['id'];String tipo=vale?['tipo']??'ADIANTAMENTO';final valor=TextEditingController(text:(vale?['valor']??'').toString());final obs=TextEditingController(text:vale?['observacao']??'');final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(_,setL)=>AlertDialog(title:Text(vale==null?'Novo vale':'Editar vale'),content:Column(mainAxisSize:MainAxisSize.min,children:[DropdownButtonFormField<int>(value:funcionario,items:lista.map<DropdownMenuItem<int>>((f)=>DropdownMenuItem(value:f['id'],child:Text((f['usuario']??{})['nome']??''))).toList(),onChanged:vale==null?(v)=>setL(()=>funcionario=v!):null,decoration:const InputDecoration(labelText:'Colaborador')),DropdownButtonFormField<String>(value:tipo,items:const[DropdownMenuItem(value:'ADIANTAMENTO',child:Text('Adiantamento')),DropdownMenuItem(value:'DINHEIRO_CLIENTE',child:Text('Dinheiro recebido de cliente'))],onChanged:(v)=>setL(()=>tipo=v!),decoration:const InputDecoration(labelText:'Tipo')),TextField(controller:valor,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Valor',prefixText:'R\$ ')),TextField(controller:obs,decoration:const InputDecoration(labelText:'Observação'))]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Salvar'))])));if(ok!=true)return;final body={'funcionarioId':funcionario,'tipo':tipo,'valor':double.tryParse(valor.text.replaceAll(',','.'))??0,'observacao':obs.text.trim()};final r=vale==null?await apiService.post('/api/salarios/vales',body:body):await apiService.put('/api/salarios/vales/${vale['id']}',body:body);if(r.statusCode>=200&&r.statusCode<300)recarregar();}
-Future<void> excluir(Map<String,dynamic> vale)async{final r=await apiService.delete('/api/salarios/vales/${vale['id']}');if(r.statusCode>=200&&r.statusCode<300)recarregar();}
-@override Widget build(BuildContext c)=>AlertDialog(title:const Text('Vales dos colaboradores'),content:SizedBox(width:650,height:420,child:FutureBuilder<List<dynamic>>(future:vales,builder:(_,s){if(!s.hasData)return const Center(child:CircularProgressIndicator());if(s.hasError)return Center(child:Text('${s.error}'));return ListView.separated(itemCount:s.data!.length,separatorBuilder:(_,__)=>const Divider(),itemBuilder:(_,i){final v=s.data![i] as Map<String,dynamic>;final f=v['funcionario']??{},u=f['usuario']??{};return ListTile(onTap:()=>formulario(v),leading:CircleAvatar(backgroundColor:[Colors.blue,Colors.green,Colors.orange,Colors.deepPurple][(f['id'] as int? ?? 0)%4].withValues(alpha:.15),child:const Icon(Icons.person_outline)),title:Text(u['nome']??''),subtitle:Text('${v['tipo']} • ${v['dataLancamento']}\n${v['observacao']??''}'),isThreeLine:true,trailing:Row(mainAxisSize:MainAxisSize.min,children:[Text(formatarMoeda((v['valor'] as num?)??0)),IconButton(onPressed:()=>formulario(v),icon:const Icon(Icons.edit_outlined)),IconButton(onPressed:()=>excluir(v),icon:const Icon(Icons.delete_outline,color:Colors.red))]));});})),actions:[OutlinedButton.icon(onPressed:()=>formulario(),icon:const Icon(Icons.add),label:const Text('Novo vale')),TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Fechar'))]); }
+class _DialogoVales extends StatefulWidget {
+  const _DialogoVales({required this.aoAtualizar});
+  final VoidCallback aoAtualizar;
+
+  @override
+  State<_DialogoVales> createState() => _DialogoValesState();
+}
+
+class _DialogoValesState extends State<_DialogoVales> {
+  late Future<List<dynamic>> vales;
+
+  @override
+  void initState() {
+    super.initState();
+    vales = carregar();
+  }
+
+  Future<List<dynamic>> carregar() async {
+    final resposta = await apiService.get('/api/salarios/vales');
+    if (resposta.statusCode != 200) throw Exception('Não foi possível carregar os vales.');
+    return jsonDecode(resposta.body) as List<dynamic>;
+  }
+
+  void recarregar() {
+    widget.aoAtualizar();
+    setState(() => vales = carregar());
+  }
+
+  Future<void> formulario([Map<String, dynamic>? vale]) async {
+    final funcionarios = await apiService.get('/api/funcionarios');
+    if (funcionarios.statusCode != 200 || !mounted) return;
+    final lista = jsonDecode(funcionarios.body) as List<dynamic>;
+    int funcionario = (vale?['funcionario'] ?? {})['id'] ?? lista.first['id'];
+    String tipo = vale?['tipo'] ?? 'ADIANTAMENTO';
+    final valor = TextEditingController(text: (vale?['valor'] ?? '').toString());
+    final observacao = TextEditingController(text: vale?['observacao'] ?? '');
+    final salvar = await showDialog<bool>(
+      context: context,
+      builder: (contexto) => StatefulBuilder(
+        builder: (_, setDialogState) => AlertDialog(
+          title: Text(vale == null ? 'Novo vale' : 'Editar vale'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int>(
+                value: funcionario,
+                items: lista.map<DropdownMenuItem<int>>((item) => DropdownMenuItem(
+                  value: item['id'],
+                  child: Text((item['usuario'] ?? {})['nome'] ?? ''),
+                )).toList(),
+                onChanged: vale == null ? (value) => setDialogState(() => funcionario = value!) : null,
+                decoration: const InputDecoration(labelText: 'Colaborador'),
+              ),
+              DropdownButtonFormField<String>(
+                value: tipo,
+                items: const [
+                  DropdownMenuItem(value: 'ADIANTAMENTO', child: Text('Adiantamento')),
+                  DropdownMenuItem(value: 'DINHEIRO_CLIENTE', child: Text('Dinheiro recebido de cliente')),
+                ],
+                onChanged: (value) => setDialogState(() => tipo = value!),
+                decoration: const InputDecoration(labelText: 'Tipo'),
+              ),
+              TextField(
+                controller: valor,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Valor', prefixText: 'R\$ '),
+              ),
+              TextField(controller: observacao, decoration: const InputDecoration(labelText: 'Observação')),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(contexto, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(contexto, true), child: const Text('Salvar')),
+          ],
+        ),
+      ),
+    );
+    if (salvar != true) return;
+    final dados = {
+      'funcionarioId': funcionario,
+      'tipo': tipo,
+      'valor': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
+      'observacao': observacao.text.trim(),
+    };
+    final resposta = vale == null
+        ? await apiService.post('/api/salarios/vales', body: dados)
+        : await apiService.put('/api/salarios/vales/${vale['id']}', body: dados);
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) recarregar();
+  }
+
+  Future<void> excluir(Map<String, dynamic> vale) async {
+    final resposta = await apiService.delete('/api/salarios/vales/${vale['id']}');
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) recarregar();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final celular = MediaQuery.of(context).size.width < 600;
+    return AlertDialog(
+      insetPadding: EdgeInsets.all(celular ? 18 : 24),
+      title: const Text('Vales dos colaboradores'),
+      content: SizedBox(
+        width: celular ? double.maxFinite : 650,
+        height: celular ? 390 : 420,
+        child: FutureBuilder<List<dynamic>>(
+          future: vales,
+          builder: (_, estado) {
+            if (!estado.hasData) return const Center(child: CircularProgressIndicator());
+            if (estado.hasError) return Center(child: Text('${estado.error}'));
+            return ListView.separated(
+              itemCount: estado.data!.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (_, indice) {
+                final vale = estado.data![indice] as Map<String, dynamic>;
+                final funcionario = vale['funcionario'] ?? {};
+                final usuario = funcionario['usuario'] ?? {};
+                final valor = formatarMoeda((vale['valor'] as num?) ?? 0);
+                final subtitulo = celular
+                    ? '${vale['tipo']} • ${vale['dataLancamento']}\n$valor'
+                    : '${vale['tipo']} • ${vale['dataLancamento']}\n${vale['observacao'] ?? ''}';
+                return ListTile(
+                  contentPadding: EdgeInsets.symmetric(horizontal: celular ? 2 : 16),
+                  onTap: () => formulario(vale),
+                  leading: CircleAvatar(
+                    backgroundColor: [Colors.blue, Colors.green, Colors.orange, Colors.deepPurple]
+                        [(funcionario['id'] as int? ?? 0) % 4]
+                        .withValues(alpha: .15),
+                    child: const Icon(Icons.person_outline),
+                  ),
+                  title: Text(usuario['nome'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(subtitulo, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  isThreeLine: true,
+                  trailing: celular
+                      ? PopupMenuButton<String>(
+                          tooltip: 'Opções do vale',
+                          onSelected: (opcao) {
+                            if (opcao == 'editar') formulario(vale);
+                            if (opcao == 'excluir') excluir(vale);
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(value: 'editar', child: Text('Editar vale')),
+                            PopupMenuItem(value: 'excluir', child: Text('Excluir vale')),
+                          ],
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(valor),
+                            IconButton(onPressed: () => formulario(vale), icon: const Icon(Icons.edit_outlined)),
+                            IconButton(onPressed: () => excluir(vale), icon: const Icon(Icons.delete_outline, color: Colors.red)),
+                          ],
+                        ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+      actionsAlignment: MainAxisAlignment.spaceBetween,
+      actions: [
+        OutlinedButton.icon(onPressed: () => formulario(), icon: const Icon(Icons.add), label: const Text('Novo vale')),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar')),
+      ],
+    );
+  }
+}
 
 class _DialogoReembolsos extends StatefulWidget {
   const _DialogoReembolsos({required this.funcionario, required this.gestor, required this.referencia, required this.aoAtualizar});
