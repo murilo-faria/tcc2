@@ -679,8 +679,10 @@ class _ProdutosGerenciamentoPageState
                         .contains('mangueira');
                     final celular = MediaQuery.of(context).size.width < 600;
                     final venda = formatarMoeda(p['precoVenda'] as num);
+                    final rotuloVenda =
+                        mangueira ? 'Venda por metro' : 'Preço de venda';
                     final descricao =
-                        '${mangueira ? 'Venda por metro' : 'Preço de venda'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}';
+                        '$rotuloVenda: $venda${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}';
                     return ListTile(
                       leading: const CircleAvatar(
                         child: Icon(Icons.inventory_2_outlined),
@@ -691,7 +693,7 @@ class _ProdutosGerenciamentoPageState
                         overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Text(
-                        celular ? '$venda • $descricao' : descricao,
+                        descricao,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
