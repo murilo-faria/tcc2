@@ -1926,7 +1926,7 @@ class _ListaClientesState extends State<_ListaClientes> {
             (piscina['profundidade'] as num?)?.toDouble() ?? 1.4;
         final litros = (piscina['volumeLitros'] as num?)?.toDouble() ?? 0;
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
+          padding: const EdgeInsets.symmetric(vertical: 1),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1936,11 +1936,11 @@ class _ListaClientesState extends State<_ListaClientes> {
               ),
               Text(
                 '${comprimento.toStringAsFixed(1).replaceAll('.', ',')} m × ${largura.toStringAsFixed(1).replaceAll('.', ',')} m × ${profundidade.toStringAsFixed(1).replaceAll('.', ',')} m',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                style: const TextStyle(fontSize: 11, color: Colors.black54),
               ),
               Text(
                 '${(litros / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                style: const TextStyle(fontSize: 11, color: Colors.black54),
               ),
             ],
           ),
@@ -1953,132 +1953,136 @@ class _ListaClientesState extends State<_ListaClientes> {
     elevation: 1,
     surfaceTintColor: Colors.white,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        headingRowHeight: 42,
-        dataRowMinHeight: 64,
-        dataRowMaxHeight: 180,
-        columnSpacing: 42,
-        columns: const [
-          DataColumn(label: Text('Cliente')),
-          DataColumn(label: Text('Piscina')),
-          DataColumn(label: Text('Mensalidade')),
-          DataColumn(label: Text('Responsável')),
-          DataColumn(label: Text('Status')),
-          DataColumn(label: Text('Ações')),
-        ],
-        rows: dados.map((valor) {
-          final cliente = valor as Map<String, dynamic>;
-          final ativo = cliente['ativo'] != false;
-          final responsavel =
-              ((cliente['_responsavelCor'] ??
-                      cliente['funcionario'] ??
-                      {})['usuario'] ??
-                  {})['nome'] ??
-              'Sem responsável';
-          final mensalidade = (cliente['valorMensalidade'] as num?) ?? 0;
-          return DataRow(
-            cells: [
-              DataCell(
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      cliente['nome']?.toString() ?? '',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    if ((cliente['telefone'] ?? '').toString().isNotEmpty)
-                      Text(
-                        cliente['telefone'].toString(),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black54,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              DataCell(_celulaPiscinas(cliente)),
-              DataCell(Text(formatarMoeda(mensalidade))),
-              DataCell(Text(responsavel.toString())),
-              DataCell(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: ativo
-                            ? const Color(0xFFE1F5E8)
-                            : const Color(0xFFF0F2F5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        ativo ? 'Ativo' : 'Inativo',
-                        style: TextStyle(
-                          color: ativo
-                              ? const Color(0xFF238B45)
-                              : const Color(0xFF667085),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (widget.gestor)
-                      Switch(
-                        value: ativo,
-                        onChanged: (_) => alternarAtivo(cliente),
-                      ),
-                  ],
-                ),
-              ),
-              DataCell(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Ver piscinas',
-                      icon: const Icon(Icons.visibility_outlined),
-                      onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (_) => AlertDialog(
-                          title: Text('Piscinas — ${cliente['nome']}'),
-                          content: SingleChildScrollView(
-                            child: _celulaPiscinas(cliente),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Fechar'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (widget.gestor) ...[
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined),
-                        onPressed: () => editar(cliente),
-                      ),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                        ),
-                        onPressed: () => excluir(cliente['id'] as int),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+    child: Scrollbar(
+      child: SingleChildScrollView(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowHeight: 42,
+            dataRowMinHeight: 50,
+            dataRowMaxHeight: 116,
+            columnSpacing: 32,
+            columns: const [
+              DataColumn(label: Text('Cliente')),
+              DataColumn(label: Text('Piscina')),
+              DataColumn(label: Text('Mensalidade')),
+              DataColumn(label: Text('Responsável')),
+              DataColumn(label: Text('Status')),
+              DataColumn(label: Text('Ações')),
             ],
-          );
-        }).toList(),
+            rows: dados.map((valor) {
+              final cliente = valor as Map<String, dynamic>;
+              final ativo = cliente['ativo'] != false;
+              final responsavel =
+                  ((cliente['_responsavelCor'] ??
+                          cliente['funcionario'] ??
+                          {})['usuario'] ??
+                      {})['nome'] ??
+                  'Sem responsável';
+              final mensalidade = (cliente['valorMensalidade'] as num?) ?? 0;
+              return DataRow(
+                cells: [
+                  DataCell(
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          cliente['nome']?.toString() ?? '',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        if ((cliente['telefone'] ?? '').toString().isNotEmpty)
+                          Text(
+                            cliente['telefone'].toString(),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black54,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  DataCell(_celulaPiscinas(cliente)),
+                  DataCell(Text(formatarMoeda(mensalidade))),
+                  DataCell(Text(responsavel.toString())),
+                  DataCell(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ativo
+                                ? const Color(0xFFE1F5E8)
+                                : const Color(0xFFF0F2F5),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            ativo ? 'Ativo' : 'Inativo',
+                            style: TextStyle(
+                              color: ativo
+                                  ? const Color(0xFF238B45)
+                                  : const Color(0xFF667085),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (widget.gestor)
+                          Switch(
+                            value: ativo,
+                            onChanged: (_) => alternarAtivo(cliente),
+                          ),
+                      ],
+                    ),
+                  ),
+                  DataCell(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Ver piscinas',
+                          icon: const Icon(Icons.visibility_outlined),
+                          onPressed: () => showDialog<void>(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              title: Text('Piscinas — ${cliente['nome']}'),
+                              content: SingleChildScrollView(
+                                child: _celulaPiscinas(cliente),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Fechar'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (widget.gestor) ...[
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: () => editar(cliente),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                            onPressed: () => excluir(cliente['id'] as int),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
       ),
     ),
   );
@@ -2247,26 +2251,37 @@ class _ListaClientesState extends State<_ListaClientes> {
                           ),
                           trailing: celular
                               ? SizedBox(
-                                  width: widget.gestor ? 126 : 30,
+                                  width: widget.gestor ? 154 : 30,
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       if (widget.gestor)
-                                        Transform.scale(
-                                          scale: .78,
-                                          child: Switch(
-                                            value: ativo,
-                                            activeTrackColor:
-                                                Colors.green.shade300,
-                                            onChanged: (_) =>
-                                                alternarAtivo(cliente),
+                                        SizedBox(
+                                          width: 46,
+                                          height: 36,
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Switch(
+                                              value: ativo,
+                                              activeTrackColor:
+                                                  Colors.green.shade300,
+                                              onChanged: (_) =>
+                                                  alternarAtivo(cliente),
+                                            ),
                                           ),
                                         ),
                                       if (widget.gestor)
-                                        Expanded(
+                                        SizedBox(
+                                          width: 60,
                                           child: Text(
-                                            'R\$ $valor',
+                                            formatarMoeda(
+                                              (cliente['valorMensalidade']
+                                                      as num?) ??
+                                                  0,
+                                            ),
                                             textAlign: TextAlign.end,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.clip,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 12,
