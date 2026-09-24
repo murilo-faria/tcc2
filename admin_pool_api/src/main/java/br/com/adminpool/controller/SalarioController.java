@@ -89,6 +89,12 @@ public class SalarioController {
     private Map<String, Object> resumo(Funcionario funcionario, YearMonth mes) {
         var piscinasVinculadas = piscinas.findByResponsavelId(funcionario.getId()).stream()
                 .filter(piscina -> {
+                    Cliente cliente = piscina.getCliente();
+                    LocalDate dataInativacao = cliente.getDataInativacao();
+                    if (!cliente.isAtivo() && dataInativacao != null
+                            && !YearMonth.from(dataInativacao).equals(mes)) {
+                        return false;
+                    }
                     LocalDate primeiroVencimento = piscina.getCliente().getPrimeiroVencimento();
                     return primeiroVencimento == null || !primeiroVencimento.isAfter(mes.atEndOfMonth());
                 })

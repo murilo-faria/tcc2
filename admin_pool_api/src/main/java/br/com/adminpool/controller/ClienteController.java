@@ -109,6 +109,9 @@ public class ClienteController {
             LocalDate novoVencimento = LocalDate.now().plusDays(30);
             cliente.setPrimeiroVencimento(novoVencimento);
             cliente.setDiaVencimento(novoVencimento.getDayOfMonth());
+            cliente.setDataInativacao(null);
+        } else {
+            cliente.setDataInativacao(LocalDate.now());
         }
         return clientes.save(cliente);
     }
