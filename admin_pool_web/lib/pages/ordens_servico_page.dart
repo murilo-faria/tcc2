@@ -155,7 +155,13 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
     final resposta = await apiService.get(
       '/api/ordens-servico/relatorio.pdf?$consulta',
     );
-    if (resposta.statusCode == 200) abrirPdf(resposta, 'relatorio-os.pdf');
+    if (resposta.statusCode == 200) {
+      abrirPdf(resposta, 'relatorio-os.pdf');
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível gerar o relatório (${resposta.statusCode}).')),
+      );
+    }
   }
 
   Future<void> _novaOrdem() async {

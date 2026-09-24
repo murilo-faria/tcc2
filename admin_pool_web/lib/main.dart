@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:js_util' as js_util;
 
 import 'core/atualizadores.dart';
 import 'core/formatadores.dart';
@@ -27,7 +28,39 @@ void abrirPdf(http.Response resposta, String arquivo) {
     ..target = '_blank'
     ..download = arquivo
     ..click();
-  html.Url.revokeObjectUrl(url);
+  // No celular, o navegador ainda precisa ler o arquivo depois do clique.
+  // Revogar o endereço imediatamente fazia o PDF não abrir/baixar.
+  Future<void>.delayed(const Duration(minutes: 2), () {
+    html.Url.revokeObjectUrl(url);
+  });
+}
+
+/// Abre a folha nativa do celular (incluindo WhatsApp) com o PDF do pedido.
+/// Em navegadores que não suportam compartilhamento de arquivos, baixa o PDF.
+Future<bool> compartilharPdf(http.Response resposta, String arquivo) async {
+  final navegador = html.window.navigator;
+  if (!js_util.hasProperty(navegador, 'share')) {
+    abrirPdf(resposta, arquivo);
+    return false;
+  }
+
+  final arquivoPdf = html.File(
+    [resposta.bodyBytes],
+    arquivo,
+    {'type': 'application/pdf'},
+  );
+  final dados = js_util.newObject();
+  js_util.setProperty(dados, 'title', 'Pedido Admin Pool');
+  js_util.setProperty(dados, 'text', 'Segue o pedido em PDF.');
+  js_util.setProperty(dados, 'files', [arquivoPdf]);
+  try {
+    final retorno = js_util.callMethod<Object?>(navegador, 'share', [dados]);
+    if (retorno != null) await js_util.promiseToFuture<void>(retorno);
+    return true;
+  } catch (_) {
+    // O usuário pode cancelar a folha de compartilhamento; nesse caso não há erro.
+    return false;
+  }
 }
 
 String consultaPdf(Map<String, String?> parametros) => Uri(

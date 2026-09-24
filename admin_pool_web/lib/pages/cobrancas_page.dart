@@ -173,8 +173,13 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
     final resposta = await apiService.get(
       '/api/cobrancas/relatorio.pdf?$consulta',
     );
-    if (resposta.statusCode == 200)
+    if (resposta.statusCode == 200) {
       abrirPdf(resposta, 'relatorio-cobrancas.pdf');
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível gerar o relatório (${resposta.statusCode}).')),
+      );
+    }
   }
 
   Future<void> _abrirCliente(Map<String, dynamic> cliente) async {

@@ -170,22 +170,36 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   }
 
   Future<void> _baixarRelatorio() async {
-    final consulta = consultaPdf({
-      'clienteId': _clienteSelecionado == null
-          ? null
-          : (await _pedidos)
-                .firstWhere(
-                  (p) => (p['cliente'] ?? {})['nome'] == _clienteSelecionado,
-                )['cliente']['id']
-                .toString(),
-      'mes': _mesSelecionado,
-      'inicio': _dataInicial?.toIso8601String().substring(0, 10),
-      'fim': _dataFinal?.toIso8601String().substring(0, 10),
-    });
-    final resposta = await apiService.get(
-      '/api/pedidos-produto/relatorio.pdf?$consulta',
-    );
-    if (resposta.statusCode == 200) abrirPdf(resposta, 'relatorio-pedidos.pdf');
+    try {
+      final consulta = consultaPdf({
+        'clienteId': _clienteSelecionado == null
+            ? null
+            : (await _pedidos)
+                  .firstWhere(
+                    (p) => (p['cliente'] ?? {})['nome'] == _clienteSelecionado,
+                  )['cliente']['id']
+                  .toString(),
+        'mes': _mesSelecionado,
+        'inicio': _dataInicial?.toIso8601String().substring(0, 10),
+        'fim': _dataFinal?.toIso8601String().substring(0, 10),
+      });
+      final resposta = await apiService.get(
+        '/api/pedidos-produto/relatorio.pdf?$consulta',
+      );
+      if (resposta.statusCode == 200) {
+        abrirPdf(resposta, 'relatorio-pedidos.pdf');
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível gerar o relatório (${resposta.statusCode}).')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível gerar o relatório.')),
+        );
+      }
+    }
   }
 
   Future<void> _novoPedido() async {
@@ -371,10 +385,29 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   }
 
   Future<void> _compartilharPedido(int codigo) async {
-    final resposta = await apiService.get(
-      '/api/pedidos-produto/codigo/$codigo/pdf',
-    );
-    if (resposta.statusCode == 200) abrirPdf(resposta, 'pedido-$codigo.pdf');
+    try {
+      final resposta = await apiService.get(
+        '/api/pedidos-produto/codigo/$codigo/pdf',
+      );
+      if (resposta.statusCode == 200) {
+        final compartilhou = await compartilharPdf(resposta, 'pedido-$codigo.pdf');
+        if (!compartilhou && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('PDF baixado. Use Compartilhar para enviar no WhatsApp.')),
+          );
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível gerar o PDF do pedido (${resposta.statusCode}).')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível gerar o PDF do pedido.')),
+        );
+      }
+    }
   }
 
   Future<void> _detalhar(int codigo) async {
