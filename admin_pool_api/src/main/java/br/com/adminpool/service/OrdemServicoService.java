@@ -1,6 +1,7 @@
 package br.com.adminpool.service;
 
 import br.com.adminpool.dto.ConcluirOrdemServicoRequest;
+import br.com.adminpool.dto.EditarOrdemServicoRequest;
 import br.com.adminpool.dto.NovaOrdemServicoRequest;
 import br.com.adminpool.model.Funcionario;
 import br.com.adminpool.model.OrdemServico;
@@ -110,6 +111,24 @@ public class OrdemServicoService {
         }
         ordem.setStatus("CANCELADA");
         ordens.save(ordem);
+    }
+
+    /** Corrige dados operacionais sem mudar quem criou a OS. */
+    @Transactional
+    public OrdemServico editar(Long id, EditarOrdemServicoRequest requisicao) {
+        OrdemServico ordem = ordens.findById(id).orElseThrow();
+        if (!"ABERTA".equals(ordem.getStatus()) || ordem.isFinanceiroLancado()) {
+            throw new IllegalStateException("Somente uma OS aberta pode ser editada.");
+        }
+        if (requisicao.descricao() == null || requisicao.descricao().isBlank()) {
+            throw new IllegalArgumentException("Informe a descrição do serviço.");
+        }
+        ordem.setDescricao(requisicao.descricao().trim());
+        if (requisicao.dataServico() != null) ordem.setDataServico(requisicao.dataServico());
+        BigDecimal valor = positivoOuZero(requisicao.valorAdicional(), "valor sugerido");
+        ordem.setValorAdicional(valor);
+        ordem.setValorCobrado(valor);
+        return ordens.save(ordem);
     }
 
     /** Remove uma OS, inclusive lançamentos financeiros que ela tenha criado.

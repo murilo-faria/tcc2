@@ -4,6 +4,7 @@ import br.com.adminpool.dto.ConcluirPedidoRequest;
 import br.com.adminpool.dto.ItemPedidoRequest;
 import br.com.adminpool.dto.NovoPedidoLoteRequest;
 import br.com.adminpool.dto.NovoPedidoRequest;
+import br.com.adminpool.dto.EditarPedidoRequest;
 import br.com.adminpool.dto.ResultadoProdutos;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
 import br.com.adminpool.model.PedidoProduto;
@@ -106,6 +107,16 @@ public class PedidoProdutoController {
     public ResponseEntity<List<PedidoProduto>> criarLote(@RequestBody NovoPedidoLoteRequest requisicao,
                                                          Authentication auth) {
         return ResponseEntity.status(HttpStatus.CREATED).body(servico.criar(requisicao, auth));
+    }
+
+    @PutMapping("/codigo/{codigo}")
+    public List<PedidoProduto> editar(@PathVariable Long codigo,
+                                      @RequestBody EditarPedidoRequest requisicao,
+                                      Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar pedidos.");
+        }
+        return servico.editar(codigo, requisicao);
     }
 
     @PutMapping("/codigo/{codigo}/status")

@@ -227,6 +227,57 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
+  Future<void> _editarPedido(
+    int codigo,
+    List<Map<String, dynamic>> itensAtuais,
+  ) async {
+    final primeiro = itensAtuais.first;
+    if (primeiro['status'] == 'CONCLUIDO') return;
+    final resultados = await Future.wait([
+      _lista('/api/clientes'),
+      _lista('/api/produtos'),
+      _lista('/api/piscinas'),
+      _lista('/api/funcionarios'),
+    ]);
+    if (!mounted || resultados[1].isEmpty) return;
+    final usoInterno = primeiro['funcionario'] != null;
+    final pedido = await mostrarDialogPedidoMultiplo(
+      context: context,
+      clientes: resultados[0],
+      produtos: resultados[1],
+      piscinas: resultados[2],
+      funcionarios: resultados[3],
+      clienteFixo: usoInterno ? null : (primeiro['cliente'] ?? {})['id'] as int?,
+      piscinaFixa: usoInterno ? null : (primeiro['piscina'] ?? {})['id'] as int?,
+      funcionarioFixo: usoInterno ? (primeiro['funcionario'] ?? {})['id'] as int? : null,
+      usoInternoInicial: usoInterno,
+      itensIniciais: itensAtuais
+          .map((item) => <String, int>{
+                'produtoId': (item['produto'] ?? {})['id'] as int,
+                'quantidade': item['quantidade'] as int,
+              })
+          .toList(),
+      titulo: 'Editar pedido #$codigo',
+    );
+    if (pedido == null) return;
+    final resposta = await apiService.put(
+      '/api/pedidos-produto/codigo/$codigo',
+      body: {'itens': pedido['itens']},
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Pedido atualizado. O solicitante também verá a alteração.')),
+        );
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível editar o pedido (${resposta.statusCode}).')),
+      );
+    }
+  }
+
   Future<void> _alterarStatus(int codigo, String atual) async {
     const opcoes = [
       'SOLICITADO',
@@ -613,6 +664,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                       grupo.key,
                                       primeiro['status'],
                                     );
+                                  if (acao == 'editar')
+                                    _editarPedido(grupo.key, grupo.value);
                                   if (acao == 'concluir') _concluir(grupo.key, usoInterno: primeiro['funcionario'] != null);
                                   if (acao == 'excluir') _excluir(grupo.key);
                                 },
@@ -627,6 +680,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                     const PopupMenuItem(
                                       value: 'andamento',
                                       child: Text('Atualizar andamento'),
+                                    ),
+                                  if (widget.gestor && !concluido)
+                                    const PopupMenuItem(
+                                      value: 'editar',
+                                      child: Text('Editar pedido'),
                                     ),
                                   if (widget.gestor && !concluido)
                                     const PopupMenuItem(
@@ -671,6 +729,13 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                       icon: const Icon(
                                         Icons.local_shipping_outlined,
                                       ),
+                                    ),
+                                  if (widget.gestor && !concluido)
+                                    IconButton(
+                                      tooltip: 'Editar pedido',
+                                      onPressed: () =>
+                                          _editarPedido(grupo.key, grupo.value),
+                                      icon: const Icon(Icons.edit_outlined),
                                     ),
                                   if (widget.gestor)
                                     IconButton(

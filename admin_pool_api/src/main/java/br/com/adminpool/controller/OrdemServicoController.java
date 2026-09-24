@@ -2,6 +2,7 @@ package br.com.adminpool.controller;
 
 import br.com.adminpool.dto.ConcluirOrdemServicoRequest;
 import br.com.adminpool.dto.NovaOrdemServicoRequest;
+import br.com.adminpool.dto.EditarOrdemServicoRequest;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
 import br.com.adminpool.model.OrdemServico;
 import br.com.adminpool.repository.OrdemServicoRepository;
@@ -32,7 +33,7 @@ public class OrdemServicoController {
     @GetMapping
     public List<OrdemServico> listarTodas(Authentication auth) {
         return gestor(auth) ? ordens.findAllByOrderByDataServicoDesc()
-                : ordens.findByPiscinaResponsavelUsuarioLoginIgnoreCaseOrderByDataServicoDesc(auth.getName());
+                : ordens.findVisiveisPorColaborador(auth.getName());
     }
 
     @GetMapping("/{id}")
@@ -69,6 +70,16 @@ public class OrdemServicoController {
     public ResponseEntity<OrdemServico> criar(@RequestBody NovaOrdemServicoRequest requisicao,
                                               Authentication auth) {
         return ResponseEntity.status(HttpStatus.CREATED).body(servico.criar(requisicao, auth));
+    }
+
+    @PutMapping("/{id}")
+    public OrdemServico editar(@PathVariable Long id,
+                               @RequestBody EditarOrdemServicoRequest requisicao,
+                               Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar uma OS.");
+        }
+        return servico.editar(id, requisicao);
     }
 
     @PutMapping("/{id}/concluir")

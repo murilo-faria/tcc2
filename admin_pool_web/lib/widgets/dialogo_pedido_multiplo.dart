@@ -10,16 +10,22 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
   required List<dynamic> piscinas,
   List<dynamic> funcionarios = const [],
   int? clienteFixo,
+  int? piscinaFixa,
+  int? funcionarioFixo,
+  bool? usoInternoInicial,
+  List<Map<String, int>>? itensIniciais,
   required String titulo,
 }) async {
   final clientesOrdenados = [...clientes]
     ..sort((a, b) => (a['nome'] ?? '').toString().toLowerCase().compareTo((b['nome'] ?? '').toString().toLowerCase()));
   int clienteId = clienteFixo ?? clientesOrdenados.first['id'] as int;
-  bool usoInterno = false;
-  int? funcionarioId = funcionarios.isEmpty ? null : funcionarios.first['id'] as int;
-  int? piscinaId = piscinas.where((p) => p['cliente']['id'] == clienteId).length == 1
-      ? piscinas.firstWhere((p) => p['cliente']['id'] == clienteId)['id'] as int : null;
-  final itens = <Map<String, int>>[{'produtoId': produtos.first['id'] as int, 'quantidade': 1}];
+  bool usoInterno = usoInternoInicial ?? false;
+  int? funcionarioId = funcionarioFixo ?? (funcionarios.isEmpty ? null : funcionarios.first['id'] as int);
+  int? piscinaId = piscinaFixa ?? (piscinas.where((p) => p['cliente']['id'] == clienteId).length == 1
+      ? piscinas.firstWhere((p) => p['cliente']['id'] == clienteId)['id'] as int : null);
+  final itens = itensIniciais == null
+      ? <Map<String, int>>[{'produtoId': produtos.first['id'] as int, 'quantidade': 1}]
+      : itensIniciais.map((item) => Map<String, int>.from(item)).toList();
 
   return showDialog<Map<String, dynamic>>(
     context: context,
@@ -38,7 +44,7 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
             width: celular ? double.maxFinite : 650,
             child: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                if (clienteFixo == null && funcionarios.isNotEmpty) ...[
+                if (clienteFixo == null && funcionarios.isNotEmpty && usoInternoInicial == null) ...[
                   SegmentedButton<bool>(
                     segments: const [
                       ButtonSegment(value: false, icon: Icon(Icons.person_outline), label: Text('Para cliente')),
@@ -49,7 +55,7 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                   ),
                   const SizedBox(height: 12),
                 ],
-                if (usoInterno)
+                if (usoInterno && funcionarioFixo == null)
                   DropdownButtonFormField<int>(
                     initialValue: funcionarioId,
                     decoration: const InputDecoration(
@@ -61,7 +67,12 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                     )).toList(),
                     onChanged: (v) => setLocal(() => funcionarioId = v),
                   )
-                else ...[
+                else if (usoInterno) ...[
+                  const ListTile(
+                    leading: Icon(Icons.inventory_2_outlined),
+                    title: Text('Material para o mesmo colaborador solicitante'),
+                  ),
+                ] else ...[
                   if (clienteFixo == null)
                     DropdownButtonFormField<int>(
                       initialValue: clienteId,

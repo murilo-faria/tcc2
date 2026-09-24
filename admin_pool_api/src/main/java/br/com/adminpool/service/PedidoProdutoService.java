@@ -1,6 +1,7 @@
 package br.com.adminpool.service;
 
 import br.com.adminpool.dto.ItemPedidoRequest;
+import br.com.adminpool.dto.EditarPedidoRequest;
 import br.com.adminpool.dto.NovoPedidoLoteRequest;
 import br.com.adminpool.dto.ResultadoProdutos;
 import br.com.adminpool.model.Cliente;
@@ -145,6 +146,46 @@ public class PedidoProdutoService {
             throw new IllegalStateException("Pedido concluído não pode ser excluído.");
         }
         pedidos.deleteAll(itens);
+    }
+
+    /**
+     * A edição troca somente os itens de um pedido ainda aberto. Cliente, piscina
+     * e colaborador solicitante são preservados, portanto o pedido continua visível
+     * para as mesmas pessoas após o gestor salvar.
+     */
+    @Transactional
+    public List<PedidoProduto> editar(Long codigo, EditarPedidoRequest requisicao) {
+        List<PedidoProduto> atuais = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
+        if (atuais.isEmpty()) throw new IllegalArgumentException("Pedido não encontrado.");
+        if (atuais.stream().anyMatch(PedidoProduto::isFinanceiroLancado)) {
+            throw new IllegalStateException("Pedido concluído não pode ser editado.");
+        }
+        if (requisicao.itens() == null || requisicao.itens().isEmpty()) {
+            throw new IllegalArgumentException("Inclua pelo menos um produto no pedido.");
+        }
+        PedidoProduto modelo = atuais.get(0);
+        List<PedidoProduto> atualizados = new ArrayList<>();
+        for (ItemPedidoRequest item : requisicao.itens()) {
+            if (item.quantidade() == null || item.quantidade() <= 0) {
+                throw new IllegalArgumentException("A quantidade deve ser maior que zero.");
+            }
+            Produto produto = produtos.findById(item.produtoId()).orElseThrow();
+            PedidoProduto pedido = new PedidoProduto();
+            pedido.setCodigoPedido(codigo);
+            pedido.setCliente(modelo.getCliente());
+            pedido.setPiscina(modelo.getPiscina());
+            pedido.setFuncionario(modelo.getFuncionario());
+            pedido.setProduto(produto);
+            pedido.setQuantidade(item.quantidade());
+            pedido.setPrecoCompraUnitario(produto.getPrecoCompra());
+            pedido.setValorUnitario(produto.getPrecoVenda());
+            pedido.setDesconto(BigDecimal.ZERO);
+            pedido.setDataPedido(modelo.getDataPedido());
+            pedido.setStatus(modelo.getStatus());
+            atualizados.add(pedido);
+        }
+        pedidos.deleteAll(atuais);
+        return pedidos.saveAll(atualizados);
     }
 
     private void ratearDesconto(List<PedidoProduto> itens, BigDecimal totalVenda, BigDecimal desconto) {
