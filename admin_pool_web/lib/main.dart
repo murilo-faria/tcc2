@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
 
@@ -103,7 +104,14 @@ class AdminPoolApp extends StatelessWidget {
           secondary: const Color(0xFF90CAF9),
         ),
         useMaterial3: true,
+        textTheme: GoogleFonts.interTextTheme(),
         scaffoldBackgroundColor: const Color(0xFFF7FAFF),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Color(0xFF172033),
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+        ),
       ),
       home: const LoginPage(),
     );
@@ -197,7 +205,7 @@ class _HomePageState extends State<HomePage> {
               SizedBox(
                 width: 248,
                 child: Material(
-                  color: Colors.white,
+                  color: const Color(0xFF17395F),
                   child: _Menu(
                     menu: menu,
                     pagina: pagina,
@@ -233,7 +241,7 @@ class _Menu extends StatelessWidget {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 12,
-            color: Colors.black54,
+            color: Color(0xFFB8C9DC),
           ),
         ),
       ),
@@ -241,9 +249,14 @@ class _Menu extends StatelessWidget {
         menu.length,
         (i) => ListTile(
           selected: pagina == i,
-          selectedTileColor: const Color(0xFFE3F2FD),
+          selectedTileColor: const Color(0xFF2B5786),
+          selectedColor: Colors.white,
+          iconColor: const Color(0xFFD8E5F2),
+          textColor: const Color(0xFFEAF2FA),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 18),
           leading: Icon(menu[i].icone),
-          title: Text(menu[i].titulo),
+          title: Text(menu[i].titulo, style: const TextStyle(fontWeight: FontWeight.w500)),
           onTap: () => aoSelecionar(i),
         ),
       ),
@@ -1872,7 +1885,7 @@ class _ListaClientesState extends State<_ListaClientes> {
       children: [
         _CabecalhoResponsivo(
           titulo: 'Clientes',
-          subtitulo: 'Clientes cadastrados no banco Admin_Poll.',
+          subtitulo: 'Gerencie clientes, mensalidades e atendimentos.',
           acao: widget.gestor
               ? FilledButton.icon(
                   onPressed: cadastrar,
@@ -1882,13 +1895,30 @@ class _ListaClientesState extends State<_ListaClientes> {
               : null,
         ),
         const SizedBox(height: 18),
-        TextField(
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search),
-            labelText: 'Pesquisar cliente',
-            border: OutlineInputBorder(),
+        Card(
+          elevation: 1,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Buscar cliente por nome ou telefone',
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFD7E0EA)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFD7E0EA)),
+                ),
+              ),
+              onChanged: (texto) => setState(() => filtro = texto.toLowerCase()),
+            ),
           ),
-          onChanged: (texto) => setState(() => filtro = texto.toLowerCase()),
         ),
         const SizedBox(height: 12),
         Expanded(
@@ -1916,6 +1946,9 @@ class _ListaClientesState extends State<_ListaClientes> {
               if (dados.isEmpty)
                 return const Center(child: Text('Nenhum cliente cadastrado.'));
               return Card(
+                elevation: 1,
+                surfaceTintColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 child: ListView.separated(
                   itemCount: dados.length,
                   separatorBuilder: (_, _) => const Divider(height: 1),
@@ -1932,6 +1965,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                       cliente['_responsavelCor'] ?? cliente['funcionario'],
                     );
                     final selecionado = clienteSelecionado == cliente['id'];
+                    final celular = MediaQuery.of(context).size.width < 600;
                     return Column(
                       children: [
                         ListTile(
@@ -1945,7 +1979,36 @@ class _ListaClientesState extends State<_ListaClientes> {
                             foregroundColor: corResponsavel,
                             child: const Icon(Icons.person),
                           ),
-                          title: Text(cliente['nome'] ?? ''),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  cliente['nome'] ?? '',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              if (widget.gestor)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: ativo
+                                        ? const Color(0xFFE1F5E8)
+                                        : const Color(0xFFF0F2F5),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    ativo ? 'Ativo' : 'Inativo',
+                                    style: TextStyle(
+                                      color: ativo
+                                          ? const Color(0xFF238B45)
+                                          : const Color(0xFF667085),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                           subtitle: Text(
                             [
                               if (widget.gestor) dia,
@@ -1961,7 +2024,47 @@ class _ListaClientesState extends State<_ListaClientes> {
                               'Clique para abrir os serviços',
                             ].join(' • '),
                           ),
-                          trailing: Row(
+                          trailing: celular
+                              ? SizedBox(
+                                  width: widget.gestor ? 126 : 30,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (widget.gestor)
+                                        Transform.scale(
+                                          scale: .78,
+                                          child: Switch(
+                                            value: ativo,
+                                            activeTrackColor: Colors.green.shade300,
+                                            onChanged: (_) => alternarAtivo(cliente),
+                                          ),
+                                        ),
+                                      if (widget.gestor)
+                                        Expanded(
+                                          child: Text(
+                                            'R\$ $valor',
+                                            textAlign: TextAlign.end,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                          ),
+                                        ),
+                                      if (widget.gestor)
+                                        PopupMenuButton<String>(
+                                          icon: const Icon(Icons.more_vert),
+                                          onSelected: (acao) {
+                                            if (acao == 'editar') editar(cliente);
+                                            if (acao == 'excluir') excluir(cliente['id'] as int);
+                                          },
+                                          itemBuilder: (_) => const [
+                                            PopupMenuItem(value: 'editar', child: Text('Editar')),
+                                            PopupMenuItem(value: 'excluir', child: Text('Excluir')),
+                                          ],
+                                        )
+                                      else
+                                        Icon(selecionado ? Icons.expand_less : Icons.expand_more),
+                                    ],
+                                  ),
+                                )
+                              : Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (widget.gestor)
