@@ -14,6 +14,8 @@ class _LoginPageState extends State<LoginPage> {
   bool entrando = false;
   final usuarioController = TextEditingController();
   final senhaController = TextEditingController();
+  final usuarioFocus = FocusNode();
+  final senhaFocus = FocusNode();
 
   Future<void> entrar() async {
     if (entrando) return;
@@ -55,6 +57,8 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     usuarioController.dispose();
     senhaController.dispose();
+    usuarioFocus.dispose();
+    senhaFocus.dispose();
     super.dispose();
   }
 
@@ -81,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
                       const Icon(
                         Icons.pool_rounded,
                         size: 64,
-                        color: Color(0xFF1565C0),
+                        color: Color(0xFF17395F),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -101,6 +105,7 @@ class _LoginPageState extends State<LoginPage> {
                           children: [
                             TextField(
                               controller: usuarioController,
+                              focusNode: usuarioFocus,
                               autofillHints: const [AutofillHints.username],
                               keyboardType: TextInputType.text,
                               autocorrect: false,
@@ -114,7 +119,9 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             const SizedBox(height: 16),
                             TextField(
+                              key: const ValueKey('campo-senha-login'),
                               controller: senhaController,
+                              focusNode: senhaFocus,
                               autofillHints: const [AutofillHints.password],
                               keyboardType: TextInputType.visiblePassword,
                               autocorrect: false,
@@ -145,16 +152,20 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 18),
                       SegmentedButton<Perfil>(
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                          padding: WidgetStatePropertyAll(
+                            EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                        ),
                         segments: const [
                           ButtonSegment(
                             value: Perfil.gestor,
                             label: Text('Gestor'),
-                            icon: Icon(Icons.admin_panel_settings_outlined),
                           ),
                           ButtonSegment(
                             value: Perfil.funcionario,
                             label: Text('Colaborador'),
-                            icon: Icon(Icons.engineering_outlined),
                           ),
                         ],
                         selected: {perfil},

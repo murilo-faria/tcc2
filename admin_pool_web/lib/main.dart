@@ -98,13 +98,19 @@ class AdminPoolApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       theme: ThemeData(
+        // Uma única família em todo o sistema; títulos e menu variam apenas
+        // no peso, nunca na fonte.
+        fontFamily: GoogleFonts.inter().fontFamily,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1565C0),
-          primary: const Color(0xFF1565C0),
+          seedColor: const Color(0xFF17395F),
+          primary: const Color(0xFF17395F),
           secondary: const Color(0xFF90CAF9),
         ),
         useMaterial3: true,
-        textTheme: GoogleFonts.interTextTheme(),
+        textTheme: GoogleFonts.interTextTheme().apply(
+          bodyColor: const Color(0xFF20242B),
+          displayColor: const Color(0xFF20242B),
+        ),
         scaffoldBackgroundColor: const Color(0xFFF7FAFF),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF17395F),
@@ -171,10 +177,14 @@ class _HomePageState extends State<HomePage> {
         actions: [
           if (!compacta)
             Chip(
-              backgroundColor: Colors.white.withValues(alpha: .16),
-              labelStyle: const TextStyle(color: Colors.white),
+              backgroundColor: Colors.white,
+              labelStyle: const TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
               side: BorderSide.none,
-              label: Text(nomePerfil),
+              label: Text(nomePerfil.toUpperCase()),
             ),
           const SizedBox(width: 12),
           IconButton(
@@ -1901,6 +1911,177 @@ class _ListaClientesState extends State<_ListaClientes> {
     }
   }
 
+  Widget _celulaPiscinas(Map<String, dynamic> cliente) {
+    final piscinas = (cliente['_piscinas'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
+    if (piscinas.isEmpty) return const Text('Sem piscina vinculada');
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: piscinas.map((piscina) {
+        final comprimento = (piscina['comprimento'] as num?)?.toDouble() ?? 0;
+        final largura = (piscina['largura'] as num?)?.toDouble() ?? 0;
+        final profundidade =
+            (piscina['profundidade'] as num?)?.toDouble() ?? 1.4;
+        final litros = (piscina['volumeLitros'] as num?)?.toDouble() ?? 0;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                piscina['nome']?.toString() ?? 'Piscina',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                '${comprimento.toStringAsFixed(1).replaceAll('.', ',')} m × ${largura.toStringAsFixed(1).replaceAll('.', ',')} m × ${profundidade.toStringAsFixed(1).replaceAll('.', ',')} m',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              Text(
+                '${(litros / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _tabelaClientes(List<dynamic> dados) => Card(
+    elevation: 1,
+    surfaceTintColor: Colors.white,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    child: SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        headingRowHeight: 42,
+        dataRowMinHeight: 64,
+        dataRowMaxHeight: 180,
+        columnSpacing: 42,
+        columns: const [
+          DataColumn(label: Text('Cliente')),
+          DataColumn(label: Text('Piscina')),
+          DataColumn(label: Text('Mensalidade')),
+          DataColumn(label: Text('Responsável')),
+          DataColumn(label: Text('Status')),
+          DataColumn(label: Text('Ações')),
+        ],
+        rows: dados.map((valor) {
+          final cliente = valor as Map<String, dynamic>;
+          final ativo = cliente['ativo'] != false;
+          final responsavel =
+              ((cliente['_responsavelCor'] ??
+                      cliente['funcionario'] ??
+                      {})['usuario'] ??
+                  {})['nome'] ??
+              'Sem responsável';
+          final mensalidade = (cliente['valorMensalidade'] as num?) ?? 0;
+          return DataRow(
+            cells: [
+              DataCell(
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      cliente['nome']?.toString() ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    if ((cliente['telefone'] ?? '').toString().isNotEmpty)
+                      Text(
+                        cliente['telefone'].toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              DataCell(_celulaPiscinas(cliente)),
+              DataCell(Text(formatarMoeda(mensalidade))),
+              DataCell(Text(responsavel.toString())),
+              DataCell(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ativo
+                            ? const Color(0xFFE1F5E8)
+                            : const Color(0xFFF0F2F5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        ativo ? 'Ativo' : 'Inativo',
+                        style: TextStyle(
+                          color: ativo
+                              ? const Color(0xFF238B45)
+                              : const Color(0xFF667085),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (widget.gestor)
+                      Switch(
+                        value: ativo,
+                        onChanged: (_) => alternarAtivo(cliente),
+                      ),
+                  ],
+                ),
+              ),
+              DataCell(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Ver piscinas',
+                      icon: const Icon(Icons.visibility_outlined),
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: Text('Piscinas — ${cliente['nome']}'),
+                          content: SingleChildScrollView(
+                            child: _celulaPiscinas(cliente),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Fechar'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (widget.gestor) ...[
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => editar(cliente),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => excluir(cliente['id'] as int),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.all(MediaQuery.of(context).size.width < 600 ? 16 : 28),
@@ -1972,6 +2153,9 @@ class _ListaClientesState extends State<_ListaClientes> {
                   .toList();
               if (dados.isEmpty)
                 return const Center(child: Text('Nenhum cliente cadastrado.'));
+              if (MediaQuery.of(context).size.width >= 700) {
+                return _tabelaClientes(dados);
+              }
               return Card(
                 elevation: 1,
                 surfaceTintColor: Colors.white,

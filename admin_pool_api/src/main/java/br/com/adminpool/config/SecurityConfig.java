@@ -44,6 +44,15 @@ public class SecurityConfig {
             .exceptionHandling(e -> e.authenticationEntryPoint((req, res, ex) -> res.sendError(401)))
             .authorizeHttpRequests(a -> a
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // O navegador móvel pode omitir X-Requested-With ao preparar
+                // um arquivo para a folha nativa de compartilhamento. PDFs
+                // continuam exigindo autenticação; apenas não dependem desse
+                // cabeçalho auxiliar.
+                .requestMatchers(HttpMethod.GET,
+                    "/api/pedidos-produto/relatorio.pdf",
+                    "/api/pedidos-produto/codigo/*/pdf",
+                    "/api/ordens-servico/relatorio.pdf").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/cobrancas/relatorio.pdf").hasRole("GESTOR")
                 .requestMatchers(req -> !"AdminPool".equals(req.getHeader("X-Requested-With"))).denyAll()
                 .requestMatchers("/api/auth/me").authenticated()
                 .requestMatchers("/api/piscinas/**", "/api/salarios/**", "/api/funcionarios/**").authenticated()
