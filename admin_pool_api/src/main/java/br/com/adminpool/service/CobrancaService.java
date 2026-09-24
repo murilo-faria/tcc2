@@ -196,8 +196,18 @@ public class CobrancaService {
     public void removerLancamento(TipoLancamentoCobranca tipo, Long origemId) {
         ItemCobranca item = itens.findByTipoAndOrigemId(tipo, origemId)
                 .orElseThrow(() -> new IllegalArgumentException("Lançamento de cobrança não encontrado."));
+        removerLancamento(item);
+    }
+
+    /** Remove o lançamento quando ele existir; usada ao apagar uma origem ainda aberta. */
+    @Transactional
+    public void removerLancamentoSeExistir(TipoLancamentoCobranca tipo, Long origemId) {
+        itens.findByTipoAndOrigemId(tipo, origemId).ifPresent(this::removerLancamento);
+    }
+
+    private void removerLancamento(ItemCobranca item) {
         if (item.getValorPago() != null && item.getValorPago().compareTo(BigDecimal.ZERO) > 0) {
-            throw new IllegalStateException("Não é possível desfazer um pedido que já possui pagamento recebido.");
+            throw new IllegalStateException("Não é possível desfazer um lançamento que já possui pagamento recebido.");
         }
         CobrancaMensal cobranca = item.getCobranca();
         itens.delete(item);
