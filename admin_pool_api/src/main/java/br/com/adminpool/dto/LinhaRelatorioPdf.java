@@ -2,7 +2,7 @@ package br.com.adminpool.dto;
 
 import java.math.BigDecimal;
 
-/** Bean simples porque o JasperReports resolve os campos pelo padrão getCampo(). */
+/** Linha simples usada na montagem dos relatórios em PDF. */
 public class LinhaRelatorioPdf {
     private final String cliente;
     private final String descricao;
