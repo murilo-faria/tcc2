@@ -131,6 +131,36 @@ public class OrdemServicoService {
         return ordens.save(ordem);
     }
 
+    /** Impede que um colaborador altere uma OS de terceiros ou já encerrada. */
+    public void validarEdicaoPorColaborador(Long id, String login) {
+        OrdemServico ordem = ordemDoColaborador(id, login);
+        if (!"ABERTA".equals(ordem.getStatus()) || ordem.isFinanceiroLancado()) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "OS concluída ou cancelada não pode ser editada pelo colaborador.");
+        }
+    }
+
+    /** Permite compartilhar o PDF somente da OS visível para o colaborador. */
+    public void validarVisualizacaoPorColaborador(Long id, String login) {
+        ordemDoColaborador(id, login);
+    }
+
+    private OrdemServico ordemDoColaborador(Long id, String login) {
+        OrdemServico ordem = ordens.findById(id).orElseThrow();
+        boolean responsavelDaPiscina = ordem.getPiscina() != null
+                && ordem.getPiscina().getResponsavel() != null
+                && ordem.getPiscina().getResponsavel().getUsuario() != null
+                && login.equalsIgnoreCase(ordem.getPiscina().getResponsavel().getUsuario().getLogin());
+        boolean criador = ordem.getCriadoPor() != null
+                && ordem.getCriadoPor().getUsuario() != null
+                && login.equalsIgnoreCase(ordem.getCriadoPor().getUsuario().getLogin());
+        if (!responsavelDaPiscina && !criador) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "OS não vinculada ao colaborador.");
+        }
+        return ordem;
+    }
+
     /** Remove uma OS, inclusive lançamentos financeiros que ela tenha criado.
      *  Exclusão é restrita ao gestor pelo controller. */
     @Transactional

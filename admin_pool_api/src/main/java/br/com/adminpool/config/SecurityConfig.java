@@ -53,6 +53,8 @@ public class SecurityConfig {
                     "/api/ordens-servico/relatorio.pdf").authenticated()
                 .requestMatchers(request -> HttpMethod.GET.matches(request.getMethod())
                     && request.getRequestURI().matches("/api/pedidos-produto/codigo/\\d+/pdf")).authenticated()
+                .requestMatchers(request -> HttpMethod.GET.matches(request.getMethod())
+                    && request.getRequestURI().matches("/api/ordens-servico/\\d+/pdf")).authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/cobrancas/relatorio.pdf").hasRole("GESTOR")
                 .requestMatchers(request -> HttpMethod.GET.matches(request.getMethod())
                     && request.getRequestURI().matches("/api/cobrancas/clientes/\\d+/historico\\.pdf")).hasRole("GESTOR")

@@ -76,10 +76,19 @@ public class OrdemServicoController {
     public OrdemServico editar(@PathVariable Long id,
                                @RequestBody EditarOrdemServicoRequest requisicao,
                                Authentication auth) {
-        if (!gestor(auth)) {
-            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar uma OS.");
-        }
+        if (!gestor(auth)) servico.validarEdicaoPorColaborador(id, auth.getName());
         return servico.editar(id, requisicao);
+    }
+
+    @GetMapping(value = "/{id}/pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> osPdf(@PathVariable Long id, Authentication auth) {
+        if (!gestor(auth)) servico.validarVisualizacaoPorColaborador(id, auth.getName());
+        OrdemServico ordem = ordens.findById(id).orElseThrow();
+        var linhas = List.of(new LinhaRelatorioPdf(
+                ordem.getCliente().getNome(), ordem.getDescricao(),
+                ordem.getDataServico().toString(), ordem.getValorCobrado()));
+        return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=os-" + id + ".pdf")
+                .body(relatorios.gerar("Ordem de serviço #" + id, "Status: " + ordem.getStatus(), linhas));
     }
 
     @PutMapping("/{id}/concluir")
@@ -93,7 +102,10 @@ public class OrdemServicoController {
     }
 
     @PutMapping("/{id}/cancelar")
-    public ResponseEntity<Void> cancelar(@PathVariable Long id) {
+    public ResponseEntity<Void> cancelar(@PathVariable Long id, Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem cancelar uma OS.");
+        }
         servico.cancelar(id);
         return ResponseEntity.noContent().build();
     }

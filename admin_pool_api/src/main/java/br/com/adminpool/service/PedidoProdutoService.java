@@ -191,6 +191,40 @@ public class PedidoProdutoService {
         return pedidos.saveAll(atualizados);
     }
 
+    /** Confere se o colaborador vinculado ao pedido ainda pode alterá-lo. */
+    public void validarEdicaoPorColaborador(Long codigo, String login) {
+        PedidoProduto pedido = primeiroPedido(codigo);
+        if (pedido.isFinanceiroLancado() || "CONCLUIDO".equals(pedido.getStatus())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Pedido concluído não pode ser editado pelo colaborador.");
+        }
+        validarVinculoColaborador(pedido, login);
+    }
+
+    /** Permite que o colaborador compartilhe o PDF apenas de um pedido visível para ele. */
+    public void validarVisualizacaoPorColaborador(Long codigo, String login) {
+        validarVinculoColaborador(primeiroPedido(codigo), login);
+    }
+
+    private PedidoProduto primeiroPedido(Long codigo) {
+        return pedidos.findByCodigoPedidoOrderByIdAsc(codigo).stream().findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Pedido não encontrado."));
+    }
+
+    private void validarVinculoColaborador(PedidoProduto pedido, String login) {
+        boolean responsavelDaPiscina = pedido.getPiscina() != null
+                && pedido.getPiscina().getResponsavel() != null
+                && pedido.getPiscina().getResponsavel().getUsuario() != null
+                && login.equalsIgnoreCase(pedido.getPiscina().getResponsavel().getUsuario().getLogin());
+        boolean destinatarioInterno = pedido.getFuncionario() != null
+                && pedido.getFuncionario().getUsuario() != null
+                && login.equalsIgnoreCase(pedido.getFuncionario().getUsuario().getLogin());
+        if (!responsavelDaPiscina && !destinatarioInterno) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Pedido não vinculado ao colaborador.");
+        }
+    }
+
     private void ratearDesconto(List<PedidoProduto> itens, BigDecimal totalVenda, BigDecimal desconto) {
         if (desconto.compareTo(BigDecimal.ZERO) == 0) {
             itens.forEach(item -> item.setDesconto(BigDecimal.ZERO));

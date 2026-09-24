@@ -168,6 +168,31 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
     }
   }
 
+  Future<void> _compartilharPdf(Map<String, dynamic> ordem) async {
+    final id = ordem['id'];
+    final resposta = await apiService.get('/api/ordens-servico/$id/pdf');
+    if (resposta.statusCode == 200) {
+      final compartilhou = await compartilharPdf(resposta, 'os-$id.pdf');
+      if (!compartilhou && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'PDF baixado. Use Compartilhar para enviar no WhatsApp.',
+            ),
+          ),
+        );
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Não foi possível gerar o PDF da OS (${resposta.statusCode}).',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _novaOrdem() async {
     final clientes = await _buscar('/api/clientes');
     if (clientes.isEmpty || !mounted) return;
@@ -715,9 +740,18 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                     itemBuilder: (_, indice) {
                       final ordem = ordens[indice] as Map<String, dynamic>;
                       final aberta = ordem['status'] == 'ABERTA';
+                      final concluida = ordem['status'] == 'CONCLUIDA';
                       return ListTile(
                         onTap: () => _detalhar(ordem),
-                        leading: CircleAvatar(child: Text('#${ordem['id']}')),
+                        leading: CircleAvatar(
+                          backgroundColor: concluida
+                              ? Colors.green.shade100
+                              : null,
+                          foregroundColor: concluida
+                              ? Colors.green.shade900
+                              : null,
+                          child: Text('#${ordem['id']}'),
+                        ),
                         title: Text((ordem['cliente'] ?? {})['nome'] ?? ''),
                         subtitle: Text(
                           '${ordem['descricao']}\n${ordem['dataServico']} • ${ordem['status']}',
@@ -726,17 +760,23 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                         trailing: PopupMenuButton<String>(
                           onSelected: (acao) {
                             if (acao == 'ver') _detalhar(ordem);
+                            if (acao == 'compartilhar') _compartilharPdf(ordem);
                             if (acao == 'concluir') _concluir(ordem);
                             if (acao == 'editar') _editar(ordem);
                             if (acao == 'cancelar') _cancelar(ordem);
                             if (acao == 'excluir') _excluir(ordem);
                           },
                           itemBuilder: (_) => [
+                            if (widget.gestor)
+                              const PopupMenuItem(
+                                value: 'ver',
+                                child: Text('Ver detalhes'),
+                              ),
                             const PopupMenuItem(
-                              value: 'ver',
-                              child: Text('Ver detalhes'),
+                              value: 'compartilhar',
+                              child: Text('Compartilhar PDF'),
                             ),
-                            if (widget.gestor && aberta)
+                            if (aberta)
                               const PopupMenuItem(
                                 value: 'editar',
                                 child: Text('Editar OS'),
@@ -746,7 +786,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                                 value: 'concluir',
                                 child: Text('Concluir OS'),
                               ),
-                            if (aberta)
+                            if (widget.gestor && aberta)
                               const PopupMenuItem(
                                 value: 'cancelar',
                                 child: Text('Cancelar OS'),

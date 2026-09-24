@@ -52,7 +52,10 @@ public class PedidoProdutoController {
     }
 
     @GetMapping(value = "/codigo/{codigo}/pdf", produces = "application/pdf")
-    public ResponseEntity<byte[]> pedidoPdf(@PathVariable Long codigo) {
+    public ResponseEntity<byte[]> pedidoPdf(@PathVariable Long codigo, Authentication auth) {
+        if (!gestor(auth)) {
+            servico.validarVisualizacaoPorColaborador(codigo, auth.getName());
+        }
         var itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
         if (itens.isEmpty()) throw new IllegalArgumentException("Pedido não encontrado.");
         var primeiro = itens.get(0);
@@ -111,14 +114,16 @@ public class PedidoProdutoController {
     public List<PedidoProduto> editar(@PathVariable Long codigo,
                                       @RequestBody EditarPedidoRequest requisicao,
                                       Authentication auth) {
-        if (!gestor(auth)) {
-            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar pedidos.");
-        }
+        if (!gestor(auth)) servico.validarEdicaoPorColaborador(codigo, auth.getName());
         return servico.editar(codigo, requisicao);
     }
 
     @PutMapping("/codigo/{codigo}/status")
-    public ResponseEntity<Void> alterarStatus(@PathVariable Long codigo, @RequestParam String status) {
+    public ResponseEntity<Void> alterarStatus(@PathVariable Long codigo, @RequestParam String status,
+                                              Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem alterar o status do pedido.");
+        }
         servico.alterarStatus(codigo, status);
         return ResponseEntity.noContent().build();
     }

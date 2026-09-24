@@ -687,7 +687,15 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                       final compacto = MediaQuery.of(context).size.width < 600;
                       return ListTile(
                         onTap: () => _detalhar(grupo.key),
-                        leading: CircleAvatar(child: Text('#${grupo.key}')),
+                        leading: CircleAvatar(
+                          backgroundColor: concluido
+                              ? Colors.green.shade100
+                              : null,
+                          foregroundColor: concluido
+                              ? Colors.green.shade900
+                              : null,
+                          child: Text('#${grupo.key}'),
+                        ),
                         title: Text(
                           _destinatario(primeiro),
                           maxLines: 1,
@@ -713,12 +721,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                   if (acao == 'excluir') _excluir(grupo.key);
                                 },
                                 itemBuilder: (_) => [
-                                  if (widget.gestor)
-                                    const PopupMenuItem(
-                                      value: 'compartilhar',
-                                      child: Text('Compartilhar PDF'),
-                                    ),
-                                  if (widget.gestor && !concluido)
+                                  const PopupMenuItem(
+                                    value: 'compartilhar',
+                                    child: Text('Compartilhar PDF'),
+                                  ),
+                                  if (!concluido)
                                     const PopupMenuItem(
                                       value: 'editar',
                                       child: Text('Editar pedido'),
@@ -744,15 +751,14 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  if (widget.gestor)
-                                    IconButton(
-                                      tooltip:
-                                          'PDF para compartilhar no WhatsApp',
-                                      onPressed: () =>
-                                          _compartilharPedido(grupo.key),
-                                      icon: const Icon(Icons.share_outlined),
-                                    ),
-                                  if (widget.gestor && !concluido)
+                                  IconButton(
+                                    tooltip:
+                                        'PDF para compartilhar no WhatsApp',
+                                    onPressed: () =>
+                                        _compartilharPedido(grupo.key),
+                                    icon: const Icon(Icons.share_outlined),
+                                  ),
+                                  if (!concluido)
                                     IconButton(
                                       tooltip: 'Editar pedido',
                                       onPressed: () =>
