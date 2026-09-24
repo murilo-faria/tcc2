@@ -567,6 +567,23 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     }
   }
 
+  Future<void> _gerarHistoricoPdf() async {
+    final resposta = await apiService.get(
+      '/api/cobrancas/clientes/$clienteId/historico.pdf',
+    );
+    if (resposta.statusCode == 200) {
+      abrirPdf(resposta, 'historico-${widget.cliente['clienteNome']}.pdf');
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Não foi possível gerar o histórico (${resposta.statusCode}).',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _abrirDetalhes(Map<String, dynamic> item) async {
     final detalhes = await _carregarDetalhes(item);
     if (!mounted) return;
@@ -638,6 +655,11 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                   onPressed: _baixarParcial,
                   icon: const Icon(Icons.payments_outlined),
                   label: const Text('Baixa parcial'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _gerarHistoricoPdf,
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  label: const Text('Gerar PDF'),
                 ),
                 OutlinedButton.icon(
                   onPressed: _selecionados.isEmpty ? null : _baixarSelecionados,

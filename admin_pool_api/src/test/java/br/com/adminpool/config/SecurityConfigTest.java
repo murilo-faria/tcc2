@@ -68,6 +68,8 @@ class SecurityConfigTest {
             .andExpect(status().isNotFound());
         mvc.perform(get("/api/pedidos-produto/codigo/30/pdf").header("Authorization", auth))
             .andExpect(status().isNotFound());
+        mvc.perform(get("/api/cobrancas/clientes/1/historico.pdf").header("Authorization", auth))
+            .andExpect(status().isNotFound());
     }
     @Test void corsAllowsSiteAndRejectsOtherOrigins() throws Exception {
         mvc.perform(options("/api/clientes").header("Origin","https://tibumlimpezapiscinas.com.br")

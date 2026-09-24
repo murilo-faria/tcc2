@@ -7,6 +7,7 @@ import br.com.adminpool.dto.FluxoCaixaEntrada;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
 import br.com.adminpool.model.CobrancaMensal;
 import br.com.adminpool.model.ItemCobranca;
+import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.service.CobrancaService;
 import br.com.adminpool.service.RelatorioPdfService;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +23,13 @@ public class CobrancaController {
 
     private final CobrancaService cobrancaService;
     private final RelatorioPdfService relatorios;
+    private final ClienteRepository clientes;
 
-    public CobrancaController(CobrancaService cobrancaService, RelatorioPdfService relatorios) {
+    public CobrancaController(CobrancaService cobrancaService, RelatorioPdfService relatorios,
+                              ClienteRepository clientes) {
         this.cobrancaService = cobrancaService;
         this.relatorios = relatorios;
+        this.clientes = clientes;
     }
 
     @GetMapping
@@ -83,6 +87,23 @@ public class CobrancaController {
     @GetMapping("/clientes/{clienteId}/itens")
     public List<ItemCobranca> listarItens(@PathVariable Long clienteId) {
         return cobrancaService.listarItensCliente(clienteId);
+    }
+
+    @GetMapping(value = "/clientes/{clienteId}/historico.pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> historicoClientePdf(@PathVariable Long clienteId) {
+        var cliente = clientes.findById(clienteId).orElseThrow();
+        var linhas = cobrancaService.listarItensCliente(clienteId).stream()
+                .map(item -> new LinhaRelatorioPdf(cliente.getNome(),
+                        item.getDescricao() + " - " + item.getStatus(),
+                        item.getDataUltimoPagamento() == null
+                                ? item.getDataLancamento().toString()
+                                : item.getDataUltimoPagamento().toString(),
+                        item.getValorOriginal()))
+                .toList();
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=historico-" + clienteId + ".pdf")
+                .body(relatorios.gerar("Histórico de cobranças - " + cliente.getNome(),
+                        "Todos os lançamentos da cliente", linhas));
     }
 
     @GetMapping("/itens/{itemId}")

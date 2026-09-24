@@ -54,6 +54,8 @@ public class SecurityConfig {
                 .requestMatchers(request -> HttpMethod.GET.matches(request.getMethod())
                     && request.getRequestURI().matches("/api/pedidos-produto/codigo/\\d+/pdf")).authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/cobrancas/relatorio.pdf").hasRole("GESTOR")
+                .requestMatchers(request -> HttpMethod.GET.matches(request.getMethod())
+                    && request.getRequestURI().matches("/api/cobrancas/clientes/\\d+/historico\\.pdf")).hasRole("GESTOR")
                 .requestMatchers(req -> !"AdminPool".equals(req.getHeader("X-Requested-With"))).denyAll()
                 .requestMatchers("/api/auth/me").authenticated()
                 .requestMatchers("/api/piscinas/**", "/api/salarios/**", "/api/funcionarios/**").authenticated()
