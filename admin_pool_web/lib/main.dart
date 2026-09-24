@@ -664,36 +664,69 @@ class _ProdutosGerenciamentoPageState
                     final mangueira = (p['nome'] as String)
                         .toLowerCase()
                         .contains('mangueira');
+                    final celular = MediaQuery.of(context).size.width < 600;
+                    final venda = formatarMoeda(p['precoVenda'] as num);
+                    final descricao =
+                        '${mangueira ? 'Venda por metro' : 'Preço de venda'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}';
                     return ListTile(
                       leading: const CircleAvatar(
                         child: Icon(Icons.inventory_2_outlined),
                       ),
-                      title: Text(p['nome']),
+                      title: Text(
+                        p['nome'],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       subtitle: Text(
-                        '${mangueira ? 'Venda por metro' : 'Preço de venda'}${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}',
+                        celular ? '$venda • $descricao' : descricao,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            formatarMoeda(p['precoVenda'] as num),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          if (widget.gestor)
-                            IconButton(
-                              onPressed: () => formulario(p),
-                              icon: const Icon(Icons.edit_outlined),
+                      trailing: celular
+                          ? (widget.gestor
+                                ? PopupMenuButton<String>(
+                                    tooltip: 'Opções do produto',
+                                    onSelected: (acao) {
+                                      if (acao == 'editar') formulario(p);
+                                      if (acao == 'excluir')
+                                        excluir(p['id'] as int);
+                                    },
+                                    itemBuilder: (_) => const [
+                                      PopupMenuItem(
+                                        value: 'editar',
+                                        child: Text('Editar produto'),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'excluir',
+                                        child: Text('Excluir produto'),
+                                      ),
+                                    ],
+                                  )
+                                : null)
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  venda,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (widget.gestor)
+                                  IconButton(
+                                    onPressed: () => formulario(p),
+                                    icon: const Icon(Icons.edit_outlined),
+                                  ),
+                                if (widget.gestor)
+                                  IconButton(
+                                    onPressed: () => excluir(p['id'] as int),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                    ),
+                                  ),
+                              ],
                             ),
-                          if (widget.gestor)
-                            IconButton(
-                              onPressed: () => excluir(p['id'] as int),
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.red,
-                              ),
-                            ),
-                        ],
-                      ),
                     );
                   },
                 ),
@@ -2429,9 +2462,9 @@ class _ListaClientesState extends State<_ListaClientes> {
                                             ),
                                           ),
                                           subtitle: Text(
-                                                                                        '${p['tipo'] ?? 'Tipo não informado'} • ${comprimento.toStringAsFixed(1).replaceAll('.', ',')} m × ${largura.toStringAsFixed(1).replaceAll('.', ',')} m × ${profundidade.toStringAsFixed(1).replaceAll('.', ',')} m\nLitragem: ${litragem.toStringAsFixed(1).replaceAll('.', ',')} m³${widget.gestor ? ' • Mensalidade: R\$ $mensalidade\nResponsável: $responsavel' : ''}',
+                                            '${p['tipo'] ?? 'Tipo não informado'} • ${comprimento.toStringAsFixed(1).replaceAll('.', ',')} m × ${largura.toStringAsFixed(1).replaceAll('.', ',')} m × ${profundidade.toStringAsFixed(1).replaceAll('.', ',')} m\nLitragem: ${litragem.toStringAsFixed(1).replaceAll('.', ',')} m³${widget.gestor ? ' • Mensalidade: R\$ $mensalidade\nResponsável: $responsavel' : ''}',
                                           ),
-                                                                                    isThreeLine: widget.gestor,
+                                          isThreeLine: widget.gestor,
                                           trailing: Container(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 8,
