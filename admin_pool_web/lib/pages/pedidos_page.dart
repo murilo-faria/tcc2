@@ -698,6 +698,9 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                         trailing: compacto
                             ? PopupMenuButton<String>(
                                 onSelected: (acao) {
+                                  if (acao == 'compartilhar') {
+                                    _compartilharPedido(grupo.key);
+                                  }
                                   if (acao == 'editar')
                                     _editarPedido(grupo.key, grupo.value);
                                   if (acao == 'concluir')
@@ -709,6 +712,10 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                   if (acao == 'excluir') _excluir(grupo.key);
                                 },
                                 itemBuilder: (_) => [
+                                  const PopupMenuItem(
+                                    value: 'compartilhar',
+                                    child: Text('Compartilhar PDF'),
+                                  ),
                                   if (widget.gestor && !concluido)
                                     const PopupMenuItem(
                                       value: 'editar',
