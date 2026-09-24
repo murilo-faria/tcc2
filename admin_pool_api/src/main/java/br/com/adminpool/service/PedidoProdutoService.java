@@ -11,6 +11,7 @@ import br.com.adminpool.model.PedidoProduto;
 import br.com.adminpool.model.Piscina;
 import br.com.adminpool.model.Produto;
 import br.com.adminpool.model.ResponsavelPagamento;
+import br.com.adminpool.model.StatusItemCobranca;
 import br.com.adminpool.model.TipoLancamentoCobranca;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.FuncionarioRepository;
@@ -259,12 +260,11 @@ public class PedidoProdutoService {
     public ResultadoProdutos resultado(YearMonth mes) {
         LocalDate inicio = mes.atDay(1);
         LocalDate fim = mes.atEndOfMonth();
-        List<PedidoProduto> concluidos = pedidos.findByDataConclusaoBetweenOrderByDataConclusaoDesc(inicio, fim);
-        BigDecimal compras = concluidos.stream()
-                .filter(pedido -> pedido.getPagador() == ResponsavelPagamento.EMPRESA || pedido.getPagador() == ResponsavelPagamento.FUNCIONARIO)
+        List<PedidoProduto> recebidos = produtosRecebidos(mes);
+        BigDecimal compras = recebidos.stream()
                 .map(PedidoProduto::getTotalCompra)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal vendas = concluidos.stream().filter(pedido -> pedido.getPagador() == ResponsavelPagamento.EMPRESA)
+        BigDecimal vendas = recebidos.stream()
                 .map(PedidoProduto::getTotalLiquido)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal lucro = vendas.subtract(compras);
@@ -274,6 +274,22 @@ public class PedidoProdutoService {
                         TipoLancamentoCobranca.PEDIDO, inicio, fim).stream()
                 .map(ItemCobranca::getSaldoPendente).reduce(BigDecimal.ZERO, BigDecimal::add);
         return new ResultadoProdutos(mes.toString(), compras, vendas, lucro, margem, receber);
+    }
+
+    /** Produtos só viram resultado de venda depois que a cobrança do pedido é quitada. */
+    public List<PedidoProduto> produtosRecebidos(YearMonth mes) {
+        LocalDate inicio = mes.atDay(1);
+        LocalDate fim = mes.atEndOfMonth();
+        Set<Long> codigosQuitados = itensCobranca
+                .findByTipoAndStatusAndDataUltimoPagamentoBetween(
+                        TipoLancamentoCobranca.PEDIDO, StatusItemCobranca.PAGO, inicio, fim)
+                .stream()
+                .map(ItemCobranca::getOrigemId)
+                .filter(codigo -> codigo != null)
+                .collect(java.util.stream.Collectors.toSet());
+        return codigosQuitados.stream()
+                .flatMap(codigo -> pedidos.findByCodigoPedidoOrderByIdAsc(codigo).stream())
+                .toList();
     }
 
     private Piscina validarPiscina(Long piscinaId, Cliente cliente, Authentication auth) {

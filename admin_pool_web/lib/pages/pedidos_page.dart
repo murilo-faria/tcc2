@@ -376,7 +376,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                     groupValue: pagador,
                     title: const Text('Pago pela empresa'),
                     subtitle: const Text(
-                      'Entra na cobrança do cliente e no resultado de produtos.',
+                      'Entra na cobrança do cliente; aparece no resultado após a baixa.',
                     ),
                     onChanged: (v) => setLocal(() => pagador = v!),
                   ),
@@ -813,17 +813,11 @@ class _ResultadoProdutosCard extends StatelessWidget {
   }
 
   Future<void> _detalhar(BuildContext context) async {
-    final resposta = await apiService.get('/api/pedidos-produto');
+    final resposta = await apiService.get(
+      '/api/pedidos-produto/resultado/itens?referencia=$referenciaAtual',
+    );
     if (resposta.statusCode != 200 || !context.mounted) return;
-    final pedidos = (jsonDecode(resposta.body) as List<dynamic>)
-        .where(
-          (item) =>
-              item['pagador'] == 'EMPRESA' &&
-              (item['dataConclusao'] ?? '').toString().startsWith(
-                referenciaAtual,
-              ),
-        )
-        .toList();
+    final pedidos = jsonDecode(resposta.body) as List<dynamic>;
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(

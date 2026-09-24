@@ -15,4 +15,6 @@ public interface ItemCobrancaRepository extends JpaRepository<ItemCobranca,Long>
     boolean existsByTipoAndOrigemId(TipoLancamentoCobranca tipo, Long origemId);
     Optional<ItemCobranca> findByTipoAndOrigemId(TipoLancamentoCobranca tipo, Long origemId);
     List<ItemCobranca> findByTipoAndDataLancamentoBetween(TipoLancamentoCobranca tipo, LocalDate inicio, LocalDate fim);
+    List<ItemCobranca> findByTipoAndStatusAndDataUltimoPagamentoBetween(
+            TipoLancamentoCobranca tipo, StatusItemCobranca status, LocalDate inicio, LocalDate fim);
 }

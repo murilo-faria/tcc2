@@ -80,6 +80,12 @@ public class PedidoProdutoController {
                 ? YearMonth.now() : YearMonth.parse(referencia));
     }
 
+    @GetMapping("/resultado/itens")
+    public List<PedidoProduto> produtosRecebidos(@RequestParam(required = false) String referencia) {
+        return servico.produtosRecebidos(referencia == null || referencia.isBlank()
+                ? YearMonth.now() : YearMonth.parse(referencia));
+    }
+
     @GetMapping(value = "/relatorio.pdf", produces = "application/pdf")
     public ResponseEntity<byte[]> relatorio(@RequestParam(required = false) Long clienteId,
                                              @RequestParam(required = false) String mes,
