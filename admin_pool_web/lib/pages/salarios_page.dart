@@ -53,7 +53,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
       ),
     );
   }
-  Color _cor(Map<String,dynamic> f) { const cores=[Colors.blue,Colors.green,Colors.orange,Colors.deepPurple,Colors.teal]; return cores[(f['id'] as int? ?? 0)%cores.length]; }
+  Color _cor(Map<String,dynamic> f) => corDoColaborador(f);
   Future<void> _abrirVales() async { await showDialog<void>(context: context, builder: (_) => _DialogoVales(aoAtualizar: () => setState(() => _salarios = _carregar()))); }
 
   Widget _cartaoResumo(Map<String, dynamic> resumo) {

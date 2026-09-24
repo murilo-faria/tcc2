@@ -71,6 +71,16 @@ String consultaPdf(Map<String, String?> parametros) => Uri(
   },
 ).query;
 
+Color corDoColaborador(dynamic funcionario) {
+  final usuario = funcionario is Map ? funcionario['usuario'] : null;
+  final nome = (usuario is Map ? usuario['nome'] : '').toString().toLowerCase();
+  if (nome.contains('thaís') || nome.contains('thais')) return Colors.blue;
+  if (nome.contains('murilo')) return Colors.grey;
+  if (nome.contains('vitor')) return Colors.deepPurple;
+  if (nome.contains('orlando')) return Colors.orange;
+  return Colors.teal;
+}
+
 class AdminPoolApp extends StatelessWidget {
   const AdminPoolApp({super.key});
 
@@ -1170,14 +1180,33 @@ class _ListaClientesState extends State<_ListaClientes> {
       final clientes = <int, dynamic>{};
       for (final piscina in piscinas) {
         final cliente = piscina['cliente'];
-        if (cliente != null) clientes[cliente['id'] as int] = cliente;
+        if (cliente != null) {
+          cliente['_responsavelCor'] = piscina['responsavel'];
+          clientes[cliente['id'] as int] = cliente;
+        }
       }
       return clientes.values.toList();
     }
-    final resposta = await apiService.get('/api/clientes');
-    if (resposta.statusCode != 200)
+    final respostas = await Future.wait([
+      apiService.get('/api/clientes'),
+      apiService.get('/api/piscinas'),
+    ]);
+    if (respostas[0].statusCode != 200)
       throw Exception('Não foi possível carregar os clientes.');
-    return jsonDecode(resposta.body) as List<dynamic>;
+    final lista = jsonDecode(respostas[0].body) as List<dynamic>;
+    if (respostas[1].statusCode == 200) {
+      final responsaveis = <dynamic, dynamic>{};
+      for (final piscina in jsonDecode(respostas[1].body) as List<dynamic>) {
+        final clienteId = (piscina['cliente'] ?? {})['id'];
+        if (clienteId != null && !responsaveis.containsKey(clienteId)) {
+          responsaveis[clienteId] = piscina['responsavel'];
+        }
+      }
+      for (final cliente in lista) {
+        cliente['_responsavelCor'] = responsaveis[cliente['id']];
+      }
+    }
+    return lista;
   }
 
   Future<void> excluir(int id) async {
@@ -1873,6 +1902,9 @@ class _ListaClientesState extends State<_ListaClientes> {
                         ? 'Vencimento não informado'
                         : 'Vence dia ${cliente['diaVencimento']}';
                     final ativo = cliente['ativo'] != false;
+                    final corResponsavel = corDoColaborador(
+                      cliente['_responsavelCor'] ?? cliente['funcionario'],
+                    );
                     final selecionado = clienteSelecionado == cliente['id'];
                     return Column(
                       children: [
@@ -1882,8 +1914,10 @@ class _ListaClientesState extends State<_ListaClientes> {
                                 ? null
                                 : cliente['id'] as int,
                           ),
-                          leading: const CircleAvatar(
-                            child: Icon(Icons.person),
+                          leading: CircleAvatar(
+                            backgroundColor: corResponsavel.withValues(alpha: .16),
+                            foregroundColor: corResponsavel,
+                            child: const Icon(Icons.person),
                           ),
                           title: Text(cliente['nome'] ?? ''),
                           subtitle: Text(
