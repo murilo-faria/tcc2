@@ -573,11 +573,14 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                     final cl = p['cliente'] ?? {},
                         resp = p['responsavel'] ?? {},
                         u = resp['usuario'] ?? {};
-                    final comprimento = (p['comprimento'] as num?)?.toDouble();
-                    final largura = (p['largura'] as num?)?.toDouble();
-                    final medidas = comprimento != null && largura != null
-                        ? ' ${comprimento.toStringAsFixed(2).replaceAll('.', ',')} m × ${largura.toStringAsFixed(2).replaceAll('.', ',')} m • ${(comprimento * largura).toStringAsFixed(2).replaceAll('.', ',')} m²'
-                        : '';
+                    final comprimento = p['comprimento'] is num
+                        ? (p['comprimento'] as num).toDouble()
+                        : 0.0;
+                    final largura = p['largura'] is num
+                        ? (p['largura'] as num).toDouble()
+                        : 0.0;
+                    final medidas =
+                        ' ${comprimento.toStringAsFixed(2).replaceAll('.', ',')} m × ${largura.toStringAsFixed(2).replaceAll('.', ',')} m • ${(comprimento * largura).toStringAsFixed(2).replaceAll('.', ',')} m²';
                     final celular = MediaQuery.of(context).size.width < 600;
                     if (celular) {
                       return ListTile(
