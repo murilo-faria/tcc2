@@ -62,6 +62,13 @@ class SecurityConfigTest {
         mvc.perform(post("/api/clientes").header("Authorization",basic("gestorMurilo","test-gestor-password-123")))
             .andExpect(status().isForbidden());
     }
+    @Test void authenticatedPdfRoutesDoNotRequireAuxiliaryHeader() throws Exception {
+        String auth = basic("gestorMurilo", "test-gestor-password-123");
+        mvc.perform(get("/api/pedidos-produto/relatorio.pdf").header("Authorization", auth))
+            .andExpect(status().isNotFound());
+        mvc.perform(get("/api/pedidos-produto/codigo/30/pdf").header("Authorization", auth))
+            .andExpect(status().isNotFound());
+    }
     @Test void corsAllowsSiteAndRejectsOtherOrigins() throws Exception {
         mvc.perform(options("/api/clientes").header("Origin","https://tibumlimpezapiscinas.com.br")
             .header("Access-Control-Request-Method","GET").header("Access-Control-Request-Headers","authorization,x-requested-with"))

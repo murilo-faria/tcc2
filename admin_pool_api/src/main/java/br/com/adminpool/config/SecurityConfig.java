@@ -50,7 +50,7 @@ public class SecurityConfig {
                 // cabeçalho auxiliar.
                 .requestMatchers(HttpMethod.GET,
                     "/api/pedidos-produto/relatorio.pdf",
-                    "/api/pedidos-produto/codigo/*/pdf",
+                    "/api/pedidos-produto/codigo/{codigo}/pdf",
                     "/api/ordens-servico/relatorio.pdf").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/cobrancas/relatorio.pdf").hasRole("GESTOR")
                 .requestMatchers(req -> !"AdminPool".equals(req.getHeader("X-Requested-With"))).denyAll()
