@@ -335,7 +335,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                     const SizedBox(width: 16),
                     Expanded(child: TextField(controller: perdaEscada, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setL(() {}), decoration: const InputDecoration(labelText: 'Perda da escada (%)'))),
                   ]),
-                  Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Metragem: ${metragem.toStringAsFixed(2)} m²\nLitragem calculada: ${litragem.round()} litros', style: const TextStyle(fontWeight: FontWeight.bold)))),
+                  Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Metragem: ${metragem.toStringAsFixed(2)} m²\nLitragem: ${(litragem / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³', style: const TextStyle(fontWeight: FontWeight.bold)))),
                   TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
                   DropdownButtonFormField<int>(
                     initialValue: responsavel,
@@ -480,7 +480,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                 const SizedBox(width: 16),
                 Expanded(child: TextField(controller: perdaEscada, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Perda da escada (%)'))),
               ]),
-              Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Metragem: ${metragem.toStringAsFixed(2)} m²\nLitragem calculada: ${litragem.round()} litros', style: const TextStyle(fontWeight: FontWeight.bold)))),
+              Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Metragem: ${metragem.toStringAsFixed(2)} m²\nLitragem: ${(litragem / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³', style: const TextStyle(fontWeight: FontWeight.bold)))),
               TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
               DropdownButtonFormField<int?>(initialValue: responsavel, decoration: const InputDecoration(labelText: 'Colaborador responsável'), items: [const DropdownMenuItem<int?>(value: null, child: Text('Definir depois')), ...funcs.map<DropdownMenuItem<int?>>((f) => DropdownMenuItem<int?>(value: f['id'], child: Text((f['usuario'] ?? {})['nome'] ?? '')))], onChanged: (v) => setLocal(() => responsavel = v)),
             ],
@@ -597,8 +597,10 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                     final largura = p['largura'] is num
                         ? (p['largura'] as num).toDouble()
                         : 0.0;
+                    final litragemMetrosCubicos =
+                        ((p['volumeLitros'] as num?) ?? 0).toDouble() / 1000;
                     final medidas =
-                        ' ${comprimento.toStringAsFixed(2).replaceAll('.', ',')} m × ${largura.toStringAsFixed(2).replaceAll('.', ',')} m • ${(comprimento * largura).toStringAsFixed(2).replaceAll('.', ',')} m² • ${p['volumeLitros'] ?? 0} L';
+                        ' ${comprimento.toStringAsFixed(2).replaceAll('.', ',')} m × ${largura.toStringAsFixed(2).replaceAll('.', ',')} m • ${(comprimento * largura).toStringAsFixed(2).replaceAll('.', ',')} m² • ${litragemMetrosCubicos.toStringAsFixed(1).replaceAll('.', ',')} m³';
                     final celular = MediaQuery.of(context).size.width < 600;
                     if (celular) {
                       return ListTile(
