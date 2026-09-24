@@ -2415,9 +2415,9 @@ class _ListaClientesState extends State<_ListaClientes> {
                                             ),
                                           ),
                                           subtitle: Text(
-                                            '${p['tipo'] ?? 'Tipo não informado'} • ${comprimento.toStringAsFixed(1).replaceAll('.', ',')} m × ${largura.toStringAsFixed(1).replaceAll('.', ',')} m × ${profundidade.toStringAsFixed(1).replaceAll('.', ',')} m\nLitragem: ${litragem.toStringAsFixed(1).replaceAll('.', ',')} m³ • Mensalidade: R\$ $mensalidade\nResponsável: $responsavel',
+                                                                                        '${p['tipo'] ?? 'Tipo não informado'} • ${comprimento.toStringAsFixed(1).replaceAll('.', ',')} m × ${largura.toStringAsFixed(1).replaceAll('.', ',')} m × ${profundidade.toStringAsFixed(1).replaceAll('.', ',')} m\nLitragem: ${litragem.toStringAsFixed(1).replaceAll('.', ',')} m³${widget.gestor ? ' • Mensalidade: R\$ $mensalidade\nResponsável: $responsavel' : ''}',
                                           ),
-                                          isThreeLine: true,
+                                                                                    isThreeLine: widget.gestor,
                                           trailing: Container(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 8,
