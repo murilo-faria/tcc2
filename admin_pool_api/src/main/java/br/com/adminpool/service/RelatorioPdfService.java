@@ -32,6 +32,16 @@ public class RelatorioPdfService {
     private static final Locale BRASIL = Locale.of("pt", "BR");
 
     public byte[] gerar(String titulo, String filtros, List<LinhaRelatorioPdf> linhas) {
+        return gerarComTabela(titulo, filtros, linhas, new float[]{1.45f, 2.55f, 1.05f, 1.15f});
+    }
+
+    /** A capa usa uma coluna de descrição maior sem alterar os outros relatórios. */
+    public byte[] gerarCapa(String titulo, String filtros, List<LinhaRelatorioPdf> linhas) {
+        return gerarComTabela(titulo, filtros, linhas, new float[]{1.15f, 3.25f, 0.9f, 0.9f});
+    }
+
+    private byte[] gerarComTabela(String titulo, String filtros, List<LinhaRelatorioPdf> linhas,
+                                  float[] larguras) {
         try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {
             Document documento = new Document(PageSize.A4, 40, 40, 35, 35);
             PdfWriter.getInstance(documento, arquivo);
@@ -43,7 +53,7 @@ public class RelatorioPdfService {
             documento.add(new Paragraph(filtros, fonte(tamanhoDetalhe, Font.NORMAL, Color.DARK_GRAY)));
             documento.add(new Paragraph(" "));
 
-            PdfPTable tabela = new PdfPTable(new float[]{1.45f, 2.55f, 1.05f, 1.15f});
+            PdfPTable tabela = new PdfPTable(larguras);
             tabela.setWidthPercentage(100);
             tabela.setHeaderRows(1);
             adicionarCabecalho(tabela, "CLIENTE", Element.ALIGN_LEFT);

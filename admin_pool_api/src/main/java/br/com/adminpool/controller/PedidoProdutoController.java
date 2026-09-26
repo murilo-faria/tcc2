@@ -70,8 +70,11 @@ public class PedidoProdutoController {
                     descricaoItem(p), primeiro.getDataPedido().toString(),
                     p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
         String endereco = enderecoEntrega(primeiro);
+        byte[] pdf = "CAPA".equals(primeiro.getTipoPedido())
+                ? relatorios.gerarCapa("Pedido #" + codigo, endereco, linhas)
+                : relatorios.gerar("Pedido #" + codigo, endereco, linhas);
         return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
-                .body(relatorios.gerar("Pedido #" + codigo, endereco, linhas));
+                .body(pdf);
     }
 
     @GetMapping("/abertos")
@@ -222,7 +225,7 @@ public class PedidoProdutoController {
                 + " m = " + capa.getAreaCapa().stripTrailingZeros().toPlainString() + " m²";
         BigDecimal valorCapa = capa.getPrecoCompraUnitario().add(capa.getLucroCapa());
         return List.of(
-                new LinhaRelatorioPdf(destinatario(capa), capa.getDescricaoCapa() + " • Metragem: " + medidas,
+                new LinhaRelatorioPdf(destinatario(capa), capa.getDescricaoCapa() + "\nMetragem: " + medidas,
                         capa.getDataPedido().toString(), valorCapa),
                 new LinhaRelatorioPdf(destinatario(capa), "Frete", capa.getDataPedido().toString(), capa.getFreteCapa()));
     }
