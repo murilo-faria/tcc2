@@ -2,9 +2,13 @@ package br.com.adminpool.service;
 
 import br.com.adminpool.model.Cliente;
 import br.com.adminpool.model.Funcionario;
+import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.model.Piscina;
+import br.com.adminpool.model.StatusItemCobranca;
+import br.com.adminpool.model.TipoLancamentoCobranca;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.FuncionarioRepository;
+import br.com.adminpool.repository.ItemCobrancaRepository;
 import br.com.adminpool.repository.PiscinaRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.boot.CommandLineRunner;
@@ -41,13 +45,16 @@ public class ImportadorClientesMurilo implements CommandLineRunner {
     private final ClienteRepository clientes;
     private final PiscinaRepository piscinas;
     private final FuncionarioRepository funcionarios;
+    private final ItemCobrancaRepository itens;
     private final CobrancaService cobrancas;
 
     public ImportadorClientesMurilo(ClienteRepository clientes, PiscinaRepository piscinas,
-                                    FuncionarioRepository funcionarios, CobrancaService cobrancas) {
+                                    FuncionarioRepository funcionarios, ItemCobrancaRepository itens,
+                                    CobrancaService cobrancas) {
         this.clientes = clientes;
         this.piscinas = piscinas;
         this.funcionarios = funcionarios;
+        this.itens = itens;
         this.cobrancas = cobrancas;
     }
 
@@ -59,24 +66,42 @@ public class ImportadorClientesMurilo implements CommandLineRunner {
 
         YearMonth mesAtual = YearMonth.now();
         for (Cadastro cadastro : CADASTROS) {
-            boolean jaExiste = clientes.findAll().stream()
-                    .anyMatch(cliente -> cliente.getNome().trim().equalsIgnoreCase(cadastro.nome()));
-            if (jaExiste) continue;
+            Cliente cliente = clientes.findAll().stream()
+                    .filter(item -> item.getNome().trim().equalsIgnoreCase(cadastro.nome()))
+                    .findFirst().orElseGet(() -> criarCliente(cadastro, mesAtual));
 
-            Cliente cliente = new Cliente();
-            cliente.setNome(cadastro.nome());
-            cliente.setValorMensalidade(new BigDecimal(cadastro.mensalidade()));
-            cliente.setDiaVencimento(cadastro.vencimento());
-            cliente.setPrimeiroVencimento(mesAtual.atDay(Math.min(cadastro.vencimento(), mesAtual.lengthOfMonth())));
-            cliente.setAtivo(true);
-            Cliente salvo = clientes.save(cliente);
-
-            Piscina piscina = new Piscina();
-            piscina.setCliente(salvo);
-            piscina.setNome("Piscina " + cadastro.nome());
+            BigDecimal mensalidade = new BigDecimal(cadastro.mensalidade());
+            Piscina piscina = piscinas.findByClienteIdOrderByNome(cliente.getId()).stream()
+                    .filter(item -> item.getNome().equalsIgnoreCase("Piscina " + cadastro.nome()))
+                    .findFirst().orElseGet(() -> {
+                        Piscina nova = new Piscina();
+                        nova.setCliente(cliente);
+                        nova.setNome("Piscina " + cadastro.nome());
+                        return nova;
+                    });
             piscina.setResponsavel(murilo);
+            piscina.setValorMensalidade(mensalidade);
             piscinas.save(piscina);
+
+            // Os itens gerados pela primeira versão da importação estavam em R$ 0,00.
+            // Só eles, ainda sem baixa, são recriados com a mensalidade da piscina.
+            itens.findByCobrancaClienteIdOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(cliente.getId()).stream()
+                    .filter(item -> item.getTipo() == TipoLancamentoCobranca.MENSALIDADE)
+                    .filter(item -> mesAtual.toString().equals(item.getCobranca().getReferencia()))
+                    .filter(item -> item.getValorPago() == null || item.getValorPago().signum() == 0)
+                    .filter(item -> item.getValorOriginal() == null || item.getValorOriginal().signum() == 0)
+                    .forEach(itens::delete);
         }
         cobrancas.gerarMesAtual();
+    }
+
+    private Cliente criarCliente(Cadastro cadastro, YearMonth mesAtual) {
+        Cliente cliente = new Cliente();
+        cliente.setNome(cadastro.nome());
+        cliente.setValorMensalidade(new BigDecimal(cadastro.mensalidade()));
+        cliente.setDiaVencimento(cadastro.vencimento());
+        cliente.setPrimeiroVencimento(mesAtual.atDay(Math.min(cadastro.vencimento(), mesAtual.lengthOfMonth())));
+        cliente.setAtivo(true);
+        return clientes.save(cliente);
     }
 }
