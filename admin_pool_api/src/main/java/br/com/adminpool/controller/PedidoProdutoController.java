@@ -64,14 +64,14 @@ public class PedidoProdutoController {
         var itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
         if (itens.isEmpty()) throw new IllegalArgumentException("Pedido não encontrado.");
         var primeiro = itens.get(0);
-        var linhas = "CAPA".equals(primeiro.getTipoPedido())
-                ? linhasDaCapa(primeiro)
-                : itens.stream().map(p -> new LinhaRelatorioPdf(destinatario(primeiro),
+        var linhas = itens.stream().map(p -> new LinhaRelatorioPdf(destinatario(primeiro),
                     descricaoItem(p), primeiro.getDataPedido().toString(),
                     p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
         String endereco = enderecoEntrega(primeiro);
         byte[] pdf = "CAPA".equals(primeiro.getTipoPedido())
-                ? relatorios.gerarCapa("Pedido #" + codigo, endereco, linhas)
+                ? relatorios.gerarCapa("Pedido #" + codigo, endereco, primeiro.getDescricaoCapa(),
+                    medidasDaCapa(primeiro), primeiro.getPrecoCompraUnitario().add(primeiro.getLucroCapa()),
+                    primeiro.getFreteCapa())
                 : relatorios.gerar("Pedido #" + codigo, endereco, linhas);
         return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
                 .body(pdf);
@@ -219,15 +219,10 @@ public class PedidoProdutoController {
         return pedido.getProduto().getNome() + " • " + pedido.getQuantidade() + " un.";
     }
 
-    private List<LinhaRelatorioPdf> linhasDaCapa(PedidoProduto capa) {
-        String medidas = capa.getPiscina().getComprimento().stripTrailingZeros().toPlainString()
+    private String medidasDaCapa(PedidoProduto capa) {
+        return capa.getPiscina().getComprimento().stripTrailingZeros().toPlainString()
                 + " m × " + capa.getPiscina().getLargura().stripTrailingZeros().toPlainString()
                 + " m = " + capa.getAreaCapa().stripTrailingZeros().toPlainString() + " m²";
-        BigDecimal valorCapa = capa.getPrecoCompraUnitario().add(capa.getLucroCapa());
-        return List.of(
-                new LinhaRelatorioPdf(destinatario(capa), capa.getDescricaoCapa() + "\nMetragem: " + medidas,
-                        capa.getDataPedido().toString(), valorCapa),
-                new LinhaRelatorioPdf(destinatario(capa), "Frete", capa.getDataPedido().toString(), capa.getFreteCapa()));
     }
 
     private List<LinhaRelatorioPedidoCompleto> linhasCompletas(List<PedidoProduto> lista) {

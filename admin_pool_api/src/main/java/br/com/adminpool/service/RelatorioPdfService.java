@@ -35,9 +35,43 @@ public class RelatorioPdfService {
         return gerarComTabela(titulo, filtros, linhas, new float[]{1.45f, 2.55f, 1.05f, 1.15f});
     }
 
-    /** A capa usa uma coluna de descrição maior sem alterar os outros relatórios. */
-    public byte[] gerarCapa(String titulo, String filtros, List<LinhaRelatorioPdf> linhas) {
-        return gerarComTabela(titulo, filtros, linhas, new float[]{1.15f, 3.25f, 0.9f, 0.9f});
+    /** Layout exclusivo da capa, sem alterar os relatórios comuns. */
+    public byte[] gerarCapa(String titulo, String endereco, String tipo, String metragem,
+                            BigDecimal valorCapa, BigDecimal frete) {
+        try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {
+            Document documento = new Document(PageSize.A4, 40, 40, 35, 35);
+            PdfWriter.getInstance(documento, arquivo);
+            documento.open();
+            adicionarLogo(documento);
+            documento.add(new Paragraph(titulo, fonte(14, Font.BOLD, Color.DARK_GRAY)));
+            documento.add(new Paragraph(endereco, fonte(12, Font.NORMAL, Color.DARK_GRAY)));
+            documento.add(new Paragraph(" "));
+
+            PdfPTable tabela = new PdfPTable(new float[]{1.65f, 2.7f, 1.3f});
+            tabela.setWidthPercentage(100);
+            adicionarCabecalho(tabela, "TIPO", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "METRAGEM", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "FRETE", Element.ALIGN_RIGHT);
+            adicionarCelula(tabela, tipo, Element.ALIGN_LEFT);
+            adicionarCelula(tabela, metragem, Element.ALIGN_LEFT);
+            adicionarCelula(tabela, formatarValor(frete), Element.ALIGN_RIGHT);
+            documento.add(tabela);
+
+            Paragraph valor = new Paragraph("Valor da capa: " + formatarValor(valorCapa),
+                    fonte(12, Font.NORMAL, Color.DARK_GRAY));
+            valor.setAlignment(Element.ALIGN_RIGHT);
+            valor.setSpacingBefore(12);
+            documento.add(valor);
+            Paragraph total = new Paragraph("Total: " + formatarValor(valorCapa.add(frete)),
+                    fonte(12, Font.BOLD, AZUL));
+            total.setAlignment(Element.ALIGN_RIGHT);
+            total.setSpacingBefore(5);
+            documento.add(total);
+            documento.close();
+            return arquivo.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalStateException("Não foi possível preparar o PDF da capa.", e);
+        }
     }
 
     private byte[] gerarComTabela(String titulo, String filtros, List<LinhaRelatorioPdf> linhas,
