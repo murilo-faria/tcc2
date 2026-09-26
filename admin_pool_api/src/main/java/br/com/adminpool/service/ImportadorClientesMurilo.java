@@ -1,12 +1,13 @@
 package br.com.adminpool.service;
 
 import br.com.adminpool.model.Cliente;
+import br.com.adminpool.model.CobrancaMensal;
 import br.com.adminpool.model.Funcionario;
 import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.model.Piscina;
-import br.com.adminpool.model.StatusItemCobranca;
 import br.com.adminpool.model.TipoLancamentoCobranca;
 import br.com.adminpool.repository.ClienteRepository;
+import br.com.adminpool.repository.CobrancaRepository;
 import br.com.adminpool.repository.FuncionarioRepository;
 import br.com.adminpool.repository.ItemCobrancaRepository;
 import br.com.adminpool.repository.PiscinaRepository;
@@ -45,15 +46,18 @@ public class ImportadorClientesMurilo implements CommandLineRunner {
     private final ClienteRepository clientes;
     private final PiscinaRepository piscinas;
     private final FuncionarioRepository funcionarios;
+    private final CobrancaRepository cobrancasMensais;
     private final ItemCobrancaRepository itens;
     private final CobrancaService cobrancas;
 
     public ImportadorClientesMurilo(ClienteRepository clientes, PiscinaRepository piscinas,
-                                    FuncionarioRepository funcionarios, ItemCobrancaRepository itens,
+                                    FuncionarioRepository funcionarios, CobrancaRepository cobrancasMensais,
+                                    ItemCobrancaRepository itens,
                                     CobrancaService cobrancas) {
         this.clientes = clientes;
         this.piscinas = piscinas;
         this.funcionarios = funcionarios;
+        this.cobrancasMensais = cobrancasMensais;
         this.itens = itens;
         this.cobrancas = cobrancas;
     }
@@ -83,16 +87,38 @@ public class ImportadorClientesMurilo implements CommandLineRunner {
             piscina.setValorMensalidade(mensalidade);
             piscinas.save(piscina);
 
-            // Os itens gerados pela primeira versão da importação estavam em R$ 0,00.
-            // Só eles, ainda sem baixa, são recriados com a mensalidade da piscina.
-            itens.findByCobrancaClienteIdOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(cliente.getId()).stream()
-                    .filter(item -> item.getTipo() == TipoLancamentoCobranca.MENSALIDADE)
-                    .filter(item -> mesAtual.toString().equals(item.getCobranca().getReferencia()))
-                    .filter(item -> item.getValorPago() == null || item.getValorPago().signum() == 0)
-                    .filter(item -> item.getValorOriginal() == null || item.getValorOriginal().signum() == 0)
-                    .forEach(itens::delete);
+            corrigirSomenteLancamentoVazio(cliente, mensalidade, mesAtual);
         }
         cobrancas.gerarMesAtual();
+    }
+
+    /** Corrige apenas a cobrança que a primeira importação criou sem item e sem baixa. */
+    private void corrigirSomenteLancamentoVazio(Cliente cliente, BigDecimal mensalidade, YearMonth mes) {
+        CobrancaMensal cobranca = cobrancasMensais.findByClienteIdAndReferencia(cliente.getId(), mes.toString()).orElse(null);
+        if (cobranca == null) return;
+
+        ItemCobranca mensalidadeAtual = itens.findByCobrancaIdOrderByDataLancamentoAscIdAsc(cobranca.getId()).stream()
+                .filter(item -> item.getTipo() == TipoLancamentoCobranca.MENSALIDADE)
+                .findFirst().orElse(null);
+        if (mensalidadeAtual != null && (mensalidadeAtual.getValorPago() == null
+                || mensalidadeAtual.getValorPago().signum() != 0
+                || mensalidadeAtual.getValorOriginal() == null
+                || mensalidadeAtual.getValorOriginal().signum() != 0)) return;
+
+        if (mensalidadeAtual == null) {
+            mensalidadeAtual = new ItemCobranca();
+            mensalidadeAtual.setCobranca(cobranca);
+            mensalidadeAtual.setTipo(TipoLancamentoCobranca.MENSALIDADE);
+            mensalidadeAtual.setDescricao("Mensalidade " + mes);
+            mensalidadeAtual.setDataLancamento(cobranca.getVencimento());
+            mensalidadeAtual.setValorPago(BigDecimal.ZERO);
+        }
+        mensalidadeAtual.setValorOriginal(mensalidade);
+        itens.save(mensalidadeAtual);
+        cobranca.setMensalidade(mensalidade);
+        cobranca.setTotal(mensalidade.add(cobranca.getProdutos() == null ? BigDecimal.ZERO : cobranca.getProdutos())
+                .add(cobranca.getServicos() == null ? BigDecimal.ZERO : cobranca.getServicos()));
+        cobrancasMensais.save(cobranca);
     }
 
     private Cliente criarCliente(Cadastro cadastro, YearMonth mesAtual) {
