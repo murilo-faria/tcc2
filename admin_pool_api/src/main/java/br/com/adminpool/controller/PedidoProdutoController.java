@@ -75,12 +75,7 @@ public class PedidoProdutoController {
             BigDecimal valorCapa = primeiro.getPrecoCompraUnitario().add(primeiro.getLucroCapa());
             linhas = List.of(
                     new LinhaRelatorioPdf(destinatario(primeiro),
-                            primeiro.getDescricaoCapa(),
-                            primeiro.getDataPedido().toString(), BigDecimal.ZERO),
-                    new LinhaRelatorioPdf(destinatario(primeiro),
-                            "Metragem: " + medidasDaCapa(primeiro),
-                            primeiro.getDataPedido().toString(), BigDecimal.ZERO),
-                    new LinhaRelatorioPdf(destinatario(primeiro), "Valor da capa",
+                            primeiro.getDescricaoCapa() + "\nMetragem: " + medidasDaCapa(primeiro),
                             primeiro.getDataPedido().toString(), valorCapa),
                     new LinhaRelatorioPdf(destinatario(primeiro), "Frete",
                             primeiro.getDataPedido().toString(), primeiro.getFreteCapa()));
@@ -243,8 +238,8 @@ public class PedidoProdutoController {
 
     private String medidasDaCapa(PedidoProduto capa) {
         return capa.getPiscina().getComprimento().stripTrailingZeros().toPlainString()
-                + " m × " + capa.getPiscina().getLargura().stripTrailingZeros().toPlainString()
-                + " m = " + capa.getAreaCapa().stripTrailingZeros().toPlainString() + " m²";
+                + " × " + capa.getPiscina().getLargura().stripTrailingZeros().toPlainString()
+                + " = " + capa.getAreaCapa().stripTrailingZeros().toPlainString() + " m²";
     }
 
     private List<LinhaRelatorioPedidoCompleto> linhasCompletas(List<PedidoProduto> lista) {
