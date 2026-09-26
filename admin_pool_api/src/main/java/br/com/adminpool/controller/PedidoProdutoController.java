@@ -72,7 +72,7 @@ public class PedidoProdutoController {
                 .toList();
         String endereco = enderecoEntrega(primeiro);
         byte[] pdf = "CAPA".equals(primeiro.getTipoPedido())
-                ? relatorios.gerarCapa("Pedido #" + codigo, endereco, primeiro.getDescricaoCapa(),
+                ? relatorios.gerarCapa("Pedido #" + codigo, destinatario(primeiro), endereco, primeiro.getDescricaoCapa(),
                     medidasDaCapa(primeiro), primeiro.getPrecoCompraUnitario().add(primeiro.getLucroCapa()),
                     primeiro.getFreteCapa())
                 : relatorios.gerar("Pedido #" + codigo, endereco, linhas);

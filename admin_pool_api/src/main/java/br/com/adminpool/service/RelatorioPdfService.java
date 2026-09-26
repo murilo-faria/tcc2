@@ -36,7 +36,7 @@ public class RelatorioPdfService {
     }
 
     /** Layout exclusivo da capa, sem alterar os relatórios comuns. */
-    public byte[] gerarCapa(String titulo, String endereco, String tipo, String metragem,
+    public byte[] gerarCapa(String titulo, String cliente, String endereco, String tipo, String metragem,
                             BigDecimal valorCapa, BigDecimal frete) {
         try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {
             Document documento = new Document(PageSize.A4, 40, 40, 35, 35);
@@ -44,28 +44,28 @@ public class RelatorioPdfService {
             documento.open();
             adicionarLogo(documento);
             documento.add(new Paragraph(titulo, fonte(14, Font.BOLD, Color.DARK_GRAY)));
+            documento.add(new Paragraph("Cliente: " + cliente, fonte(12, Font.BOLD, Color.DARK_GRAY)));
             documento.add(new Paragraph(endereco, fonte(12, Font.NORMAL, Color.DARK_GRAY)));
             documento.add(new Paragraph(" "));
 
-            PdfPTable tabela = new PdfPTable(new float[]{1.65f, 2.7f, 1.3f});
+            PdfPTable tabela = new PdfPTable(new float[]{1.7f, 3.3f});
             tabela.setWidthPercentage(100);
-            adicionarCabecalho(tabela, "TIPO", Element.ALIGN_LEFT);
-            adicionarCabecalho(tabela, "METRAGEM", Element.ALIGN_LEFT);
-            adicionarCabecalho(tabela, "FRETE", Element.ALIGN_RIGHT);
+            adicionarCabecalho(tabela, "DESCRIÇÃO", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "VALOR", Element.ALIGN_RIGHT);
             adicionarCelula(tabela, tipo, Element.ALIGN_LEFT);
-            adicionarCelula(tabela, metragem, Element.ALIGN_LEFT);
+            adicionarCelula(tabela, "", Element.ALIGN_RIGHT);
+            adicionarCelula(tabela, "Metragem: " + metragem, Element.ALIGN_LEFT);
+            adicionarCelula(tabela, "", Element.ALIGN_RIGHT);
+            adicionarCelula(tabela, "Valor da capa", Element.ALIGN_LEFT);
+            adicionarCelula(tabela, formatarValor(valorCapa), Element.ALIGN_RIGHT);
+            adicionarCelula(tabela, "Frete", Element.ALIGN_LEFT);
             adicionarCelula(tabela, formatarValor(frete), Element.ALIGN_RIGHT);
             documento.add(tabela);
 
-            Paragraph valor = new Paragraph("Valor da capa: " + formatarValor(valorCapa),
-                    fonte(12, Font.NORMAL, Color.DARK_GRAY));
-            valor.setAlignment(Element.ALIGN_RIGHT);
-            valor.setSpacingBefore(12);
-            documento.add(valor);
             Paragraph total = new Paragraph("Total: " + formatarValor(valorCapa.add(frete)),
                     fonte(12, Font.BOLD, AZUL));
             total.setAlignment(Element.ALIGN_RIGHT);
-            total.setSpacingBefore(5);
+            total.setSpacingBefore(12);
             documento.add(total);
             documento.close();
             return arquivo.toByteArray();
