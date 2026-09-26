@@ -75,7 +75,10 @@ public class PedidoProdutoController {
             BigDecimal valorCapa = primeiro.getPrecoCompraUnitario().add(primeiro.getLucroCapa());
             linhas = List.of(
                     new LinhaRelatorioPdf(destinatario(primeiro),
-                            primeiro.getDescricaoCapa() + " • Metragem: " + medidasDaCapa(primeiro),
+                            primeiro.getDescricaoCapa(),
+                            primeiro.getDataPedido().toString(), BigDecimal.ZERO),
+                    new LinhaRelatorioPdf(destinatario(primeiro),
+                            "Metragem: " + medidasDaCapa(primeiro),
                             primeiro.getDataPedido().toString(), BigDecimal.ZERO),
                     new LinhaRelatorioPdf(destinatario(primeiro), "Valor da capa",
                             primeiro.getDataPedido().toString(), valorCapa),
