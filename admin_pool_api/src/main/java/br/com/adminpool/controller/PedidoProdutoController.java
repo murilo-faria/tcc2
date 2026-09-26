@@ -101,12 +101,15 @@ public class PedidoProdutoController {
                                              @RequestParam(required = false) String mes,
                                              @RequestParam(required = false) LocalDate inicio,
                                              @RequestParam(required = false) LocalDate fim,
+                                             @RequestParam(required = false) String status,
                                              @RequestParam(defaultValue = "VENDAS") String tipo) {
         List<PedidoProduto> lista = pedidos.findAllByOrderByDataPedidoDesc().stream()
                 .filter(p -> clienteId == null || p.getCliente() != null && p.getCliente().getId().equals(clienteId))
                 .filter(p -> mes == null || mes.isBlank() || p.getDataPedido().toString().startsWith(mes))
                 .filter(p -> inicio == null || !p.getDataPedido().isBefore(inicio))
-                .filter(p -> fim == null || !p.getDataPedido().isAfter(fim)).toList();
+                .filter(p -> fim == null || !p.getDataPedido().isAfter(fim))
+                .filter(p -> status == null || status.isBlank() || status.equalsIgnoreCase(p.getStatus()))
+                .toList();
         String relatorio = tipo == null ? "VENDAS" : tipo.toUpperCase();
         if ("COMPLETO".equals(relatorio)) {
             return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio-pedidos-completo.pdf")

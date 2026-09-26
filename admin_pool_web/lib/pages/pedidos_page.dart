@@ -13,6 +13,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   String _filtro = '';
   String? _clienteSelecionado;
   String? _mesSelecionado;
+  String? _statusSelecionado;
   bool _mostrarFiltros = false;
   DateTime? _dataInicial;
   DateTime? _dataFinal;
@@ -84,6 +85,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           )
           .join(' ');
       return (_clienteSelecionado == null || cliente == _clienteSelecionado) &&
+          (_statusSelecionado == null ||
+              primeiro['status']?.toString() == _statusSelecionado) &&
           _noPeriodo(primeiro['dataPedido']) &&
           (cliente.toLowerCase().contains(_filtro) || produtos.contains(_filtro));
     }).toList();
@@ -237,6 +240,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
         'mes': _mesSelecionado,
         'inicio': _dataInicial?.toIso8601String().substring(0, 10),
         'fim': _dataFinal?.toIso8601String().substring(0, 10),
+        'status': _statusSelecionado,
         'tipo': tipo,
       });
       final resposta = await apiService.get(
@@ -732,11 +736,42 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                   aoLimpar: () => setState(() {
                     _clienteSelecionado = null;
                     _mesSelecionado = null;
+                    _statusSelecionado = null;
                     _dataInicial = null;
                     _dataFinal = null;
                   }),
                 );
               },
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: MediaQuery.of(context).size.width < 600 ? 180 : 220,
+              child: DropdownButtonFormField<String>(
+                value: _statusSelecionado,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Status',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Todos os status')),
+                  DropdownMenuItem(
+                    value: 'SOLICITADO',
+                    child: Text('Solicitados'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'CONCLUIDO',
+                    child: Text('Concluídos'),
+                  ),
+                ],
+                onChanged: (valor) =>
+                    setState(() => _statusSelecionado = valor),
+              ),
             ),
           ],
           const SizedBox(height: 12),

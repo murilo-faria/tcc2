@@ -372,6 +372,16 @@ class _FiltrosRelatorio extends StatelessWidget {
       ? vazio
       : '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
 
+  String _textoMes(String mes) {
+    final data = DateTime.tryParse('${mes}-01');
+    if (data == null) return mes;
+    const nomes = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+    ];
+    return '${nomes[data.month - 1]}/${data.year.toString().substring(2)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final celular = MediaQuery.of(context).size.width < 600;
@@ -381,7 +391,7 @@ class _FiltrosRelatorio extends StatelessWidget {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         SizedBox(
-          width: celular ? 150 : 220,
+          width: celular ? 220 : 220,
           child: DropdownButtonFormField<String>(
             value: clienteSelecionado,
             isExpanded: true,
@@ -410,9 +420,10 @@ class _FiltrosRelatorio extends StatelessWidget {
           ),
         ),
         SizedBox(
-          width: celular ? 138 : 180,
+          width: celular ? 220 : 180,
           child: DropdownButtonFormField<String>(
             value: mesSelecionado,
+            isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Mês',
               isDense: true,
@@ -428,7 +439,10 @@ class _FiltrosRelatorio extends StatelessWidget {
                 child: Text('Todos os meses'),
               ),
               ...meses.map(
-                (mes) => DropdownMenuItem(value: mes, child: Text(mes)),
+                (mes) => DropdownMenuItem(
+                  value: mes,
+                  child: Text(_textoMes(mes), overflow: TextOverflow.ellipsis),
+                ),
               ),
             ],
             onChanged: aoMudarMes,
