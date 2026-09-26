@@ -192,6 +192,39 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   }
 
   Future<void> _baixarRelatorio() async {
+    final tipo = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Gerar relatório de pedidos'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'VENDAS'),
+            child: const ListTile(
+              leading: Icon(Icons.sell_outlined),
+              title: Text('Somente vendas'),
+              subtitle: Text('Mostra o valor de venda de cada item.'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'COMPRAS'),
+            child: const ListTile(
+              leading: Icon(Icons.shopping_bag_outlined),
+              title: Text('Somente compras'),
+              subtitle: Text('Mostra o custo de compra de cada item.'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'COMPLETO'),
+            child: const ListTile(
+              leading: Icon(Icons.analytics_outlined),
+              title: Text('Completo por pedido'),
+              subtitle: Text('Cliente, produtos, compra, venda e lucro.'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (tipo == null) return;
     try {
       final consulta = consultaPdf({
         'clienteId': _clienteSelecionado == null
@@ -204,12 +237,18 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
         'mes': _mesSelecionado,
         'inicio': _dataInicial?.toIso8601String().substring(0, 10),
         'fim': _dataFinal?.toIso8601String().substring(0, 10),
+        'tipo': tipo,
       });
       final resposta = await apiService.get(
         '/api/pedidos-produto/relatorio.pdf?$consulta',
       );
       if (resposta.statusCode == 200) {
-        abrirPdf(resposta, 'relatorio-pedidos.pdf');
+        final arquivo = tipo == 'COMPRAS'
+            ? 'relatorio-compras-pedidos.pdf'
+            : tipo == 'COMPLETO'
+            ? 'relatorio-pedidos-completo.pdf'
+            : 'relatorio-vendas-pedidos.pdf';
+        abrirPdf(resposta, arquivo);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

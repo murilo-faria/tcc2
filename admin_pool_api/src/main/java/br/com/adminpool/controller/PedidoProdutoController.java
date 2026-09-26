@@ -9,6 +9,7 @@ import br.com.adminpool.dto.EditarPedidoCapaRequest;
 import br.com.adminpool.dto.EditarPedidoRequest;
 import br.com.adminpool.dto.ResultadoProdutos;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
+import br.com.adminpool.dto.LinhaRelatorioPedidoCompleto;
 import br.com.adminpool.model.PedidoProduto;
 import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.service.PedidoProdutoService;
@@ -22,6 +23,8 @@ import java.time.YearMonth;
 import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
 
 @RestController
 @RequestMapping("/api/pedidos-produto")
@@ -94,17 +97,27 @@ public class PedidoProdutoController {
     public ResponseEntity<byte[]> relatorio(@RequestParam(required = false) Long clienteId,
                                              @RequestParam(required = false) String mes,
                                              @RequestParam(required = false) LocalDate inicio,
-                                             @RequestParam(required = false) LocalDate fim) {
+                                             @RequestParam(required = false) LocalDate fim,
+                                             @RequestParam(defaultValue = "VENDAS") String tipo) {
         List<PedidoProduto> lista = pedidos.findAllByOrderByDataPedidoDesc().stream()
                 .filter(p -> clienteId == null || p.getCliente() != null && p.getCliente().getId().equals(clienteId))
                 .filter(p -> mes == null || mes.isBlank() || p.getDataPedido().toString().startsWith(mes))
                 .filter(p -> inicio == null || !p.getDataPedido().isBefore(inicio))
                 .filter(p -> fim == null || !p.getDataPedido().isAfter(fim)).toList();
+        String relatorio = tipo == null ? "VENDAS" : tipo.toUpperCase();
+        if ("COMPLETO".equals(relatorio)) {
+            return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio-pedidos-completo.pdf")
+                    .body(relatorios.gerarPedidosCompleto("Relatório completo de pedidos", "Filtros aplicados na tela",
+                            linhasCompletas(lista)));
+        }
+        boolean compras = "COMPRAS".equals(relatorio);
         var linhas = lista.stream().map(p -> new LinhaRelatorioPdf(destinatario(p),
                 descricaoItem(p), p.getDataPedido().toString(),
-                p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
-        return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio-pedidos.pdf")
-                .body(relatorios.gerar("Relatório de pedidos", "Filtros aplicados na tela", linhas));
+                compras ? p.getTotalCompra() : (p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido()))).toList();
+        String titulo = compras ? "Relatório de compras dos pedidos" : "Relatório de vendas dos pedidos";
+        String arquivo = compras ? "relatorio-compras-pedidos.pdf" : "relatorio-vendas-pedidos.pdf";
+        return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=" + arquivo)
+                .body(relatorios.gerar(titulo, "Filtros aplicados na tela", linhas));
     }
 
     @PostMapping
@@ -212,6 +225,23 @@ public class PedidoProdutoController {
                 new LinhaRelatorioPdf(destinatario(capa), capa.getDescricaoCapa() + " • Metragem: " + medidas,
                         capa.getDataPedido().toString(), valorCapa),
                 new LinhaRelatorioPdf(destinatario(capa), "Frete", capa.getDataPedido().toString(), capa.getFreteCapa()));
+    }
+
+    private List<LinhaRelatorioPedidoCompleto> linhasCompletas(List<PedidoProduto> lista) {
+        Map<Long, List<PedidoProduto>> porPedido = new LinkedHashMap<>();
+        for (PedidoProduto item : lista) {
+            porPedido.computeIfAbsent(item.getCodigoPedido(), codigo -> new java.util.ArrayList<>()).add(item);
+        }
+        return porPedido.values().stream().map(itens -> {
+            PedidoProduto primeiro = itens.get(0);
+            BigDecimal compra = itens.stream().map(PedidoProduto::getTotalCompra)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal venda = itens.stream().map(p -> p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            String produtos = itens.stream().map(this::descricaoItem).collect(java.util.stream.Collectors.joining("; "));
+            return new LinhaRelatorioPedidoCompleto(destinatario(primeiro), produtos, compra, venda,
+                    venda.subtract(compra));
+        }).toList();
     }
 
     private boolean possuiTexto(String valor) {
