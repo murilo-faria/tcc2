@@ -35,6 +35,33 @@ public class RelatorioPdfService {
         return gerarComTabela(titulo, filtros, linhas, new float[]{1.45f, 2.55f, 1.05f, 1.15f});
     }
 
+    /** Comprovante do colaborador: materiais solicitados sem expor valores. */
+    public byte[] gerarSolicitacaoInterna(String titulo, String colaborador, List<LinhaRelatorioPdf> linhas) {
+        try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {
+            Document documento = new Document(PageSize.A4, 40, 40, 35, 35);
+            PdfWriter.getInstance(documento, arquivo);
+            documento.open();
+            adicionarLogo(documento);
+            documento.add(new Paragraph(titulo, fonte(14, Font.BOLD, Color.DARK_GRAY)));
+            documento.add(new Paragraph(colaborador, fonte(12, Font.NORMAL, Color.DARK_GRAY)));
+            documento.add(new Paragraph(" "));
+            PdfPTable tabela = new PdfPTable(new float[]{3.8f, 1.4f});
+            tabela.setWidthPercentage(100);
+            tabela.setHeaderRows(1);
+            adicionarCabecalho(tabela, "PRODUTO", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "DATA", Element.ALIGN_LEFT);
+            for (LinhaRelatorioPdf linha : linhas) {
+                adicionarCelula(tabela, linha.getDescricao(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
+            }
+            documento.add(tabela);
+            documento.close();
+            return arquivo.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalStateException("Não foi possível preparar o PDF da solicitação.", e);
+        }
+    }
+
     /** Layout da capa no mesmo padrão de pedido, com total destacado na tabela. */
     public byte[] gerarCapa(String titulo, String endereco, List<LinhaRelatorioPdf> linhas) {
         try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {

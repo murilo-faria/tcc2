@@ -65,6 +65,15 @@ public class PedidoProdutoController {
         if (itens.isEmpty()) throw new IllegalArgumentException("Pedido não encontrado.");
         var primeiro = itens.get(0);
         boolean usoInterno = primeiro.getCliente() == null && primeiro.getFuncionario() != null;
+        boolean colaboradorVendoUsoInterno = usoInterno && !gestor(auth);
+        if (colaboradorVendoUsoInterno) {
+            var solicitacao = itens.stream().map(p -> new LinhaRelatorioPdf("", descricaoItem(p),
+                    p.getDataPedido().toString(), BigDecimal.ZERO)).toList();
+            byte[] pdf = relatorios.gerarSolicitacaoInterna("Solicitação de material #" + codigo,
+                    destinatario(primeiro), solicitacao);
+            return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
+                    .body(pdf);
+        }
         var linhas = itens.stream().map(p -> new LinhaRelatorioPdf(destinatario(primeiro),
                     descricaoItem(p), primeiro.getDataPedido().toString(),
                     usoInterno ? p.getTotalCompra()

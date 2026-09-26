@@ -612,6 +612,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   Future<void> _detalhar(int codigo) async {
     final itens = await _lista('/api/pedidos-produto/codigo/$codigo');
     if (!mounted) return;
+    final ocultarValoresUsoInterno = !widget.gestor && itens.isNotEmpty && itens.first['funcionario'] != null;
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -630,15 +631,17 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 return ListTile(
                   leading: const Icon(Icons.shopping_bag_outlined),
                   title: Text(linha['descricaoCapa'] ?? produto['nome'] ?? ''),
-                  subtitle: Text(linha['tipoPedido'] == 'CAPA'
+                  subtitle: Text(ocultarValoresUsoInterno
+                      ? '${linha['quantidade']} unidade(s)'
+                      : linha['tipoPedido'] == 'CAPA'
                       ? 'Metragem: ${piscina['comprimento'] ?? 0} m × ${piscina['largura'] ?? 0} m = ${linha['areaCapa'] ?? 0} m²\nValor da capa: ${formatarMoeda(valorDaCapa)} • Frete: ${formatarMoeda((linha['freteCapa'] as num?) ?? 0)}'
                       : '${linha['quantidade']} unidade(s) • venda ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}${((linha['desconto'] as num?) ?? 0) > 0 ? ' • desconto ${formatarMoeda(linha['desconto'] as num)}' : ''}'),
-                  trailing: Text(
+                  trailing: ocultarValoresUsoInterno ? null : Text(
                     formatarMoeda(
                       (linha['totalLiquido'] as num?) ??
                           (linha['totalVenda'] as num?) ??
                           0,
-                    ),
+                      ),
                   ),
                 );
               }).toList(),
@@ -819,6 +822,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                       final primeiro = grupo.value.first;
                       final concluido = primeiro['status'] == 'CONCLUIDO';
                       final capa = primeiro['tipoPedido'] == 'CAPA';
+                      final ocultarValoresUsoInterno = !widget.gestor && primeiro['funcionario'] != null;
                       final total = grupo.value.fold<double>(
                         0,
                         (soma, item) =>
@@ -891,7 +895,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
+                                  if (!ocultarValoresUsoInterno) Text(
                                     formatarMoeda(total),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,

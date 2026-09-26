@@ -48,6 +48,7 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
           final produto = produtos.firstWhere((p) => p['id'] == item['produtoId']);
           total += ((usoInterno ? produto['precoCompra'] : produto['precoVenda']) as num? ?? 0) * item['quantidade']!;
         }
+        final ocultarValoresUsoInterno = usoInterno && funcionarioFixo != null && usoInternoInicial == true;
         final celular = MediaQuery.of(context).size.width < 600;
         final piscinaSelecionada = piscinaId == null ? null : piscinas.firstWhere(
           (p) => p['id'] == piscinaId,
@@ -166,7 +167,7 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                     decoration: InputDecoration(labelText: 'Produto ${indice + 1}'),
                     items: produtos.map<DropdownMenuItem<int>>((produto) => DropdownMenuItem(
                       value: produto['id'] as int,
-                      child: Text('${produto['nome']} — ${formatarMoeda((usoInterno ? produto['precoCompra'] : produto['precoVenda']) as num? ?? 0)}', overflow: TextOverflow.ellipsis),
+                      child: Text(ocultarValoresUsoInterno ? '${produto['nome']}' : '${produto['nome']} — ${formatarMoeda((usoInterno ? produto['precoCompra'] : produto['precoVenda']) as num? ?? 0)}', overflow: TextOverflow.ellipsis),
                     )).toList(),
                     onChanged: (v) => setLocal(() => item['produtoId'] = v!),
                   );
@@ -188,7 +189,7 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                 )),
                 ],
                 const Divider(),
-                Align(alignment: Alignment.centerRight, child: Text(
+                if (!ocultarValoresUsoInterno) Align(alignment: Alignment.centerRight, child: Text(
                   '${capaSobMedida ? 'Valor final da capa' : usoInterno ? 'Custo estimado' : 'Total do pedido'}: ${formatarMoeda(capaSobMedida ? totalCapa : total)}',
                   style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 )),
