@@ -35,38 +35,41 @@ public class RelatorioPdfService {
         return gerarComTabela(titulo, filtros, linhas, new float[]{1.45f, 2.55f, 1.05f, 1.15f});
     }
 
-    /** Layout exclusivo da capa, sem alterar os relatórios comuns. */
-    public byte[] gerarCapa(String titulo, String cliente, String endereco, String tipo, String metragem,
-                            BigDecimal valorCapa, BigDecimal frete) {
+    /** Layout da capa no mesmo padrão de pedido, com total destacado na tabela. */
+    public byte[] gerarCapa(String titulo, String endereco, List<LinhaRelatorioPdf> linhas) {
         try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {
             Document documento = new Document(PageSize.A4, 40, 40, 35, 35);
             PdfWriter.getInstance(documento, arquivo);
             documento.open();
             adicionarLogo(documento);
             documento.add(new Paragraph(titulo, fonte(14, Font.BOLD, Color.DARK_GRAY)));
-            documento.add(new Paragraph("Cliente: " + cliente, fonte(12, Font.BOLD, Color.DARK_GRAY)));
             documento.add(new Paragraph(endereco, fonte(12, Font.NORMAL, Color.DARK_GRAY)));
             documento.add(new Paragraph(" "));
 
-            PdfPTable tabela = new PdfPTable(new float[]{1.7f, 3.3f});
+            PdfPTable tabela = new PdfPTable(new float[]{1.45f, 2.55f, 1.05f, 1.15f});
             tabela.setWidthPercentage(100);
+            adicionarCabecalho(tabela, "CLIENTE", Element.ALIGN_LEFT);
             adicionarCabecalho(tabela, "DESCRIÇÃO", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "DATA", Element.ALIGN_LEFT);
             adicionarCabecalho(tabela, "VALOR", Element.ALIGN_RIGHT);
-            adicionarCelula(tabela, tipo, Element.ALIGN_LEFT);
-            adicionarCelula(tabela, "", Element.ALIGN_RIGHT);
-            adicionarCelula(tabela, "Metragem: " + metragem, Element.ALIGN_LEFT);
-            adicionarCelula(tabela, "", Element.ALIGN_RIGHT);
-            adicionarCelula(tabela, "Valor da capa", Element.ALIGN_LEFT);
-            adicionarCelula(tabela, formatarValor(valorCapa), Element.ALIGN_RIGHT);
-            adicionarCelula(tabela, "Frete", Element.ALIGN_LEFT);
-            adicionarCelula(tabela, formatarValor(frete), Element.ALIGN_RIGHT);
+            for (LinhaRelatorioPdf linha : linhas) {
+                adicionarCelula(tabela, linha.getCliente(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, linha.getDescricao(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, linha.getValor().signum() == 0 ? "" : formatarValor(linha.getValor()), Element.ALIGN_RIGHT);
+            }
+            PdfPCell descricaoTotal = new PdfPCell(new Phrase("TOTAL", fonte(10, Font.BOLD, Color.WHITE)));
+            descricaoTotal.setColspan(3);
+            descricaoTotal.setBackgroundColor(AZUL);
+            descricaoTotal.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            descricaoTotal.setPadding(7);
+            tabela.addCell(descricaoTotal);
+            PdfPCell valorTotal = new PdfPCell(new Phrase(formatarValor(total(linhas)), fonte(10, Font.BOLD, Color.WHITE)));
+            valorTotal.setBackgroundColor(AZUL);
+            valorTotal.setHorizontalAlignment(Element.ALIGN_RIGHT);
+            valorTotal.setPadding(7);
+            tabela.addCell(valorTotal);
             documento.add(tabela);
-
-            Paragraph total = new Paragraph("Total: " + formatarValor(valorCapa.add(frete)),
-                    fonte(12, Font.BOLD, AZUL));
-            total.setAlignment(Element.ALIGN_RIGHT);
-            total.setSpacingBefore(12);
-            documento.add(total);
             documento.close();
             return arquivo.toByteArray();
         } catch (Exception e) {

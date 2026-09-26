@@ -76,9 +76,14 @@ public class PedidoProdutoController {
             linhas = List.of(
                     new LinhaRelatorioPdf(destinatario(primeiro),
                             primeiro.getDescricaoCapa() + " • Metragem: " + medidasDaCapa(primeiro),
+                            primeiro.getDataPedido().toString(), BigDecimal.ZERO),
+                    new LinhaRelatorioPdf(destinatario(primeiro), "Valor da capa",
                             primeiro.getDataPedido().toString(), valorCapa),
                     new LinhaRelatorioPdf(destinatario(primeiro), "Frete",
                             primeiro.getDataPedido().toString(), primeiro.getFreteCapa()));
+            byte[] pdf = relatorios.gerarCapa("Pedido #" + codigo, endereco, linhas);
+            return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
+                    .body(pdf);
         }
         byte[] pdf = relatorios.gerar("Pedido #" + codigo, endereco, linhas);
         return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
