@@ -1,0 +1,1 @@
+ALTER TABLE funcionarios ADD COLUMN IF NOT EXISTS endereco VARCHAR(255);

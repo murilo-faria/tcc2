@@ -21,6 +21,7 @@ class _FuncionariosPageNovaState extends State<_FuncionariosPageNova> {
     final login = TextEditingController(text: usuario['login'] ?? '');
     final senha = TextEditingController();
     final telefone = TextEditingController(text: item?['telefone'] ?? '');
+    final endereco = TextEditingController(text: item?['endereco'] ?? '');
     final percentual = TextEditingController(text: '${item?['percentualMensalidade'] ?? 75}');
     final salvar = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
       title: Text(item == null ? 'Novo colaborador' : 'Alterar colaborador'),
@@ -29,12 +30,13 @@ class _FuncionariosPageNovaState extends State<_FuncionariosPageNova> {
         if (item == null) TextField(controller: login, decoration: const InputDecoration(labelText: 'Usuário de acesso *')),
         TextField(controller: senha, obscureText: true, decoration: InputDecoration(labelText: item == null ? 'Senha *' : 'Nova senha (opcional)')),
         TextField(controller: telefone, decoration: const InputDecoration(labelText: 'Telefone')),
+        TextField(controller: endereco, maxLines: 2, decoration: const InputDecoration(labelText: 'Endereço de entrega')),
         TextField(controller: percentual, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Percentual sobre recebimentos')),
       ]))),
       actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvar'))],
     ));
     if (salvar != true) return;
-    final body = {'nome': nome.text.trim(), 'telefone': telefone.text.trim(), 'percentualMensalidade': double.tryParse(percentual.text.replaceAll(',', '.')) ?? 75};
+    final body = {'nome': nome.text.trim(), 'telefone': telefone.text.trim(), 'endereco': endereco.text.trim(), 'percentualMensalidade': double.tryParse(percentual.text.replaceAll(',', '.')) ?? 75};
     final r = item == null
         ? await apiService.post('/api/funcionarios', body: {...body, 'login': login.text.trim(), 'senha': senha.text})
         : await apiService.put('/api/funcionarios/${item['id']}', body: {...body, 'novaSenha': senha.text});
@@ -64,7 +66,7 @@ class _FuncionariosPageNovaState extends State<_FuncionariosPageNova> {
         if (estado.hasError) return Center(child: Text('${estado.error}'));
         final lista = estado.data!.where((f) { final u = f['usuario'] ?? {}; return '${u['nome']} ${u['login']}'.toLowerCase().contains(_busca); }).toList();
         if (lista.isEmpty) return const Center(child: Text('Nenhum colaborador encontrado.'));
-        return Card(child: ListView.separated(itemCount: lista.length, separatorBuilder: (_, __) => const Divider(height: 1), itemBuilder: (_, i) { final f = lista[i] as Map<String, dynamic>; final u = f['usuario'] ?? {}; return ListTile(leading: const CircleAvatar(child: Icon(Icons.person)), title: Text(u['nome'] ?? ''), subtitle: Text('Usuário: ${u['login'] ?? ''} • ${f['telefone'] ?? 'sem telefone'}'), trailing: Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [Text('${f['percentualMensalidade'] ?? 75}%'), IconButton(tooltip: 'Alterar', icon: const Icon(Icons.edit_outlined), onPressed: () => _formulario(f)), IconButton(tooltip: 'Excluir', icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _excluir(f))])); }));
+        return Card(child: ListView.separated(itemCount: lista.length, separatorBuilder: (_, __) => const Divider(height: 1), itemBuilder: (_, i) { final f = lista[i] as Map<String, dynamic>; final u = f['usuario'] ?? {}; final endereco = (f['endereco'] ?? '').toString().trim(); return ListTile(leading: const CircleAvatar(child: Icon(Icons.person)), title: Text(u['nome'] ?? ''), subtitle: Text('Usuário: ${u['login'] ?? ''} • ${f['telefone'] ?? 'sem telefone'}${endereco.isEmpty ? '' : '\nEntrega: $endereco'}'), isThreeLine: endereco.isNotEmpty, trailing: Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [Text('${f['percentualMensalidade'] ?? 75}%'), IconButton(tooltip: 'Alterar', icon: const Icon(Icons.edit_outlined), onPressed: () => _formulario(f)), IconButton(tooltip: 'Excluir', icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _excluir(f))])); }));
       }))
     ]));
   }

@@ -215,6 +215,9 @@ public class PedidoProdutoController {
         if (pedido.getCliente() != null && possuiTexto(pedido.getCliente().getEndereco())) {
             return "Endereço: " + pedido.getCliente().getEndereco().trim();
         }
+        if (pedido.getFuncionario() != null && possuiTexto(pedido.getFuncionario().getEndereco())) {
+            return "Endereço de entrega: " + pedido.getFuncionario().getEndereco().trim();
+        }
         return pedido.getCliente() != null ? "Endereço não informado." : "Material de uso interno — " + destinatario(pedido);
     }
 
