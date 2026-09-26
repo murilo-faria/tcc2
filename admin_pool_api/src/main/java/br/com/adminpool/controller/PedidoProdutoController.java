@@ -71,11 +71,16 @@ public class PedidoProdutoController {
                             : (p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())))
                 .toList();
         String endereco = enderecoEntrega(primeiro);
-        byte[] pdf = "CAPA".equals(primeiro.getTipoPedido())
-                ? relatorios.gerarCapa("Pedido #" + codigo, destinatario(primeiro), endereco, primeiro.getDescricaoCapa(),
-                    medidasDaCapa(primeiro), primeiro.getPrecoCompraUnitario().add(primeiro.getLucroCapa()),
-                    primeiro.getFreteCapa())
-                : relatorios.gerar("Pedido #" + codigo, endereco, linhas);
+        if ("CAPA".equals(primeiro.getTipoPedido())) {
+            BigDecimal valorCapa = primeiro.getPrecoCompraUnitario().add(primeiro.getLucroCapa());
+            linhas = List.of(
+                    new LinhaRelatorioPdf(destinatario(primeiro),
+                            primeiro.getDescricaoCapa() + " • Metragem: " + medidasDaCapa(primeiro),
+                            primeiro.getDataPedido().toString(), valorCapa),
+                    new LinhaRelatorioPdf(destinatario(primeiro), "Frete",
+                            primeiro.getDataPedido().toString(), primeiro.getFreteCapa()));
+        }
+        byte[] pdf = relatorios.gerar("Pedido #" + codigo, endereco, linhas);
         return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
                 .body(pdf);
     }
