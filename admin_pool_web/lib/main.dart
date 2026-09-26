@@ -1261,6 +1261,10 @@ class _ListaClientesState extends State<_ListaClientes> {
   late Future<List<dynamic>> clientes;
   String filtro = '';
   int? clienteSelecionado;
+  bool mostrarFiltrosClientes = false;
+  String? responsavelSelecionado;
+  String? statusAtivoSelecionado;
+  String ordenacaoMensalidade = 'PADRAO';
   @override
   void initState() {
     super.initState();
@@ -1314,6 +1318,11 @@ class _ListaClientesState extends State<_ListaClientes> {
     }
     return lista;
   }
+
+  String _nomeResponsavel(Map<String, dynamic> cliente) =>
+      ((cliente['_responsavelCor'] ?? cliente['funcionario'] ?? {})['usuario'] ??
+                  {})['nome']?.toString() ??
+      'Sem responsável';
 
   Future<void> excluir(int id) async {
     await apiService.delete('/api/clientes/$id');
@@ -2017,9 +2026,138 @@ class _ListaClientesState extends State<_ListaClientes> {
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     child: Scrollbar(
       child: SingleChildScrollView(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
+        child: MediaQuery.of(context).size.width >= 700
+            ? SizedBox(
+                width: double.infinity,
+                child: DataTable(
+                  headingRowHeight: 42,
+                  dataRowMinHeight: 50,
+                  dataRowMaxHeight: 116,
+                  columnSpacing: 32,
+                  columns: const [
+                    DataColumn(label: Text('Cliente')),
+                    DataColumn(label: Text('Piscina')),
+                    DataColumn(label: Text('Mensalidade')),
+                    DataColumn(label: Text('Responsável')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Ações')),
+                  ],
+                  rows: dados.map((valor) {
+                    final cliente = valor as Map<String, dynamic>;
+                    final ativo = cliente['ativo'] != false;
+                    final responsavel =
+                        ((cliente['_responsavelCor'] ??
+                                cliente['funcionario'] ??
+                                {})['usuario'] ??
+                            {})['nome'] ??
+                        'Sem responsável';
+                    final mensalidade = (cliente['valorMensalidade'] as num?) ?? 0;
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                cliente['nome']?.toString() ?? '',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              if ((cliente['telefone'] ?? '').toString().isNotEmpty)
+                                Text(
+                                  cliente['telefone'].toString(),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        DataCell(_celulaPiscinas(cliente)),
+                        DataCell(Text(formatarMoeda(mensalidade))),
+                        DataCell(Text(responsavel.toString())),
+                        DataCell(
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: ativo
+                                      ? const Color(0xFFE1F5E8)
+                                      : const Color(0xFFF0F2F5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  ativo ? 'Ativo' : 'Inativo',
+                                  style: TextStyle(
+                                    color: ativo
+                                        ? const Color(0xFF238B45)
+                                        : const Color(0xFF667085),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              if (widget.gestor)
+                                Switch(
+                                  value: ativo,
+                                  onChanged: (_) => alternarAtivo(cliente),
+                                ),
+                            ],
+                          ),
+                        ),
+                        DataCell(
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'Ver piscinas',
+                                icon: const Icon(Icons.visibility_outlined),
+                                onPressed: () => showDialog<void>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    title: Text('Piscinas — ${cliente['nome']}'),
+                                    content: SingleChildScrollView(
+                                      child: _celulaPiscinas(cliente),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Fechar'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (widget.gestor) ...[
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => editar(cliente),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () => excluir(cliente['id'] as int),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              )
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
             headingRowHeight: 42,
             dataRowMinHeight: 50,
             dataRowMaxHeight: 116,
@@ -2175,23 +2313,162 @@ class _ListaClientesState extends State<_ListaClientes> {
           ),
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: TextField(
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: 'Buscar cliente por nome ou telefone',
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFD7E0EA)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    hintText: 'Buscar cliente por nome ou telefone',
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFD7E0EA)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFD7E0EA)),
+                    ),
+                  ),
+                  onChanged: (texto) =>
+                      setState(() => filtro = texto.toLowerCase()),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFD7E0EA)),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => setState(
+                    () => mostrarFiltrosClientes = !mostrarFiltrosClientes,
+                  ),
+                  icon: Icon(
+                    mostrarFiltrosClientes
+                        ? Icons.expand_less
+                        : Icons.tune_outlined,
+                  ),
+                  label: Text(
+                    mostrarFiltrosClientes ? 'Ocultar filtros' : 'Filtros',
+                  ),
                 ),
-              ),
-              onChanged: (texto) =>
-                  setState(() => filtro = texto.toLowerCase()),
+                if (mostrarFiltrosClientes) ...[
+                  const SizedBox(height: 10),
+                  FutureBuilder<List<dynamic>>(
+                    future: clientes,
+                    builder: (_, estado) {
+                      if (!estado.hasData) return const SizedBox.shrink();
+                      final responsaveis = estado.data!
+                          .map(
+                            (valor) => _nomeResponsavel(
+                              valor as Map<String, dynamic>,
+                            ),
+                          )
+                          .where((nome) => nome != 'Sem responsável')
+                          .toSet()
+                          .toList()
+                        ..sort();
+                      return Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          SizedBox(
+                            width: 220,
+                            child: DropdownButtonFormField<String>(
+                              value: responsavelSelecionado,
+                              isExpanded: true,
+                              decoration: const InputDecoration(
+                                labelText: 'Responsável',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: [
+                                const DropdownMenuItem(
+                                  value: null,
+                                  child: Text('Todos os responsáveis'),
+                                ),
+                                ...responsaveis.map(
+                                  (nome) => DropdownMenuItem(
+                                    value: nome,
+                                    child: Text(
+                                      nome,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (valor) => setState(
+                                () => responsavelSelecionado = valor,
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 210,
+                            child: DropdownButtonFormField<String>(
+                              value: statusAtivoSelecionado,
+                              decoration: const InputDecoration(
+                                labelText: 'Situação',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: Text('Ativos e inativos'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'ATIVO',
+                                  child: Text('Somente ativos'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'INATIVO',
+                                  child: Text('Somente inativos'),
+                                ),
+                              ],
+                              onChanged: (valor) => setState(
+                                () => statusAtivoSelecionado = valor,
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 230,
+                            child: DropdownButtonFormField<String>(
+                              value: ordenacaoMensalidade,
+                              decoration: const InputDecoration(
+                                labelText: 'Mensalidade',
+                                isDense: true,
+                                border: OutlineInputBorder(),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'PADRAO',
+                                  child: Text('Ordem padrão'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'CRESCENTE',
+                                  child: Text('Menor valor primeiro'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'DECRESCENTE',
+                                  child: Text('Maior valor primeiro'),
+                                ),
+                              ],
+                              onChanged: (valor) => setState(
+                                () => ordenacaoMensalidade = valor ?? 'PADRAO',
+                              ),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () => setState(() {
+                              responsavelSelecionado = null;
+                              statusAtivoSelecionado = null;
+                              ordenacaoMensalidade = 'PADRAO';
+                            }),
+                            icon: const Icon(Icons.filter_alt_off_outlined),
+                            label: const Text('Limpar filtros'),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ],
             ),
           ),
         ),
@@ -2217,7 +2494,32 @@ class _ListaClientesState extends State<_ListaClientes> {
                           filtro,
                         ),
                   )
+                  .where(
+                    (c) =>
+                        responsavelSelecionado == null ||
+                        _nomeResponsavel(c as Map<String, dynamic>) ==
+                            responsavelSelecionado,
+                  )
+                  .where(
+                    (c) =>
+                        statusAtivoSelecionado == null ||
+                        (statusAtivoSelecionado == 'ATIVO'
+                            ? c['ativo'] != false
+                            : c['ativo'] == false),
+                  )
                   .toList();
+              if (ordenacaoMensalidade != 'PADRAO') {
+                dados.sort((primeiro, segundo) {
+                  final valorPrimeiro =
+                      (primeiro['valorMensalidade'] as num?) ?? 0;
+                  final valorSegundo =
+                      (segundo['valorMensalidade'] as num?) ?? 0;
+                  final comparacao = valorPrimeiro.compareTo(valorSegundo);
+                  return ordenacaoMensalidade == 'CRESCENTE'
+                      ? comparacao
+                      : -comparacao;
+                });
+              }
               if (dados.isEmpty)
                 return const Center(child: Text('Nenhum cliente cadastrado.'));
               if (MediaQuery.of(context).size.width >= 700) {
