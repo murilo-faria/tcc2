@@ -601,7 +601,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 final produto = linha['produto'] ?? {};
                 final piscina = linha['piscina'] ?? {};
                 final valorDaCapa =
-                    ((linha['totalCompra'] as num?) ?? 0) +
+                    ((linha['precoCompraUnitario'] as num?) ?? 0) +
                     ((linha['lucroCapa'] as num?) ?? 0);
                 return ListTile(
                   leading: const Icon(Icons.shopping_bag_outlined),
