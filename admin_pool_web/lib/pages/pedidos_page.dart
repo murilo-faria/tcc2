@@ -72,16 +72,33 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
 
   List<MapEntry<int, List<Map<String, dynamic>>>> _filtrarGrupos(
     List<dynamic> linhas,
-  ) => _agrupar(linhas).entries.where((grupo) {
-    final primeiro = grupo.value.first;
-    final cliente = _destinatario(primeiro);
-    final produtos = grupo.value
-        .map((item) => (item['produto'] ?? {})['nome'].toString().toLowerCase())
-        .join(' ');
-    return (_clienteSelecionado == null || cliente == _clienteSelecionado) &&
-        _noPeriodo(primeiro['dataPedido']) &&
-        (cliente.toLowerCase().contains(_filtro) || produtos.contains(_filtro));
-  }).toList();
+  ) {
+    final grupos = _agrupar(linhas).entries.where((grupo) {
+      final primeiro = grupo.value.first;
+      final cliente = _destinatario(primeiro);
+      final produtos = grupo.value
+          .map(
+            (item) =>
+                '${(item['produto'] ?? {})['nome'] ?? ''} ${item['descricaoCapa'] ?? ''}'
+                    .toLowerCase(),
+          )
+          .join(' ');
+      return (_clienteSelecionado == null || cliente == _clienteSelecionado) &&
+          _noPeriodo(primeiro['dataPedido']) &&
+          (cliente.toLowerCase().contains(_filtro) || produtos.contains(_filtro));
+    }).toList();
+    grupos.sort((primeiro, segundo) {
+      final concluidoPrimeiro = primeiro.value.first['status'] == 'CONCLUIDO';
+      final concluidoSegundo = segundo.value.first['status'] == 'CONCLUIDO';
+      if (concluidoPrimeiro != concluidoSegundo) {
+        return concluidoPrimeiro ? 1 : -1;
+      }
+      return _data(segundo.value.first['dataPedido'])!.compareTo(
+        _data(primeiro.value.first['dataPedido'])!,
+      );
+    });
+    return grupos;
+  }
 
   String _destinatario(Map<String, dynamic> pedido) {
     final cliente = (pedido['cliente'] ?? {})['nome']?.toString();
