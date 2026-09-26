@@ -429,6 +429,8 @@ class _PainelCobrancaCliente extends StatefulWidget {
 class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
   late Future<List<dynamic>> _itens;
   final Set<int> _selecionados = {};
+  bool _mostrarPendentes = true;
+  bool _mostrarPagos = false;
 
   int get clienteId => widget.cliente['clienteId'] as int;
 
@@ -440,7 +442,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
 
   Future<List<dynamic>> _carregar() async {
     final resposta = await apiService.get(
-      '/api/cobrancas/clientes/$clienteId/itens',
+      '/api/cobrancas/clientes/$clienteId/itens?pendentes=$_mostrarPendentes&pagos=$_mostrarPagos',
     );
     if (resposta.statusCode != 200)
       throw Exception('Não foi possível carregar os itens.');
@@ -454,6 +456,15 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     _selecionados.clear();
     widget.aoAtualizar();
     setState(() => _itens = _carregar());
+  }
+
+  void _alterarFiltro({bool? pendentes, bool? pagos}) {
+    setState(() {
+      if (pendentes != null) _mostrarPendentes = pendentes;
+      if (pagos != null) _mostrarPagos = pagos;
+      _selecionados.clear();
+      _itens = _carregar();
+    });
   }
 
   Future<bool> _confirmar(String titulo, String mensagem, String botao) async {
@@ -569,7 +580,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
 
   Future<void> _gerarHistoricoPdf() async {
     final resposta = await apiService.get(
-      '/api/cobrancas/clientes/$clienteId/historico.pdf',
+      '/api/cobrancas/clientes/$clienteId/historico.pdf?pendentes=$_mostrarPendentes&pagos=$_mostrarPagos',
     );
     if (resposta.statusCode == 200) {
       abrirPdf(resposta, 'historico-${widget.cliente['clienteNome']}.pdf');
@@ -669,6 +680,23 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
               ],
             ),
             const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                FilterChip(
+                  label: const Text('Pendentes'),
+                  selected: _mostrarPendentes,
+                  onSelected: (valor) => _alterarFiltro(pendentes: valor),
+                ),
+                FilterChip(
+                  label: const Text('Pagos'),
+                  selected: _mostrarPagos,
+                  onSelected: (valor) => _alterarFiltro(pagos: valor),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
             const Divider(height: 1),
             Expanded(
               child: FutureBuilder<List<dynamic>>(
@@ -679,7 +707,9 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                   if (estado.hasError)
                     return Center(child: Text('${estado.error}'));
                   if (estado.data!.isEmpty)
-                    return const Center(child: Text('Nenhum valor lançado.'));
+                    return const Center(
+                      child: Text('Nenhum lançamento para os filtros selecionados.'),
+                    );
                   return ListView.separated(
                     itemCount: estado.data!.length,
                     separatorBuilder: (_, __) => const Divider(height: 1),
@@ -688,7 +718,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                       final aberto = _aberto(item);
                       final id = item['id'] as int;
                       final valor = formatarMoeda(
-                        (item['saldoPendente'] as num?) ?? 0,
+                        ((aberto ? item['saldoPendente'] : item['valorPago']) as num?) ?? 0,
                       );
                       return ListTile(
                         contentPadding: EdgeInsets.symmetric(

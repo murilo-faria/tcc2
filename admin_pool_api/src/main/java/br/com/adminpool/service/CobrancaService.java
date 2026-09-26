@@ -84,6 +84,13 @@ public class CobrancaService {
         return itens.findByCobrancaClienteIdOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(clienteId);
     }
 
+    public List<ItemCobranca> listarItensCliente(Long clienteId, boolean pendentes, boolean pagos) {
+        return listarItensCliente(clienteId).stream()
+                .filter(item -> (pendentes && STATUS_EM_ABERTO.contains(item.getStatus()))
+                        || (pagos && item.getStatus() == StatusItemCobranca.PAGO))
+                .toList();
+    }
+
     public ItemCobranca detalharItem(Long itemId) {
         return itens.findById(itemId).orElseThrow();
     }

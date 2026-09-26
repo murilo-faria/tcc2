@@ -85,14 +85,18 @@ public class CobrancaController {
     }
 
     @GetMapping("/clientes/{clienteId}/itens")
-    public List<ItemCobranca> listarItens(@PathVariable Long clienteId) {
-        return cobrancaService.listarItensCliente(clienteId);
+    public List<ItemCobranca> listarItens(@PathVariable Long clienteId,
+                                          @RequestParam(defaultValue = "true") boolean pendentes,
+                                          @RequestParam(defaultValue = "true") boolean pagos) {
+        return cobrancaService.listarItensCliente(clienteId, pendentes, pagos);
     }
 
     @GetMapping(value = "/clientes/{clienteId}/historico.pdf", produces = "application/pdf")
-    public ResponseEntity<byte[]> historicoClientePdf(@PathVariable Long clienteId) {
+    public ResponseEntity<byte[]> historicoClientePdf(@PathVariable Long clienteId,
+                                                       @RequestParam(defaultValue = "true") boolean pendentes,
+                                                       @RequestParam(defaultValue = "true") boolean pagos) {
         var cliente = clientes.findById(clienteId).orElseThrow();
-        var linhas = cobrancaService.listarItensCliente(clienteId).stream()
+        var linhas = cobrancaService.listarItensCliente(clienteId, pendentes, pagos).stream()
                 .map(item -> new LinhaRelatorioPdf(cliente.getNome(),
                         item.getDescricao() + " - " + item.getStatus(),
                         item.getDataUltimoPagamento() == null
@@ -103,7 +107,14 @@ public class CobrancaController {
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=historico-" + clienteId + ".pdf")
                 .body(relatorios.gerar("Histórico de cobranças - " + cliente.getNome(),
-                        "Todos os lançamentos da cliente", linhas));
+                        descricaoFiltrosHistorico(pendentes, pagos), linhas));
+    }
+
+    private String descricaoFiltrosHistorico(boolean pendentes, boolean pagos) {
+        if (pendentes && pagos) return "Lançamentos pendentes e pagos";
+        if (pendentes) return "Somente lançamentos pendentes";
+        if (pagos) return "Somente lançamentos pagos";
+        return "Nenhum tipo de lançamento selecionado";
     }
 
     @GetMapping("/itens/{itemId}")
