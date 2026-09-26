@@ -1,0 +1,7 @@
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS tipo_pedido VARCHAR(30) NOT NULL DEFAULT 'PRODUTO';
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS descricao_capa VARCHAR(255);
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS area_capa NUMERIC(12,2);
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS custo_metro_quadrado NUMERIC(12,2);
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS frete_capa NUMERIC(12,2);
+ALTER TABLE pedidos_produto ADD COLUMN IF NOT EXISTS lucro_capa NUMERIC(12,2);
+ALTER TABLE pedidos_produto ALTER COLUMN produto_id DROP NOT NULL;

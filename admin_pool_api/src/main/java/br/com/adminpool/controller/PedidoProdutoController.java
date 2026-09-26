@@ -4,6 +4,8 @@ import br.com.adminpool.dto.ConcluirPedidoRequest;
 import br.com.adminpool.dto.ItemPedidoRequest;
 import br.com.adminpool.dto.NovoPedidoLoteRequest;
 import br.com.adminpool.dto.NovoPedidoRequest;
+import br.com.adminpool.dto.NovoPedidoCapaRequest;
+import br.com.adminpool.dto.EditarPedidoCapaRequest;
 import br.com.adminpool.dto.EditarPedidoRequest;
 import br.com.adminpool.dto.ResultadoProdutos;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
@@ -59,9 +61,11 @@ public class PedidoProdutoController {
         var itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
         if (itens.isEmpty()) throw new IllegalArgumentException("Pedido não encontrado.");
         var primeiro = itens.get(0);
-        var linhas = itens.stream().map(p -> new LinhaRelatorioPdf(destinatario(primeiro),
-                p.getProduto().getNome() + " • " + p.getQuantidade() + " un.", primeiro.getDataPedido().toString(),
-                p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
+        var linhas = "CAPA".equals(primeiro.getTipoPedido())
+                ? linhasDaCapa(primeiro)
+                : itens.stream().map(p -> new LinhaRelatorioPdf(destinatario(primeiro),
+                    descricaoItem(p), primeiro.getDataPedido().toString(),
+                    p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
         String endereco = enderecoEntrega(primeiro);
         return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=pedido-" + codigo + ".pdf")
                 .body(relatorios.gerar("Pedido #" + codigo, endereco, linhas));
@@ -97,7 +101,7 @@ public class PedidoProdutoController {
                 .filter(p -> inicio == null || !p.getDataPedido().isBefore(inicio))
                 .filter(p -> fim == null || !p.getDataPedido().isAfter(fim)).toList();
         var linhas = lista.stream().map(p -> new LinhaRelatorioPdf(destinatario(p),
-                p.getProduto().getNome() + " • " + p.getQuantidade() + " un.", p.getDataPedido().toString(),
+                descricaoItem(p), p.getDataPedido().toString(),
                 p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
         return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio-pedidos.pdf")
                 .body(relatorios.gerar("Relatório de pedidos", "Filtros aplicados na tela", linhas));
@@ -116,12 +120,31 @@ public class PedidoProdutoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(servico.criar(requisicao, auth));
     }
 
+    @PostMapping("/capa")
+    public ResponseEntity<PedidoProduto> criarCapa(@RequestBody NovoPedidoCapaRequest requisicao,
+                                                    Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem gerar pedidos de capa.");
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(servico.criarCapa(requisicao, auth));
+    }
+
     @PutMapping("/codigo/{codigo}")
     public List<PedidoProduto> editar(@PathVariable Long codigo,
                                       @RequestBody EditarPedidoRequest requisicao,
                                       Authentication auth) {
         if (!gestor(auth)) servico.validarEdicaoPorColaborador(codigo, auth.getName());
         return servico.editar(codigo, requisicao);
+    }
+
+    @PutMapping("/codigo/{codigo}/capa")
+    public PedidoProduto editarCapa(@PathVariable Long codigo,
+                                    @RequestBody EditarPedidoCapaRequest requisicao,
+                                    Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar pedidos de capa.");
+        }
+        return servico.editarCapa(codigo, requisicao);
     }
 
     @PutMapping("/codigo/{codigo}/status")
@@ -171,6 +194,24 @@ public class PedidoProdutoController {
             return "Endereço: " + pedido.getCliente().getEndereco().trim();
         }
         return pedido.getCliente() != null ? "Endereço não informado." : "Material de uso interno — " + destinatario(pedido);
+    }
+
+    private String descricaoItem(PedidoProduto pedido) {
+        if ("CAPA".equals(pedido.getTipoPedido())) {
+            return pedido.getDescricaoCapa() + " • " + pedido.getAreaCapa() + " m²";
+        }
+        return pedido.getProduto().getNome() + " • " + pedido.getQuantidade() + " un.";
+    }
+
+    private List<LinhaRelatorioPdf> linhasDaCapa(PedidoProduto capa) {
+        String medidas = capa.getPiscina().getComprimento().stripTrailingZeros().toPlainString()
+                + " m × " + capa.getPiscina().getLargura().stripTrailingZeros().toPlainString()
+                + " m = " + capa.getAreaCapa().stripTrailingZeros().toPlainString() + " m²";
+        BigDecimal valorCapa = capa.getPrecoCompraUnitario().add(capa.getLucroCapa());
+        return List.of(
+                new LinhaRelatorioPdf(destinatario(capa), capa.getDescricaoCapa() + " • Metragem: " + medidas,
+                        capa.getDataPedido().toString(), valorCapa),
+                new LinhaRelatorioPdf(destinatario(capa), "Frete", capa.getDataPedido().toString(), capa.getFreteCapa()));
     }
 
     private boolean possuiTexto(String valor) {

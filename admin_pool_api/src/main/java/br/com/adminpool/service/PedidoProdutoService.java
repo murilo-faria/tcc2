@@ -3,6 +3,8 @@ package br.com.adminpool.service;
 import br.com.adminpool.dto.ItemPedidoRequest;
 import br.com.adminpool.dto.EditarPedidoRequest;
 import br.com.adminpool.dto.NovoPedidoLoteRequest;
+import br.com.adminpool.dto.NovoPedidoCapaRequest;
+import br.com.adminpool.dto.EditarPedidoCapaRequest;
 import br.com.adminpool.dto.ResultadoProdutos;
 import br.com.adminpool.model.Cliente;
 import br.com.adminpool.model.Funcionario;
@@ -96,6 +98,63 @@ public class PedidoProdutoService {
             novos.add(pedido);
         }
         return pedidos.saveAll(novos);
+    }
+
+    @Transactional
+    public PedidoProduto criarCapa(NovoPedidoCapaRequest requisicao, Authentication auth) {
+        Cliente cliente = clientes.findById(requisicao.clienteId()).orElseThrow();
+        Piscina piscina = validarPiscina(requisicao.piscinaId(), cliente, auth);
+        BigDecimal custoMetro = valorNaoNegativo(requisicao.custoMetroQuadrado(), "custo por m²");
+        BigDecimal frete = valorNaoNegativo(requisicao.frete(), "frete");
+        BigDecimal lucro = valorNaoNegativo(requisicao.lucro(), "lucro");
+        if (piscina.getComprimento() == null || piscina.getLargura() == null
+                || piscina.getComprimento().compareTo(BigDecimal.ZERO) <= 0
+                || piscina.getLargura().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Informe comprimento e largura válidos na piscina antes de gerar a capa.");
+        }
+        BigDecimal area = piscina.getComprimento().multiply(piscina.getLargura());
+        BigDecimal custoCapa = area.multiply(custoMetro);
+        BigDecimal total = custoCapa.add(frete).add(lucro);
+        PedidoProduto pedido = new PedidoProduto();
+        pedido.setCodigoPedido(pedidos.proximoCodigoPedido());
+        pedido.setCliente(cliente);
+        pedido.setPiscina(piscina);
+        pedido.setQuantidade(1);
+        pedido.setPrecoCompraUnitario(custoCapa);
+        pedido.setValorUnitario(total);
+        pedido.setDataPedido(LocalDate.now());
+        pedido.setStatus("SOLICITADO");
+        pedido.setTipoPedido("CAPA");
+        pedido.setAreaCapa(area);
+        pedido.setCustoMetroQuadrado(custoMetro);
+        pedido.setFreteCapa(frete);
+        pedido.setLucroCapa(lucro);
+        pedido.setEspessuraCapaMicras(espessuraValida(requisicao.espessuraMicras()));
+        pedido.setDescricaoCapa("Capa " + pedido.getEspessuraCapaMicras() + " micras");
+        return pedidos.save(pedido);
+    }
+
+    @Transactional
+    public PedidoProduto editarCapa(Long codigo, EditarPedidoCapaRequest requisicao) {
+        PedidoProduto pedido = primeiroPedido(codigo);
+        if (!"CAPA".equals(pedido.getTipoPedido())) {
+            throw new IllegalArgumentException("Este pedido não é uma capa sob medida.");
+        }
+        if (pedido.isFinanceiroLancado()) {
+            throw new IllegalStateException("Pedido concluído não pode ser editado.");
+        }
+        BigDecimal custoMetro = valorNaoNegativo(requisicao.custoMetroQuadrado(), "custo por m²");
+        BigDecimal frete = valorNaoNegativo(requisicao.frete(), "frete");
+        BigDecimal lucro = valorNaoNegativo(requisicao.lucro(), "lucro");
+        BigDecimal custoCapa = pedido.getAreaCapa().multiply(custoMetro);
+        pedido.setCustoMetroQuadrado(custoMetro);
+        pedido.setFreteCapa(frete);
+        pedido.setLucroCapa(lucro);
+        pedido.setPrecoCompraUnitario(custoCapa);
+        pedido.setValorUnitario(custoCapa.add(frete).add(lucro));
+        pedido.setEspessuraCapaMicras(espessuraValida(requisicao.espessuraMicras()));
+        pedido.setDescricaoCapa("Capa " + pedido.getEspessuraCapaMicras() + " micras");
+        return pedidos.save(pedido);
     }
 
     @Transactional
@@ -239,6 +298,22 @@ public class PedidoProdutoService {
             item.setDesconto(parcela);
             restante = restante.subtract(parcela);
         }
+    }
+
+    private BigDecimal valorNaoNegativo(BigDecimal valor, String campo) {
+        BigDecimal resultado = valor == null ? BigDecimal.ZERO : valor;
+        if (resultado.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("O " + campo + " não pode ser negativo.");
+        }
+        return resultado;
+    }
+
+    private Integer espessuraValida(Integer espessura) {
+        if (espessura == null) return 300;
+        if (espessura != 300 && espessura != 500) {
+            throw new IllegalArgumentException("Escolha capa de 300 ou 500 micras.");
+        }
+        return espessura;
     }
 
     @Transactional

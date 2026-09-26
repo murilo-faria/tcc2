@@ -226,11 +226,14 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       produtos: resultados[1],
       piscinas: resultados[2],
       funcionarios: widget.gestor ? resultados[3] : const [],
+      permitirCapa: widget.gestor,
       titulo: 'Novo pedido de produtos',
     );
     if (pedido == null) return;
     final resposta = await apiService.post(
-      '/api/pedidos-produto/lote',
+      pedido['tipo'] == 'CAPA'
+          ? '/api/pedidos-produto/capa'
+          : '/api/pedidos-produto/lote',
       body: pedido,
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
@@ -242,6 +245,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   ) async {
     final primeiro = itensAtuais.first;
     if (primeiro['status'] == 'CONCLUIDO') return;
+    final capa = primeiro['tipoPedido'] == 'CAPA';
     final resultados = await Future.wait([
       _lista('/api/clientes'),
       _lista('/api/produtos'),
@@ -265,21 +269,41 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       funcionarioFixo: usoInterno
           ? (primeiro['funcionario'] ?? {})['id'] as int?
           : null,
+      capaInicial: capa,
+      custoMetroQuadradoInicial: capa
+          ? primeiro['custoMetroQuadrado'] as num?
+          : null,
+      freteInicial: capa ? primeiro['freteCapa'] as num? : null,
+      lucroInicial: capa ? primeiro['lucroCapa'] as num? : null,
+      espessuraMicrasInicial: capa
+          ? primeiro['espessuraCapaMicras'] as int?
+          : null,
       usoInternoInicial: usoInterno,
-      itensIniciais: itensAtuais
+      itensIniciais: capa
+          ? null
+          : itensAtuais
           .map(
             (item) => <String, int>{
               'produtoId': (item['produto'] ?? {})['id'] as int,
               'quantidade': item['quantidade'] as int,
             },
           )
-          .toList(),
+              .toList(),
       titulo: 'Editar pedido #$codigo',
     );
     if (pedido == null) return;
     final resposta = await apiService.put(
-      '/api/pedidos-produto/codigo/$codigo',
-      body: {'itens': pedido['itens']},
+      capa
+          ? '/api/pedidos-produto/codigo/$codigo/capa'
+          : '/api/pedidos-produto/codigo/$codigo',
+      body: capa
+          ? {
+              'custoMetroQuadrado': pedido['custoMetroQuadrado'],
+              'frete': pedido['frete'],
+              'lucro': pedido['lucro'],
+              'espessuraMicras': pedido['espessuraMicras'],
+            }
+          : {'itens': pedido['itens']},
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
@@ -515,12 +539,16 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
               mainAxisSize: MainAxisSize.min,
               children: itens.map((linha) {
                 final produto = linha['produto'] ?? {};
+                final piscina = linha['piscina'] ?? {};
+                final valorDaCapa =
+                    ((linha['totalCompra'] as num?) ?? 0) +
+                    ((linha['lucroCapa'] as num?) ?? 0);
                 return ListTile(
                   leading: const Icon(Icons.shopping_bag_outlined),
-                  title: Text(produto['nome'] ?? ''),
-                  subtitle: Text(
-                    '${linha['quantidade']} unidade(s) • venda ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}${((linha['desconto'] as num?) ?? 0) > 0 ? ' • desconto ${formatarMoeda(linha['desconto'] as num)}' : ''}',
-                  ),
+                  title: Text(linha['descricaoCapa'] ?? produto['nome'] ?? ''),
+                  subtitle: Text(linha['tipoPedido'] == 'CAPA'
+                      ? 'Metragem: ${piscina['comprimento'] ?? 0} m × ${piscina['largura'] ?? 0} m = ${linha['areaCapa'] ?? 0} m²\nValor da capa: ${formatarMoeda(valorDaCapa)} • Frete: ${formatarMoeda((linha['freteCapa'] as num?) ?? 0)}'
+                      : '${linha['quantidade']} unidade(s) • venda ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}${((linha['desconto'] as num?) ?? 0) > 0 ? ' • desconto ${formatarMoeda(linha['desconto'] as num)}' : ''}'),
                   trailing: Text(
                     formatarMoeda(
                       (linha['totalLiquido'] as num?) ??
@@ -675,6 +703,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                       final grupo = grupos[indice];
                       final primeiro = grupo.value.first;
                       final concluido = primeiro['status'] == 'CONCLUIDO';
+                      final capa = primeiro['tipoPedido'] == 'CAPA';
                       final total = grupo.value.fold<double>(
                         0,
                         (soma, item) =>
@@ -702,7 +731,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
-                          '${grupo.value.length} produto(s) • ${_nomeStatus(primeiro['status'])} • ${primeiro['dataPedido']}',
+                          '${capa ? primeiro['descricaoCapa'] : '${grupo.value.length} produto(s)'} • ${_nomeStatus(primeiro['status'])} • ${primeiro['dataPedido']}',
                         ),
                         trailing: compacto
                             ? PopupMenuButton<String>(
@@ -725,7 +754,9 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                     value: 'compartilhar',
                                     child: Text('Compartilhar PDF'),
                                   ),
-                                  if (!concluido)
+                                  if (!concluido &&
+                                      (primeiro['tipoPedido'] != 'CAPA' ||
+                                          widget.gestor))
                                     const PopupMenuItem(
                                       value: 'editar',
                                       child: Text('Editar pedido'),
@@ -758,7 +789,9 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                         _compartilharPedido(grupo.key),
                                     icon: const Icon(Icons.share_outlined),
                                   ),
-                                  if (!concluido)
+                                  if (!concluido &&
+                                      (primeiro['tipoPedido'] != 'CAPA' ||
+                                          widget.gestor))
                                     IconButton(
                                       tooltip: 'Editar pedido',
                                       onPressed: () =>
@@ -839,7 +872,7 @@ class _ResultadoProdutosCard extends StatelessWidget {
                         ((pedido['totalCompra'] as num?) ?? 0);
                     return ListTile(
                       leading: const Icon(Icons.shopping_bag_outlined),
-                      title: Text((pedido['produto'] ?? {})['nome'] ?? ''),
+                      title: Text(pedido['descricaoCapa'] ?? (pedido['produto'] ?? {})['nome'] ?? ''),
                       subtitle: Text(
                         'Pedido #${pedido['codigoPedido']} • ${(pedido['cliente'] ?? {})['nome']}',
                       ),

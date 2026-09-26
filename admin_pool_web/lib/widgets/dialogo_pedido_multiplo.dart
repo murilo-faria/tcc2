@@ -13,6 +13,12 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
   int? piscinaFixa,
   int? funcionarioFixo,
   bool? usoInternoInicial,
+  bool permitirCapa = false,
+  bool capaInicial = false,
+  num? custoMetroQuadradoInicial,
+  num? freteInicial,
+  num? lucroInicial,
+  int? espessuraMicrasInicial,
   List<Map<String, int>>? itensIniciais,
   required String titulo,
 }) async {
@@ -20,12 +26,17 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
     ..sort((a, b) => (a['nome'] ?? '').toString().toLowerCase().compareTo((b['nome'] ?? '').toString().toLowerCase()));
   int clienteId = clienteFixo ?? clientesOrdenados.first['id'] as int;
   bool usoInterno = usoInternoInicial ?? false;
+  bool capaSobMedida = capaInicial;
   int? funcionarioId = funcionarioFixo ?? (funcionarios.isEmpty ? null : funcionarios.first['id'] as int);
   int? piscinaId = piscinaFixa ?? (piscinas.where((p) => p['cliente']['id'] == clienteId).length == 1
       ? piscinas.firstWhere((p) => p['cliente']['id'] == clienteId)['id'] as int : null);
   final itens = itensIniciais == null
       ? <Map<String, int>>[{'produtoId': produtos.first['id'] as int, 'quantidade': 1}]
       : itensIniciais.map((item) => Map<String, int>.from(item)).toList();
+  final custoMetroQuadrado = TextEditingController(text: custoMetroQuadradoInicial?.toString() ?? '');
+  final frete = TextEditingController(text: freteInicial?.toString() ?? '');
+  final lucro = TextEditingController(text: lucroInicial?.toString() ?? '');
+  int espessuraMicras = espessuraMicrasInicial ?? 300;
 
   return showDialog<Map<String, dynamic>>(
     context: context,
@@ -37,6 +48,18 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
           total += ((usoInterno ? produto['precoCompra'] : produto['precoVenda']) as num? ?? 0) * item['quantidade']!;
         }
         final celular = MediaQuery.of(context).size.width < 600;
+        final piscinaSelecionada = piscinaId == null ? null : piscinas.firstWhere(
+          (p) => p['id'] == piscinaId,
+          orElse: () => <String, dynamic>{},
+        );
+        final comprimento = (piscinaSelecionada?['comprimento'] as num?) ?? 0;
+        final largura = (piscinaSelecionada?['largura'] as num?) ?? 0;
+        final area = comprimento * largura;
+        final custoM2 = double.tryParse(custoMetroQuadrado.text.replaceAll(',', '.')) ?? 0;
+        final valorFrete = double.tryParse(frete.text.replaceAll(',', '.')) ?? 0;
+        final valorLucro = double.tryParse(lucro.text.replaceAll(',', '.')) ?? 0;
+        final valorCapa = area * custoM2;
+        final totalCapa = valorCapa + valorFrete + valorLucro;
         return AlertDialog(
           insetPadding: EdgeInsets.all(celular ? 16 : 24),
           title: Text(titulo),
@@ -44,14 +67,20 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
             width: celular ? double.maxFinite : 650,
             child: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                if (clienteFixo == null && funcionarios.isNotEmpty && usoInternoInicial == null) ...[
-                  SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment(value: false, icon: Icon(Icons.person_outline), label: Text('Para cliente')),
-                      ButtonSegment(value: true, icon: Icon(Icons.inventory_2_outlined), label: Text('Uso interno')),
+                if (clienteFixo == null && usoInternoInicial == null && (funcionarios.isNotEmpty || permitirCapa)) ...[
+                  SegmentedButton<String>(
+                    segments: [
+                      const ButtonSegment(value: 'CLIENTE', icon: Icon(Icons.person_outline), label: Text('Para cliente')),
+                      if (funcionarios.isNotEmpty)
+                        const ButtonSegment(value: 'INTERNO', icon: Icon(Icons.inventory_2_outlined), label: Text('Uso interno')),
+                      if (permitirCapa)
+                        const ButtonSegment(value: 'CAPA', icon: Icon(Icons.pool_outlined), label: Text('Capa sob medida')),
                     ],
-                    selected: {usoInterno},
-                    onSelectionChanged: (v) => setLocal(() => usoInterno = v.first),
+                    selected: {capaSobMedida ? 'CAPA' : usoInterno ? 'INTERNO' : 'CLIENTE'},
+                    onSelectionChanged: (v) => setLocal(() {
+                      usoInterno = v.first == 'INTERNO';
+                      capaSobMedida = v.first == 'CAPA';
+                    }),
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -102,6 +131,33 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                   ),
                 ],
                 const SizedBox(height: 8),
+                if (capaSobMedida) ...[
+                  if (piscinaId != null && area <= 0)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: Text('Informe comprimento e largura na piscina antes de gerar a capa.', style: TextStyle(color: Colors.red)),
+                    )
+                  else if (piscinaId != null) ...[
+                    Align(alignment: Alignment.centerLeft, child: Text('Área da piscina: ${area.toStringAsFixed(2).replaceAll('.', ',')} m²', style: const TextStyle(fontWeight: FontWeight.w600))),
+                    const SizedBox(height: 8),
+                    TextField(controller: custoMetroQuadrado, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Custo por m²', prefixText: 'R\$ ')),
+                    DropdownButtonFormField<int>(
+                      initialValue: espessuraMicras,
+                      decoration: const InputDecoration(labelText: 'Tipo da capa'),
+                      items: const [
+                        DropdownMenuItem(value: 300, child: Text('Capa 300 micras')),
+                        DropdownMenuItem(value: 500, child: Text('Capa 500 micras')),
+                      ],
+                      onChanged: (valor) => setLocal(() => espessuraMicras = valor ?? 300),
+                    ),
+                    TextField(controller: frete, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Frete', prefixText: 'R\$ ')),
+                    TextField(controller: lucro, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Lucro desejado', prefixText: 'R\$ ')),
+                    const Divider(),
+                    _ResumoCapa(linha: 'Valor da capa', valor: valorCapa),
+                    _ResumoCapa(linha: 'Frete', valor: valorFrete),
+                    _ResumoCapa(linha: 'Lucro', valor: valorLucro),
+                  ],
+                ] else ...[
                 ...List.generate(itens.length, (indice) {
                   final item = itens[indice];
                   final produtoCampo = DropdownButtonFormField<int>(
@@ -129,9 +185,10 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                   onPressed: () => setLocal(() => itens.add({'produtoId': produtos.first['id'] as int, 'quantidade': 1})),
                   icon: const Icon(Icons.add), label: const Text('Adicionar outro produto'),
                 )),
+                ],
                 const Divider(),
                 Align(alignment: Alignment.centerRight, child: Text(
-                  '${usoInterno ? 'Custo estimado' : 'Total do pedido'}: ${formatarMoeda(total)}',
+                  '${capaSobMedida ? 'Valor final da capa' : usoInterno ? 'Custo estimado' : 'Total do pedido'}: ${formatarMoeda(capaSobMedida ? totalCapa : total)}',
                   style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 )),
               ]),
@@ -140,15 +197,32 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
             FilledButton(
-              onPressed: (usoInterno && funcionarioId == null) || (!usoInterno && piscinaId == null) ? null : () => Navigator.pop(context, {
+              onPressed: (usoInterno && funcionarioId == null) || (!usoInterno && piscinaId == null) || (capaSobMedida && area <= 0) ? null : () => Navigator.pop(context, {
                 if (usoInterno) 'funcionarioId': funcionarioId else ...{'clienteId': clienteId, 'piscinaId': piscinaId},
-                'itens': itens,
+                if (capaSobMedida) ...{
+                  'tipo': 'CAPA',
+                  'custoMetroQuadrado': custoM2,
+                  'frete': valorFrete,
+                  'lucro': valorLucro,
+                  'espessuraMicras': espessuraMicras,
+                } else 'itens': itens,
               }),
-              child: const Text('Salvar pedido'),
+              child: Text(capaSobMedida ? 'Gerar pedido de capa' : 'Salvar pedido'),
             ),
           ],
         );
       },
     ),
+  );
+}
+
+class _ResumoCapa extends StatelessWidget {
+  const _ResumoCapa({required this.linha, required this.valor});
+  final String linha;
+  final num valor;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(children: [Text(linha), const Spacer(), Text(formatarMoeda(valor))]),
   );
 }
