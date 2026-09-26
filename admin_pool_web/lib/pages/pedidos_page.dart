@@ -33,6 +33,14 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
 
   Future<List<dynamic>> _carregar() => _lista('/api/pedidos-produto');
 
+  Future<Map<String, dynamic>> _funcionarioAtual() async {
+    final resposta = await apiService.get('/api/funcionarios/me');
+    if (resposta.statusCode != 200) {
+      throw Exception('Não foi possível identificar o colaborador.');
+    }
+    return jsonDecode(resposta.body) as Map<String, dynamic>;
+  }
+
   void _recarregar() {
     atualizacaoOperacional.value++;
     atualizacaoFinanceira.value++;
@@ -280,12 +288,28 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     ];
     final resultados = await Future.wait(requisicoes);
     if (!mounted || resultados[1].isEmpty) return;
+    Map<String, dynamic>? colaboradorAtual;
+    if (!widget.gestor) {
+      try {
+        colaboradorAtual = await _funcionarioAtual();
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Não foi possível identificar seu cadastro de colaborador.')),
+          );
+        }
+        return;
+      }
+    }
     final pedido = await mostrarDialogPedidoMultiplo(
       context: context,
       clientes: resultados[0],
       produtos: resultados[1],
       piscinas: resultados[2],
-      funcionarios: widget.gestor ? resultados[3] : const [],
+      funcionarios: widget.gestor ? resultados[3] : [colaboradorAtual],
+      funcionarioFixo: colaboradorAtual?['id'] as int?,
+      usoInternoInicial: widget.gestor ? null : true,
+      permitirAlternarUsoInterno: !widget.gestor,
       permitirCapa: widget.gestor,
       titulo: 'Novo pedido de produtos',
     );

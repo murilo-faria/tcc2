@@ -71,11 +71,12 @@ public class PedidoProdutoService {
         if (!usoInterno && requisicao.clienteId() == null) {
             throw new IllegalArgumentException("Selecione o cliente do pedido.");
         }
-        if (usoInterno && !gestor(auth)) {
-            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem registrar material para colaboradores.");
-        }
         Cliente cliente = usoInterno ? null : clientes.findById(requisicao.clienteId()).orElseThrow();
         Funcionario funcionario = usoInterno ? funcionarios.findById(requisicao.funcionarioId()).orElseThrow() : null;
+        if (usoInterno && !gestor(auth)
+                && !funcionario.getUsuario().getLogin().equalsIgnoreCase(auth.getName())) {
+            throw new org.springframework.security.access.AccessDeniedException("O colaborador só pode solicitar material para si mesmo.");
+        }
         Piscina piscina = usoInterno ? null : validarPiscina(requisicao.piscinaId(), cliente, auth);
         Long codigo = pedidos.proximoCodigoPedido();
         List<PedidoProduto> novos = new ArrayList<>();

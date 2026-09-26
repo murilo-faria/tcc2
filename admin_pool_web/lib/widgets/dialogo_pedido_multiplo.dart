@@ -13,6 +13,7 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
   int? piscinaFixa,
   int? funcionarioFixo,
   bool? usoInternoInicial,
+  bool permitirAlternarUsoInterno = false,
   bool permitirCapa = false,
   bool capaInicial = false,
   num? custoMetroQuadradoInicial,
@@ -67,7 +68,7 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
             width: celular ? double.maxFinite : 650,
             child: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                if (clienteFixo == null && usoInternoInicial == null && (funcionarios.isNotEmpty || permitirCapa)) ...[
+                if (clienteFixo == null && (usoInternoInicial == null || permitirAlternarUsoInterno) && (funcionarios.isNotEmpty || permitirCapa)) ...[
                   SegmentedButton<String>(
                     segments: [
                       const ButtonSegment(value: 'CLIENTE', icon: Icon(Icons.person_outline), label: Text('Para cliente')),

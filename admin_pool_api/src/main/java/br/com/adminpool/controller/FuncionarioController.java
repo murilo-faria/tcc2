@@ -22,6 +22,7 @@ public class FuncionarioController {
  private final FuncionarioRepository funcionarios; private final UsuarioRepository usuarios; private final PiscinaRepository piscinas; private final PasswordEncoder encoder;
  public FuncionarioController(FuncionarioRepository f, UsuarioRepository u, PiscinaRepository p, PasswordEncoder e){funcionarios=f;usuarios=u;piscinas=p;encoder=e;}
  @GetMapping public List<Funcionario> listar(Authentication auth){gestor(auth);return funcionarios.findAll();}
+ @GetMapping("/me") public Funcionario atual(Authentication auth){return funcionarios.findByUsuarioLoginIgnoreCase(auth.getName()).orElseThrow(() -> new IllegalArgumentException("Colaborador não encontrado."));}
  @PostMapping public ResponseEntity<Funcionario> criar(@RequestBody NovoFuncionarioRequest r, Authentication auth){gestor(auth);
   if(r.nome()==null||r.nome().isBlank()||r.login()==null||r.login().isBlank()||r.senha()==null||r.senha().length()<6) throw new IllegalArgumentException("Informe nome, usuário e uma senha com ao menos 6 caracteres.");
   if(usuarios.findByLoginIgnoreCase(r.login()).isPresent()) throw new IllegalArgumentException("Este usuário já existe.");
