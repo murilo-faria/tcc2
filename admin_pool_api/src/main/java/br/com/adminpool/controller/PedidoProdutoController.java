@@ -64,9 +64,12 @@ public class PedidoProdutoController {
         var itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
         if (itens.isEmpty()) throw new IllegalArgumentException("Pedido não encontrado.");
         var primeiro = itens.get(0);
+        boolean usoInterno = primeiro.getCliente() == null && primeiro.getFuncionario() != null;
         var linhas = itens.stream().map(p -> new LinhaRelatorioPdf(destinatario(primeiro),
                     descricaoItem(p), primeiro.getDataPedido().toString(),
-                    p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())).toList();
+                    usoInterno ? p.getTotalCompra()
+                            : (p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido())))
+                .toList();
         String endereco = enderecoEntrega(primeiro);
         byte[] pdf = "CAPA".equals(primeiro.getTipoPedido())
                 ? relatorios.gerarCapa("Pedido #" + codigo, endereco, primeiro.getDescricaoCapa(),
