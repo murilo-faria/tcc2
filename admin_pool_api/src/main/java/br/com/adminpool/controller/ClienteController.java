@@ -110,9 +110,15 @@ public class ClienteController {
         Map<Long, Cliente> porId = clientes.findAllById(ordem).stream()
                 .collect(Collectors.toMap(Cliente::getId, cliente -> cliente));
         var linhas = ordem.stream().map(porId::get).filter(java.util.Objects::nonNull).map(cliente -> {
-            Piscina piscina = piscinas.findByClienteIdOrderByNome(cliente.getId()).stream().findFirst().orElse(null);
-            String responsavel = piscina != null && piscina.getResponsavel() != null
-                    ? piscina.getResponsavel().getUsuario().getNome() : "Sem responsável";
+            String responsavel = piscinas.findByClienteIdOrderByNome(cliente.getId()).stream()
+                    .map(Piscina::getResponsavel)
+                    .filter(java.util.Objects::nonNull)
+                    .map(funcionario -> funcionario.getUsuario().getNome())
+                    .filter(java.util.Objects::nonNull)
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.joining(" • "));
+            if (responsavel.isBlank()) responsavel = "Sem responsável";
             return new LinhaRelatorioPdf(cliente.getNome(), responsavel,
                     cliente.isAtivo() ? "Ativo" : "Inativo", cliente.getValorMensalidade());
         }).toList();

@@ -1330,13 +1330,37 @@ class _ListaClientesState extends State<_ListaClientes> {
     return lista;
   }
 
-  String _nomeResponsavel(Map<String, dynamic> cliente) =>
-      ((cliente['_responsavelCor'] ??
-                  cliente['funcionario'] ??
-                  {})['usuario'] ??
-              {})['nome']
-          ?.toString() ??
-      'Sem responsável';
+  List<String> _nomesResponsaveis(Map<String, dynamic> cliente) {
+    final nomes =
+        (cliente['_piscinas'] as List<dynamic>? ?? const [])
+            .map(
+              (piscina) =>
+                  (((piscina['responsavel'] ?? {})['usuario'] ?? {})['nome'] ??
+                          '')
+                      .toString()
+                      .trim(),
+            )
+            .where((nome) => nome.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    if (nomes.isNotEmpty) return nomes;
+    final responsavel =
+        ((cliente['_responsavelCor'] ??
+                    cliente['funcionario'] ??
+                    {})['usuario'] ??
+                {})['nome']
+            ?.toString()
+            .trim();
+    return responsavel == null || responsavel.isEmpty
+        ? const []
+        : [responsavel];
+  }
+
+  String _nomeResponsavel(Map<String, dynamic> cliente) {
+    final nomes = _nomesResponsaveis(cliente);
+    return nomes.isEmpty ? 'Sem responsável' : nomes.join(' • ');
+  }
 
   List<dynamic> _aplicarFiltros(List<dynamic> lista) {
     final dados = lista
@@ -1348,8 +1372,9 @@ class _ListaClientesState extends State<_ListaClientes> {
         .where(
           (c) =>
               responsavelSelecionado == null ||
-              _nomeResponsavel(c as Map<String, dynamic>) ==
-                  responsavelSelecionado,
+              _nomesResponsaveis(
+                c as Map<String, dynamic>,
+              ).contains(responsavelSelecionado),
         )
         .where(
           (c) =>
@@ -2097,6 +2122,26 @@ class _ListaClientesState extends State<_ListaClientes> {
     );
   }
 
+  Widget _celulaResponsaveis(Map<String, dynamic> cliente) {
+    final piscinas = (cliente['_piscinas'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
+    if (piscinas.isEmpty) return Text(_nomeResponsavel(cliente));
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: piscinas.map((piscina) {
+        final responsavel =
+            (((piscina['responsavel'] ?? {})['usuario'] ?? {})['nome'] ??
+                    'Sem responsável')
+                .toString();
+        return SizedBox(
+          height: 54,
+          child: Align(alignment: Alignment.topLeft, child: Text(responsavel)),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _tabelaClientes(List<dynamic> dados) => Card(
     elevation: 1,
     surfaceTintColor: Colors.white,
@@ -2122,12 +2167,6 @@ class _ListaClientesState extends State<_ListaClientes> {
                   rows: dados.map((valor) {
                     final cliente = valor as Map<String, dynamic>;
                     final ativo = cliente['ativo'] != false;
-                    final responsavel =
-                        ((cliente['_responsavelCor'] ??
-                                cliente['funcionario'] ??
-                                {})['usuario'] ??
-                            {})['nome'] ??
-                        'Sem responsável';
                     final mensalidade =
                         (cliente['valorMensalidade'] as num?) ?? 0;
                     return DataRow(
@@ -2158,7 +2197,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                         ),
                         DataCell(_celulaPiscinas(cliente)),
                         DataCell(Text(formatarMoeda(mensalidade))),
-                        DataCell(Text(responsavel.toString())),
+                        DataCell(_celulaResponsaveis(cliente)),
                         DataCell(
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -2258,12 +2297,6 @@ class _ListaClientesState extends State<_ListaClientes> {
                   rows: dados.map((valor) {
                     final cliente = valor as Map<String, dynamic>;
                     final ativo = cliente['ativo'] != false;
-                    final responsavel =
-                        ((cliente['_responsavelCor'] ??
-                                cliente['funcionario'] ??
-                                {})['usuario'] ??
-                            {})['nome'] ??
-                        'Sem responsável';
                     final mensalidade =
                         (cliente['valorMensalidade'] as num?) ?? 0;
                     return DataRow(
@@ -2294,7 +2327,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                         ),
                         DataCell(_celulaPiscinas(cliente)),
                         DataCell(Text(formatarMoeda(mensalidade))),
-                        DataCell(Text(responsavel.toString())),
+                        DataCell(_celulaResponsaveis(cliente)),
                         DataCell(
                           Row(
                             mainAxisSize: MainAxisSize.min,
@@ -2460,12 +2493,11 @@ class _ListaClientesState extends State<_ListaClientes> {
                       if (!estado.hasData) return const SizedBox.shrink();
                       final responsaveis =
                           estado.data!
-                              .map(
-                                (valor) => _nomeResponsavel(
+                              .expand(
+                                (valor) => _nomesResponsaveis(
                                   valor as Map<String, dynamic>,
                                 ),
                               )
-                              .where((nome) => nome != 'Sem responsável')
                               .toSet()
                               .toList()
                             ..sort();
