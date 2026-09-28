@@ -16,6 +16,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
   bool _mostrarFiltros = false;
   DateTime? _dataInicial;
   DateTime? _dataFinal;
+  final Set<int> _clientesSelecionados = {};
 
   @override
   void initState() {
@@ -53,7 +54,66 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
 
   void _atualizar() {
     atualizacaoFinanceira.value++;
-    setState(() => _dados = _carregar());
+    setState(() {
+      _clientesSelecionados.clear();
+      _dados = _carregar();
+    });
+  }
+
+  Future<void> _baixarClientesSelecionados() async {
+    if (_clientesSelecionados.isEmpty) return;
+    final dados = await _dados;
+    final clientes = (dados['resumos'] as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .where(
+          (cliente) => _clientesSelecionados.contains(cliente['clienteId']),
+        )
+        .toList();
+    final total = clientes.fold<num>(
+      0,
+      (soma, cliente) => soma + ((cliente['totalPendente'] as num?) ?? 0),
+    );
+    if (!mounted) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar baixa em lote?'),
+        content: Text(
+          'Dar baixa total em ${clientes.length} cliente(s) selecionado(s)?\n\n'
+          'Total recebido: ${formatarMoeda(total)}.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmar baixa'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+    final resposta = await apiService.put(
+      '/api/cobrancas/clientes/baixar-total',
+      body: {'clienteIds': _clientesSelecionados.toList()},
+    );
+    if (!mounted) return;
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _atualizar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${clientes.length} cliente(s) com baixa confirmada.'),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível concluir a baixa em lote.'),
+        ),
+      );
+    }
   }
 
   DateTime? _data(dynamic valor) => DateTime.tryParse(valor?.toString() ?? '');
@@ -214,6 +274,19 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
             ),
           ),
           const SizedBox(height: 18),
+          if (_clientesSelecionados.isNotEmpty) ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                onPressed: _baixarClientesSelecionados,
+                icon: const Icon(Icons.done_all),
+                label: Text(
+                  'Dar baixa nos selecionados (${_clientesSelecionados.length})',
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
@@ -366,20 +439,37 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, indice) {
                       final cliente = clientes[indice] as Map<String, dynamic>;
+                      final clienteId = cliente['clienteId'] as int;
                       final total = (cliente['totalPendente'] as num?) ?? 0;
                       final atrasado = cliente['possuiAtraso'] == true;
                       return ListTile(
                         onTap: () => _abrirCliente(cliente),
-                        leading: CircleAvatar(
-                          backgroundColor: atrasado
-                              ? Colors.red.shade50
-                              : Colors.blue.shade50,
-                          child: Icon(
-                            atrasado
-                                ? Icons.warning_amber_rounded
-                                : Icons.person_outline,
-                            color: atrasado ? Colors.red : Colors.blue,
-                          ),
+                        leading: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Checkbox(
+                              value: _clientesSelecionados.contains(clienteId),
+                              shape: const CircleBorder(),
+                              onChanged: (marcado) => setState(() {
+                                if (marcado == true) {
+                                  _clientesSelecionados.add(clienteId);
+                                } else {
+                                  _clientesSelecionados.remove(clienteId);
+                                }
+                              }),
+                            ),
+                            CircleAvatar(
+                              backgroundColor: atrasado
+                                  ? Colors.red.shade50
+                                  : Colors.blue.shade50,
+                              child: Icon(
+                                atrasado
+                                    ? Icons.warning_amber_rounded
+                                    : Icons.person_outline,
+                                color: atrasado ? Colors.red : Colors.blue,
+                              ),
+                            ),
+                          ],
                         ),
                         title: Text(cliente['clienteNome'] ?? ''),
                         subtitle: Text(
@@ -708,7 +798,9 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                     return Center(child: Text('${estado.error}'));
                   if (estado.data!.isEmpty)
                     return const Center(
-                      child: Text('Nenhum lançamento para os filtros selecionados.'),
+                      child: Text(
+                        'Nenhum lançamento para os filtros selecionados.',
+                      ),
                     );
                   return ListView.separated(
                     itemCount: estado.data!.length,
@@ -718,7 +810,9 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                       final aberto = _aberto(item);
                       final id = item['id'] as int;
                       final valor = formatarMoeda(
-                        ((aberto ? item['saldoPendente'] : item['valorPago']) as num?) ?? 0,
+                        ((aberto ? item['saldoPendente'] : item['valorPago'])
+                                as num?) ??
+                            0,
                       );
                       return ListTile(
                         contentPadding: EdgeInsets.symmetric(

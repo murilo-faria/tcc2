@@ -1,6 +1,7 @@
 package br.com.adminpool.controller;
 
 import br.com.adminpool.dto.BaixaCobrancaRequest;
+import br.com.adminpool.dto.BaixaClientesRequest;
 import br.com.adminpool.dto.BaixaItensRequest;
 import br.com.adminpool.dto.ResumoCobrancaCliente;
 import br.com.adminpool.dto.FluxoCaixaEntrada;
@@ -145,6 +146,12 @@ public class CobrancaController {
     public ResponseEntity<Void> baixarTotal(@PathVariable Long clienteId,
                                             @RequestBody(required = false) BaixaCobrancaRequest requisicao) {
         cobrancaService.baixarTotalCliente(clienteId, requisicao == null ? null : requisicao.formaPagamento());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/clientes/baixar-total")
+    public ResponseEntity<Void> baixarTotaisClientes(@RequestBody BaixaClientesRequest requisicao) {
+        cobrancaService.baixarTotaisClientes(requisicao.clienteIds(), requisicao.formaPagamento());
         return ResponseEntity.noContent().build();
     }
 

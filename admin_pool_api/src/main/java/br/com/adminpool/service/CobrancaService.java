@@ -260,6 +260,22 @@ public class CobrancaService {
     }
 
     @Transactional
+    public void baixarTotaisClientes(List<Long> clienteIds, String formaPagamento) {
+        if (clienteIds == null || clienteIds.isEmpty()) {
+            throw new IllegalArgumentException("Selecione pelo menos um cliente.");
+        }
+        List<Long> itemIds = clienteIds.stream()
+                .distinct()
+                .flatMap(clienteId -> listarItensPendentesCliente(clienteId).stream())
+                .map(ItemCobranca::getId)
+                .toList();
+        if (itemIds.isEmpty()) {
+            throw new IllegalStateException("Os clientes selecionados não possuem valores pendentes.");
+        }
+        baixarItens(itemIds, formaPagamento);
+    }
+
+    @Transactional
     public void baixarParcialCliente(Long clienteId, BigDecimal valor, String formaPagamento) {
         List<ItemCobranca> pendentes = listarItensPendentesCliente(clienteId);
         BigDecimal total = pendentes.stream().map(ItemCobranca::getSaldoPendente)
