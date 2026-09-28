@@ -114,20 +114,28 @@ public class ClienteController {
                 .collect(Collectors.toMap(Cliente::getId, cliente -> cliente));
         var linhas = ordem.stream().map(porId::get)
                 .filter(java.util.Objects::nonNull)
-                .map(cliente -> {
-            String responsavel = piscinas.findByClienteIdOrderByNome(cliente.getId()).stream()
-                    .map(Piscina::getResponsavel)
-                    .filter(java.util.Objects::nonNull)
-                    .map(funcionario -> funcionario.getUsuario().getNome())
-                    .filter(java.util.Objects::nonNull)
-                    .distinct()
-                    .sorted()
-                    .collect(Collectors.joining(" • "));
-            if (responsavel.isBlank()) responsavel = "Sem responsável";
-            return new LinhaRelatorioPdf(cliente.getNome(), responsavel,
-                    cliente.isAtivo() ? "Ativo" : "Inativo",
-                    cliente.isAtivo() ? cliente.getValorMensalidade() : java.math.BigDecimal.ZERO);
-        }).toList();
+                .flatMap(cliente -> {
+                    List<Piscina> piscinasCliente = piscinas.findByClienteIdOrderByNome(cliente.getId());
+                    if (piscinasCliente.isEmpty()) {
+                        return java.util.stream.Stream.of(new LinhaRelatorioPdf(
+                                cliente.getNome(), "Sem responsável",
+                                cliente.isAtivo() ? "Ativo" : "Inativo",
+                                cliente.isAtivo() ? cliente.getValorMensalidade() : BigDecimal.ZERO));
+                    }
+                    boolean variasPiscinas = piscinasCliente.size() > 1;
+                    return piscinasCliente.stream().map(piscina -> {
+                        String responsavel = piscina.getResponsavel() == null
+                                ? "Sem responsável"
+                                : piscina.getResponsavel().getUsuario().getNome();
+                        String nome = variasPiscinas
+                                ? cliente.getNome() + " — " + piscina.getNome()
+                                : cliente.getNome();
+                        BigDecimal valor = cliente.isAtivo() && piscina.getValorMensalidade() != null
+                                ? piscina.getValorMensalidade() : BigDecimal.ZERO;
+                        return new LinhaRelatorioPdf(nome, responsavel,
+                                cliente.isAtivo() ? "Ativo" : "Inativo", valor);
+                    });
+                }).toList();
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=relatorio-clientes.pdf")
                 .body(relatorios.gerarClientes("Relatório de clientes", "Clientes exibidos conforme os filtros da tela", linhas));
