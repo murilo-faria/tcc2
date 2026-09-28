@@ -1406,8 +1406,11 @@ class _ListaClientesState extends State<_ListaClientes> {
       return;
     }
     final ids = dados.map((cliente) => cliente['id']).join(',');
+    final filtroResponsavel = responsavelSelecionado == null
+        ? ''
+        : '&responsavel=${Uri.encodeQueryComponent(responsavelSelecionado!)}';
     final resposta = await apiService.get(
-      '/api/clientes/relatorio.pdf?ids=$ids',
+      '/api/clientes/relatorio.pdf?ids=$ids$filtroResponsavel',
     );
     if (!mounted) return;
     if (resposta.statusCode == 200) {

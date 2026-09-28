@@ -104,7 +104,9 @@ public class ClienteController {
     }
 
     @GetMapping(value = "/relatorio.pdf", produces = "application/pdf")
-    public ResponseEntity<byte[]> relatorio(@RequestParam String ids, Authentication auth) {
+    public ResponseEntity<byte[]> relatorio(@RequestParam String ids,
+                                             @RequestParam(required = false) String responsavel,
+                                             Authentication auth) {
         if (!gestor(auth)) {
             throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem gerar o relatório de clientes.");
         }
@@ -117,14 +119,22 @@ public class ClienteController {
                 .flatMap(cliente -> {
                     List<Piscina> piscinasCliente = piscinas.findByClienteIdOrderByNome(cliente.getId());
                     if (piscinasCliente.isEmpty()) {
+                        if (responsavel != null && !responsavel.isBlank()) {
+                            return java.util.stream.Stream.empty();
+                        }
                         return java.util.stream.Stream.of(new LinhaRelatorioPdf(
                                 cliente.getNome(), "Sem responsável",
                                 cliente.isAtivo() ? "Ativo" : "Inativo",
                                 cliente.isAtivo() ? cliente.getValorMensalidade() : BigDecimal.ZERO));
                     }
-                    boolean variasPiscinas = piscinasCliente.size() > 1;
-                    return piscinasCliente.stream().map(piscina -> {
-                        String responsavel = piscina.getResponsavel() == null
+                    List<Piscina> piscinasFiltradas = piscinasCliente.stream()
+                            .filter(piscina -> responsavel == null || responsavel.isBlank()
+                                    || piscina.getResponsavel() != null
+                                    && responsavel.equalsIgnoreCase(piscina.getResponsavel().getUsuario().getNome()))
+                            .toList();
+                    boolean variasPiscinas = piscinasFiltradas.size() > 1 || piscinasCliente.size() > 1;
+                    return piscinasFiltradas.stream().map(piscina -> {
+                        String nomeResponsavel = piscina.getResponsavel() == null
                                 ? "Sem responsável"
                                 : piscina.getResponsavel().getUsuario().getNome();
                         String nome = variasPiscinas
@@ -132,7 +142,7 @@ public class ClienteController {
                                 : cliente.getNome();
                         BigDecimal valor = cliente.isAtivo() && piscina.getValorMensalidade() != null
                                 ? piscina.getValorMensalidade() : BigDecimal.ZERO;
-                        return new LinhaRelatorioPdf(nome, responsavel,
+                        return new LinhaRelatorioPdf(nome, nomeResponsavel,
                                 cliente.isAtivo() ? "Ativo" : "Inativo", valor);
                     });
                 }).toList();
