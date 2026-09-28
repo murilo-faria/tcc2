@@ -1497,9 +1497,11 @@ class _ListaClientesState extends State<_ListaClientes> {
     final valor = TextEditingController();
     final vencimento = TextEditingController(text: '10');
     final piscinaNome = TextEditingController(text: 'Piscina principal');
-    final piscinaTipo = TextEditingController();
-    final piscinaVolume = TextEditingController();
     final piscinaEndereco = TextEditingController();
+    final piscinaComprimento = TextEditingController(text: '0');
+    final piscinaLargura = TextEditingController(text: '0');
+    final piscinaProfundidade = TextEditingController(text: '1,4');
+    final piscinaDescontoEscada = TextEditingController(text: '15');
     final respostaFuncionarios = await apiService.get('/api/funcionarios');
     final funcionarios = respostaFuncionarios.statusCode == 200
         ? jsonDecode(respostaFuncionarios.body) as List<dynamic>
@@ -1509,6 +1511,10 @@ class _ListaClientesState extends State<_ListaClientes> {
     DateTime? dataPersonalizada;
     int? responsavelId;
     String? diaAtendimento;
+    String? tipoPiscina;
+
+    double medida(String texto) =>
+        double.tryParse(texto.replaceAll(',', '.')) ?? 0;
 
     DateTime vencimentoCalculado() {
       if (inicioCobranca == 'PERSONALIZADO' && dataPersonalizada != null) {
@@ -1533,216 +1539,299 @@ class _ListaClientesState extends State<_ListaClientes> {
     final salvar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Novo cliente'),
-          content: SizedBox(
-            width: 560,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Dados do cliente',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  TextField(
-                    controller: nome,
-                    autofocus: true,
-                    decoration: const InputDecoration(labelText: 'Nome *'),
-                  ),
-                  TextField(
-                    controller: telefone,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(labelText: 'Telefone'),
-                  ),
-                  TextField(
-                    controller: endereco,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Endereço do cliente',
+        builder: (context, setDialogState) {
+          final metragem =
+              medida(piscinaComprimento.text) * medida(piscinaLargura.text);
+          final litragem =
+              metragem *
+              medida(piscinaProfundidade.text) *
+              1000 *
+              (1 - medida(piscinaDescontoEscada.text) / 100);
+          return AlertDialog(
+            title: const Text('Novo cliente'),
+            content: SizedBox(
+              width: 560,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Dados do cliente',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Piscina',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  TextField(
-                    controller: piscinaNome,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome ou identificação da piscina *',
+                    TextField(
+                      controller: nome,
+                      autofocus: true,
+                      decoration: const InputDecoration(labelText: 'Nome *'),
                     ),
-                  ),
-                  TextField(
-                    controller: piscinaEndereco,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Endereço da piscina',
+                    TextField(
+                      controller: telefone,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(labelText: 'Telefone'),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: piscinaTipo,
-                          decoration: const InputDecoration(labelText: 'Tipo'),
-                        ),
+                    TextField(
+                      controller: endereco,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Endereço do cliente',
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: piscinaVolume,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Volume em litros',
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Piscina',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    TextField(
+                      controller: piscinaNome,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome ou identificação da piscina *',
+                      ),
+                    ),
+                    TextField(
+                      controller: piscinaEndereco,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Endereço da piscina',
+                      ),
+                    ),
+                    DropdownButtonFormField<String>(
+                      initialValue: tipoPiscina,
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo da piscina',
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Fibra', child: Text('Fibra')),
+                        DropdownMenuItem(
+                          value: 'Alvenaria',
+                          child: Text('Alvenaria'),
+                        ),
+                      ],
+                      onChanged: (valor) =>
+                          setDialogState(() => tipoPiscina = valor),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: piscinaComprimento,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Comprimento (m)',
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  DropdownButtonFormField<int?>(
-                    initialValue: responsavelId,
-                    decoration: const InputDecoration(
-                      labelText: 'Colaborador responsável',
-                    ),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('Definir depois'),
-                      ),
-                      ...funcionarios.map(
-                        (f) => DropdownMenuItem<int?>(
-                          value: f['id'] as int,
-                          child: Text((f['usuario'] ?? {})['nome'] ?? ''),
-                        ),
-                      ),
-                    ],
-                    onChanged: (v) => setDialogState(() => responsavelId = v),
-                  ),
-                  DropdownButtonFormField<String?>(
-                    initialValue: diaAtendimento,
-                    decoration: const InputDecoration(
-                      labelText: 'Dia de atendimento',
-                    ),
-                    items: const [
-                      DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('Definir depois'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Segunda',
-                        child: Text('Segunda'),
-                      ),
-                      DropdownMenuItem(value: 'Terça', child: Text('Terça')),
-                      DropdownMenuItem(value: 'Quarta', child: Text('Quarta')),
-                      DropdownMenuItem(value: 'Quinta', child: Text('Quinta')),
-                      DropdownMenuItem(value: 'Sexta', child: Text('Sexta')),
-                      DropdownMenuItem(value: 'Sábado', child: Text('Sábado')),
-                    ],
-                    onChanged: (v) => setDialogState(() => diaAtendimento = v),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Cobrança',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: valor,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'Mensalidade *',
-                            prefixText: 'R\$ ',
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: piscinaLargura,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Largura (m)',
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: vencimento,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Vence todo dia *',
-                            helperText: '1 a 31',
-                          ),
-                          onChanged: (_) => setDialogState(() {}),
-                        ),
-                      ),
-                    ],
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: inicioCobranca,
-                    decoration: const InputDecoration(
-                      labelText: 'Começar a cobrar *',
+                      ],
                     ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'MES_ATUAL',
-                        child: Text('Neste mês'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'PROXIMO_MES',
-                        child: Text('No próximo mês'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'PERSONALIZADO',
-                        child: Text('Escolher uma data'),
-                      ),
-                    ],
-                    onChanged: (v) => setDialogState(() => inicioCobranca = v!),
-                  ),
-                  if (inicioCobranca == 'PERSONALIZADO')
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.calendar_month_outlined),
-                      title: Text(
-                        dataPersonalizada == null
-                            ? 'Escolher primeiro vencimento'
-                            : dataApi(dataPersonalizada!),
-                      ),
-                      onTap: () async {
-                        final escolhida = await showDatePicker(
-                          context: context,
-                          initialDate:
-                              dataPersonalizada ??
-                              DateTime.now().add(const Duration(days: 1)),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 1095),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: piscinaProfundidade,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Profundidade (m)',
+                            ),
                           ),
-                        );
-                        if (escolhida != null)
-                          setDialogState(() => dataPersonalizada = escolhida);
-                      },
-                    )
-                  else
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: piscinaDescontoEscada,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Perda da escada (%)',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Text(
-                        'Primeiro vencimento: ${dataApi(vencimentoCalculado())}',
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Metragem: ${metragem.toStringAsFixed(2)} m²\nLitragem: ${(litragem / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
-                ],
+                    DropdownButtonFormField<int?>(
+                      initialValue: responsavelId,
+                      decoration: const InputDecoration(
+                        labelText: 'Colaborador responsável',
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('Definir depois'),
+                        ),
+                        ...funcionarios.map(
+                          (f) => DropdownMenuItem<int?>(
+                            value: f['id'] as int,
+                            child: Text((f['usuario'] ?? {})['nome'] ?? ''),
+                          ),
+                        ),
+                      ],
+                      onChanged: (v) => setDialogState(() => responsavelId = v),
+                    ),
+                    DropdownButtonFormField<String?>(
+                      initialValue: diaAtendimento,
+                      decoration: const InputDecoration(
+                        labelText: 'Dia de atendimento',
+                      ),
+                      items: const [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('Definir depois'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Segunda',
+                          child: Text('Segunda'),
+                        ),
+                        DropdownMenuItem(value: 'Terça', child: Text('Terça')),
+                        DropdownMenuItem(
+                          value: 'Quarta',
+                          child: Text('Quarta'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Quinta',
+                          child: Text('Quinta'),
+                        ),
+                        DropdownMenuItem(value: 'Sexta', child: Text('Sexta')),
+                        DropdownMenuItem(
+                          value: 'Sábado',
+                          child: Text('Sábado'),
+                        ),
+                      ],
+                      onChanged: (v) =>
+                          setDialogState(() => diaAtendimento = v),
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Cobrança',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: valor,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              labelText: 'Mensalidade *',
+                              prefixText: 'R\$ ',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: vencimento,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Vence todo dia *',
+                              helperText: '1 a 31',
+                            ),
+                            onChanged: (_) => setDialogState(() {}),
+                          ),
+                        ),
+                      ],
+                    ),
+                    DropdownButtonFormField<String>(
+                      initialValue: inicioCobranca,
+                      decoration: const InputDecoration(
+                        labelText: 'Começar a cobrar *',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'MES_ATUAL',
+                          child: Text('Neste mês'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'PROXIMO_MES',
+                          child: Text('No próximo mês'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'PERSONALIZADO',
+                          child: Text('Escolher uma data'),
+                        ),
+                      ],
+                      onChanged: (v) =>
+                          setDialogState(() => inicioCobranca = v!),
+                    ),
+                    if (inicioCobranca == 'PERSONALIZADO')
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.calendar_month_outlined),
+                        title: Text(
+                          dataPersonalizada == null
+                              ? 'Escolher primeiro vencimento'
+                              : dataApi(dataPersonalizada!),
+                        ),
+                        onTap: () async {
+                          final escolhida = await showDatePicker(
+                            context: context,
+                            initialDate:
+                                dataPersonalizada ??
+                                DateTime.now().add(const Duration(days: 1)),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 1095),
+                            ),
+                          );
+                          if (escolhida != null)
+                            setDialogState(() => dataPersonalizada = escolhida);
+                        },
+                      )
+                    else
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          'Primeiro vencimento: ${dataApi(vencimentoCalculado())}',
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(context, true),
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Salvar cliente'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                icon: const Icon(Icons.save_outlined),
+                label: const Text('Salvar cliente'),
+              ),
+            ],
+          );
+        },
       ),
     );
 
@@ -1786,8 +1875,11 @@ class _ListaClientesState extends State<_ListaClientes> {
           'diaVencimento': dia,
           'primeiroVencimento': dataApi(vencimentoCalculado()),
           'piscinaNome': piscinaNome.text.trim(),
-          'piscinaTipo': piscinaTipo.text.trim(),
-          'piscinaVolumeLitros': int.tryParse(piscinaVolume.text),
+          'piscinaTipo': tipoPiscina ?? '',
+          'piscinaComprimento': medida(piscinaComprimento.text),
+          'piscinaLargura': medida(piscinaLargura.text),
+          'piscinaProfundidade': medida(piscinaProfundidade.text),
+          'piscinaDescontoEscada': medida(piscinaDescontoEscada.text),
           'piscinaEndereco': piscinaEndereco.text.trim().isEmpty
               ? endereco.text.trim()
               : piscinaEndereco.text.trim(),

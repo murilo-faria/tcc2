@@ -71,10 +71,13 @@ public class ClienteController {
         piscina.setCliente(clienteSalvo);
         piscina.setNome(requisicao.piscinaNome().trim());
         piscina.setTipo(requisicao.piscinaTipo());
-        piscina.setComprimento(BigDecimal.ZERO);
-        piscina.setLargura(BigDecimal.ZERO);
-        piscina.setProfundidade(new BigDecimal("1.40"));
-        piscina.setDescontoEscada(new BigDecimal("15"));
+        piscina.setComprimento(medidaDaPiscina(requisicao.piscinaComprimento(), "comprimento", BigDecimal.ZERO));
+        piscina.setLargura(medidaDaPiscina(requisicao.piscinaLargura(), "largura", BigDecimal.ZERO));
+        piscina.setProfundidade(medidaDaPiscina(requisicao.piscinaProfundidade(), "profundidade", new BigDecimal("1.40")));
+        piscina.setDescontoEscada(medidaDaPiscina(requisicao.piscinaDescontoEscada(), "perda da escada", new BigDecimal("15")));
+        if (piscina.getDescontoEscada().compareTo(new BigDecimal("100")) > 0) {
+            throw new IllegalArgumentException("A perda da escada não pode ultrapassar 100%.");
+        }
         piscina.setVolumeLitros(piscina.getLitragemCalculada().intValue());
         piscina.setEndereco(requisicao.piscinaEndereco());
         piscina.setDiaAtendimento(requisicao.diaAtendimento());
@@ -173,6 +176,14 @@ public class ClienteController {
         if (requisicao.primeiroVencimento() == null || requisicao.primeiroVencimento().isBefore(LocalDate.now())) {
             throw new IllegalArgumentException("O primeiro vencimento deve ser hoje ou uma data futura.");
         }
+    }
+
+    private BigDecimal medidaDaPiscina(BigDecimal valor, String campo, BigDecimal padrao) {
+        if (valor == null) return padrao;
+        if (valor.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("O " + campo + " não pode ser negativo.");
+        }
+        return valor;
     }
 
     private boolean gestor(Authentication auth) {

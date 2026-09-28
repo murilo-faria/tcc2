@@ -6,5 +6,7 @@ import java.time.LocalDate;
 public record NovoClienteRequest(
         String nome, String cpfCnpj, String telefone, String endereco,
         BigDecimal valorMensalidade, Integer diaVencimento, LocalDate primeiroVencimento,
-        String piscinaNome, String piscinaTipo, Integer piscinaVolumeLitros,
+        String piscinaNome, String piscinaTipo, BigDecimal piscinaComprimento,
+        BigDecimal piscinaLargura, BigDecimal piscinaProfundidade,
+        BigDecimal piscinaDescontoEscada, Integer piscinaVolumeLitros,
         String piscinaEndereco, BigDecimal piscinaValorMensalidade, Long responsavelId, String diaAtendimento) {}
