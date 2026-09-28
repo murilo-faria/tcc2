@@ -94,6 +94,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
   Widget _cartaoResumo(Map<String, dynamic> resumo) {
     final funcionario = resumo['funcionario'] ?? {};
     final usuario = funcionario['usuario'] ?? {};
+    final totalLimpezas = (resumo['baseMensal'] as num?) ?? 0;
     final salario = (resumo['salario'] as num?) ?? 0;
     final reembolsos = (resumo['reembolsos'] as num?) ?? 0;
     final total = (resumo['totalPagar'] as num?) ?? salario + reembolsos;
@@ -125,6 +126,11 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
                 ],
               ),
               const Divider(),
+              if (widget.gestor)
+                Text(
+                  'Total limpezas: ${formatarMoeda(totalLimpezas)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               Text('Comissão: ${formatarMoeda(salario)}'),
               Text('Reembolsos pendentes: ${formatarMoeda(reembolsos)}'),
               Text(
