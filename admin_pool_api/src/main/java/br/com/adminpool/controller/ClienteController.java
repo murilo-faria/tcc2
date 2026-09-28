@@ -112,7 +112,9 @@ public class ClienteController {
                 .map(String::trim).filter(valor -> !valor.isEmpty()).map(Long::valueOf).toList();
         Map<Long, Cliente> porId = clientes.findAllById(ordem).stream()
                 .collect(Collectors.toMap(Cliente::getId, cliente -> cliente));
-        var linhas = ordem.stream().map(porId::get).filter(java.util.Objects::nonNull).map(cliente -> {
+        var linhas = ordem.stream().map(porId::get)
+                .filter(java.util.Objects::nonNull)
+                .map(cliente -> {
             String responsavel = piscinas.findByClienteIdOrderByNome(cliente.getId()).stream()
                     .map(Piscina::getResponsavel)
                     .filter(java.util.Objects::nonNull)
@@ -123,7 +125,8 @@ public class ClienteController {
                     .collect(Collectors.joining(" • "));
             if (responsavel.isBlank()) responsavel = "Sem responsável";
             return new LinhaRelatorioPdf(cliente.getNome(), responsavel,
-                    cliente.isAtivo() ? "Ativo" : "Inativo", cliente.getValorMensalidade());
+                    cliente.isAtivo() ? "Ativo" : "Inativo",
+                    cliente.isAtivo() ? cliente.getValorMensalidade() : java.math.BigDecimal.ZERO);
         }).toList();
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=relatorio-clientes.pdf")

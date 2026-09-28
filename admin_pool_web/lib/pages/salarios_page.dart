@@ -528,12 +528,24 @@ class _DialogoReembolsos extends StatefulWidget {
 class _DialogoReembolsosState extends State<_DialogoReembolsos> {
   late Future<List<dynamic>> _reembolsos;
   late Future<List<dynamic>> _vales;
+  late Future<List<dynamic>> _piscinas;
 
   @override
   void initState() {
     super.initState();
     _reembolsos = _carregar();
     _vales = _carregarVales();
+    _piscinas = _carregarPiscinas();
+  }
+
+  Future<List<dynamic>> _carregarPiscinas() async {
+    final resposta = await apiService.get(
+      '/api/salarios/${widget.funcionario['id']}/piscinas?referencia=${widget.referencia}',
+    );
+    if (resposta.statusCode != 200) {
+      throw Exception('Não foi possível carregar a composição da comissão.');
+    }
+    return jsonDecode(resposta.body) as List<dynamic>;
   }
 
   Future<List<dynamic>> _carregar() async {
@@ -598,134 +610,156 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
         width: celular ? double.maxFinite : 650,
         height: 430,
         child: FutureBuilder<List<dynamic>>(
-          future: _reembolsos,
+          future: Future.wait([_piscinas, _reembolsos, _vales]),
           builder: (_, estado) {
             if (!estado.hasData)
               return const Center(child: CircularProgressIndicator());
             if (estado.hasError) return Center(child: Text('${estado.error}'));
-            return FutureBuilder<List<dynamic>>(
-              future: _vales,
-              builder: (_, estadoVales) {
-                if (!estadoVales.hasData)
-                  return const Center(child: CircularProgressIndicator());
-                if (estadoVales.hasError)
-                  return Center(child: Text('${estadoVales.error}'));
-                final reembolsos = estado.data!;
-                final vales = estadoVales.data!;
-                return ListView(
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        'Reembolsos',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+            final resultados = estado.data!;
+            final piscinas = resultados[0];
+            final reembolsos = resultados[1];
+            final vales = resultados[2];
+            final base = piscinas.fold<num>(
+              0,
+              (soma, item) => soma + ((item['valor'] as num?) ?? 0),
+            );
+            return ListView(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Composição da comissão',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Text(
+                  'Base: ${formatarMoeda(base)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                ...piscinas.map((item) {
+                  final piscina = item as Map<String, dynamic>;
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: celular ? 2 : 16,
                     ),
-                    if (reembolsos.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 12),
-                        child: Text('Nenhum reembolso lançado neste mês.'),
-                      ),
-                    ...reembolsos.map((item) {
-                      final reembolso = item as Map<String, dynamic>;
-                      final pendente = reembolso['status'] == 'PENDENTE';
-                      final valor = formatarMoeda(
-                        (reembolso['valor'] as num?) ?? 0,
-                      );
-                      return ListTile(
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: celular ? 2 : 16,
-                        ),
-                        leading: Icon(
-                          pendente ? Icons.pending_actions : Icons.check_circle,
-                          color: pendente ? Colors.orange : Colors.green,
-                        ),
-                        title: Text(
-                          reembolso['descricao'] ?? '',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          celular
-                              ? '${reembolso['dataLancamento']} • ${reembolso['status']}\n$valor'
-                              : '${reembolso['dataLancamento']} • ${reembolso['status']}',
-                        ),
-                        trailing: celular && !(widget.gestor && pendente)
-                            ? null
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (!celular)
-                                    Text(
-                                      valor,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  if (widget.gestor && pendente)
-                                    IconButton(
-                                      tooltip: 'Confirmar reembolso',
-                                      onPressed: () => _pagar(reembolso),
-                                      icon: const Icon(
-                                        Icons.check_circle_outline,
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                      );
-                    }),
-                    const Divider(height: 28),
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        'Vales lançados',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                    title: Text(piscina['cliente'] ?? ''),
+                    subtitle: Text(piscina['piscina'] ?? ''),
+                    trailing: Text(
+                      formatarMoeda((piscina['valor'] as num?) ?? 0),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    if (vales.isEmpty)
-                      const Text('Nenhum vale lançado neste mês.'),
-                    ...vales.map((item) {
-                      final vale = item as Map<String, dynamic>;
-                      final tipo = vale['tipo'] == 'DINHEIRO_CLIENTE'
-                          ? 'Dinheiro recebido de cliente'
-                          : 'Adiantamento';
-                      final valor =
-                          '- ${formatarMoeda((vale['valor'] as num?) ?? 0)}';
-                      return ListTile(
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: celular ? 2 : 16,
-                        ),
-                        leading: const Icon(
-                          Icons.payments_outlined,
-                          color: Colors.orange,
-                        ),
-                        title: Text(
-                          tipo,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          celular
-                              ? '${vale['dataLancamento']} • $valor\n${vale['observacao'] ?? ''}'
-                              : '${vale['dataLancamento']} • ${vale['observacao'] ?? ''}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        isThreeLine: true,
-                        trailing: celular
-                            ? null
-                            : Text(
-                                valor,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                  );
+                }),
+                const Divider(height: 28),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Reembolsos',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (reembolsos.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Text('Nenhum reembolso lançado neste mês.'),
+                  ),
+                ...reembolsos.map((item) {
+                  final reembolso = item as Map<String, dynamic>;
+                  final pendente = reembolso['status'] == 'PENDENTE';
+                  final valor = formatarMoeda(
+                    (reembolso['valor'] as num?) ?? 0,
+                  );
+                  return ListTile(
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: celular ? 2 : 16,
+                    ),
+                    leading: Icon(
+                      pendente ? Icons.pending_actions : Icons.check_circle,
+                      color: pendente ? Colors.orange : Colors.green,
+                    ),
+                    title: Text(
+                      reembolso['descricao'] ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      celular
+                          ? '${reembolso['dataLancamento']} • ${reembolso['status']}\n$valor'
+                          : '${reembolso['dataLancamento']} • ${reembolso['status']}',
+                    ),
+                    trailing: celular && !(widget.gestor && pendente)
+                        ? null
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (!celular)
+                                Text(
+                                  valor,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                      );
-                    }),
-                  ],
-                );
-              },
+                              if (widget.gestor && pendente)
+                                IconButton(
+                                  tooltip: 'Confirmar reembolso',
+                                  onPressed: () => _pagar(reembolso),
+                                  icon: const Icon(
+                                    Icons.check_circle_outline,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                            ],
+                          ),
+                  );
+                }),
+                const Divider(height: 28),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Vales lançados',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                if (vales.isEmpty) const Text('Nenhum vale lançado neste mês.'),
+                ...vales.map((item) {
+                  final vale = item as Map<String, dynamic>;
+                  final tipo = vale['tipo'] == 'DINHEIRO_CLIENTE'
+                      ? 'Dinheiro recebido de cliente'
+                      : 'Adiantamento';
+                  final valor =
+                      '- ${formatarMoeda((vale['valor'] as num?) ?? 0)}';
+                  return ListTile(
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: celular ? 2 : 16,
+                    ),
+                    leading: const Icon(
+                      Icons.payments_outlined,
+                      color: Colors.orange,
+                    ),
+                    title: Text(
+                      tipo,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      celular
+                          ? '${vale['dataLancamento']} • $valor\n${vale['observacao'] ?? ''}'
+                          : '${vale['dataLancamento']} • ${vale['observacao'] ?? ''}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    isThreeLine: true,
+                    trailing: celular
+                        ? null
+                        : Text(
+                            valor,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                  );
+                }),
+              ],
             );
           },
         ),

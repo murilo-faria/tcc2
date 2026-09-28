@@ -74,6 +74,36 @@ public class SalarioController {
                 funcionarioId, mes.atDay(1), mes.atEndOfMonth());
     }
 
+    @GetMapping("/{funcionarioId}/piscinas")
+    public List<Map<String, Object>> listarPiscinasDaComissao(
+            @PathVariable Long funcionarioId,
+            @RequestParam(required = false) String referencia,
+            Authentication auth) {
+        Funcionario funcionario = funcionarios.findById(funcionarioId).orElseThrow();
+        if (!gestor(auth) && !funcionario.getUsuario().getLogin().equalsIgnoreCase(auth.getName())) {
+            throw new org.springframework.security.access.AccessDeniedException("Acesso negado à comissão.");
+        }
+        YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
+        return piscinas.findByResponsavelId(funcionarioId).stream()
+                .filter(piscina -> {
+                    Cliente cliente = piscina.getCliente();
+                    if (!cliente.isAtivo()) {
+                        return false;
+                    }
+                    LocalDate primeiroVencimento = cliente.getPrimeiroVencimento();
+                    return primeiroVencimento == null || !primeiroVencimento.isAfter(mes.atEndOfMonth());
+                })
+                .map(piscina -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("id", piscina.getId());
+                    item.put("cliente", piscina.getCliente().getNome());
+                    item.put("piscina", piscina.getNome());
+                    item.put("valor", piscina.getValorMensalidade() == null ? BigDecimal.ZERO : piscina.getValorMensalidade());
+                    return item;
+                })
+                .toList();
+    }
+
     @PutMapping("/reembolsos/{id}/pagar")
     public ResponseEntity<Void> pagarReembolso(@PathVariable Long id, Authentication auth) {
         if (!gestor(auth)) {
@@ -90,9 +120,7 @@ public class SalarioController {
         var piscinasVinculadas = piscinas.findByResponsavelId(funcionario.getId()).stream()
                 .filter(piscina -> {
                     Cliente cliente = piscina.getCliente();
-                    LocalDate dataInativacao = cliente.getDataInativacao();
-                    if (!cliente.isAtivo() && dataInativacao != null
-                            && !YearMonth.from(dataInativacao).equals(mes)) {
+                    if (!cliente.isAtivo()) {
                         return false;
                     }
                     LocalDate primeiroVencimento = piscina.getCliente().getPrimeiroVencimento();
