@@ -119,7 +119,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
     final total = (resumo['totalPagar'] as num?) ?? salario + reembolsos;
     return Card(
       child: InkWell(
-        onTap: () => _abrirReembolsos(resumo),
+        onTap: widget.gestor ? () => _abrirReembolsos(resumo) : null,
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(

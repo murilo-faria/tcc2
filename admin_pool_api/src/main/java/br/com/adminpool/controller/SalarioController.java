@@ -80,8 +80,8 @@ public class SalarioController {
             @RequestParam(required = false) String referencia,
             Authentication auth) {
         Funcionario funcionario = funcionarios.findById(funcionarioId).orElseThrow();
-        if (!gestor(auth) && !funcionario.getUsuario().getLogin().equalsIgnoreCase(auth.getName())) {
-            throw new org.springframework.security.access.AccessDeniedException("Acesso negado à comissão.");
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem ver a composição da comissão.");
         }
         YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
         return piscinas.findByResponsavelId(funcionarioId).stream()
