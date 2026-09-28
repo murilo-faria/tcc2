@@ -10,6 +10,7 @@ class _SalariosPageNova extends StatefulWidget {
 
 class _SalariosPageNovaState extends State<_SalariosPageNova> {
   late Future<List<dynamic>> _salarios;
+  late Future<Map<String, dynamic>> _produtos;
   late DateTime _mesSelecionado;
 
   String get _referencia =>
@@ -46,6 +47,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
     super.initState();
     _mesSelecionado = _mesAtual;
     _salarios = _carregar();
+    _produtos = _carregarProdutos();
     atualizacaoFinanceira.addListener(_atualizarPorMudancaFinanceira);
   }
 
@@ -56,7 +58,14 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
   }
 
   void _atualizarPorMudancaFinanceira() {
-    if (mounted) setState(() => _salarios = _carregar());
+    if (mounted) _recarregarResumo();
+  }
+
+  void _recarregarResumo() {
+    setState(() {
+      _salarios = _carregar();
+      _produtos = _carregarProdutos();
+    });
   }
 
   Future<List<dynamic>> _carregar() async {
@@ -66,6 +75,14 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
     if (resposta.statusCode != 200)
       throw Exception('Não foi possível carregar os salários.');
     return jsonDecode(resposta.body) as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> _carregarProdutos() async {
+    final resposta = await apiService.get(
+      '/api/pedidos-produto/resultado?referencia=$_referencia',
+    );
+    if (resposta.statusCode != 200) return const {};
+    return jsonDecode(resposta.body) as Map<String, dynamic>;
   }
 
   Future<void> _abrirReembolsos(Map<String, dynamic> resumo) async {
@@ -96,6 +113,8 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
     final usuario = funcionario['usuario'] ?? {};
     final totalLimpezas = (resumo['baseMensal'] as num?) ?? 0;
     final salario = (resumo['salario'] as num?) ?? 0;
+    final comissaoEmpresa = totalLimpezas - salario;
+    final colaborador = usuario['perfil'] != 'GESTOR';
     final reembolsos = (resumo['reembolsos'] as num?) ?? 0;
     final total = (resumo['totalPagar'] as num?) ?? salario + reembolsos;
     return Card(
@@ -132,6 +151,8 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               Text('Comissão: ${formatarMoeda(salario)}'),
+              if (widget.gestor && colaborador)
+                Text('Comissão empresa: ${formatarMoeda(comissaoEmpresa)}'),
               Text('Reembolsos pendentes: ${formatarMoeda(reembolsos)}'),
               Text(
                 'Vales do mês: - ${formatarMoeda((resumo['vales'] as num?) ?? 0)}',
@@ -182,7 +203,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
                 spacing: 8,
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => setState(() => _salarios = _carregar()),
+                    onPressed: _recarregarResumo,
                     icon: const Icon(Icons.refresh_outlined),
                     label: const Text('Atualizar'),
                   ),
@@ -211,6 +232,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
                 onSelected: (_) => setState(() {
                   _mesSelecionado = _mesAtual;
                   _salarios = _carregar();
+                  _produtos = _carregarProdutos();
                 }),
               ),
               ChoiceChip(
@@ -219,6 +241,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
                 onSelected: (_) => setState(() {
                   _mesSelecionado = _proximoMes;
                   _salarios = _carregar();
+                  _produtos = _carregarProdutos();
                 }),
               ),
             ],
@@ -236,21 +259,26 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
                   return const Center(
                     child: Text('Nenhum salário encontrado.'),
                   );
+                final salarios = estado.data!.cast<Map<String, dynamic>>();
                 return ListView(
                   children: [
                     Wrap(
                       spacing: 14,
                       runSpacing: 14,
-                      children: estado.data!
-                          .map(
-                            (item) => SizedBox(
-                              width: 390,
-                              child: _cartaoResumo(
-                                item as Map<String, dynamic>,
-                              ),
+                      children: [
+                        if (widget.gestor)
+                          SizedBox(
+                            width: 390,
+                            child: _CartaoCaixaMensal(
+                              salarios: salarios,
+                              produtos: _produtos,
                             ),
-                          )
-                          .toList(),
+                          ),
+                        ...salarios.map(
+                          (item) =>
+                              SizedBox(width: 390, child: _cartaoResumo(item)),
+                        ),
+                      ],
                     ),
                     if (!widget.gestor) ...[
                       const SizedBox(height: 28),
@@ -270,6 +298,80 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _CartaoCaixaMensal extends StatelessWidget {
+  const _CartaoCaixaMensal({required this.salarios, required this.produtos});
+
+  final List<Map<String, dynamic>> salarios;
+  final Future<Map<String, dynamic>> produtos;
+
+  bool _ehGestor(Map<String, dynamic> resumo) =>
+      (resumo['funcionario']?['usuario']?['perfil'] ?? '') == 'GESTOR';
+
+  @override
+  Widget build(BuildContext context) {
+    final limpezasMurilo = salarios
+        .where(_ehGestor)
+        .fold<num>(
+          0,
+          (soma, item) => soma + ((item['baseMensal'] as num?) ?? 0),
+        );
+    final comissaoEmpresa = salarios
+        .where((item) => !_ehGestor(item))
+        .fold<num>(0, (soma, item) {
+          final total = (item['baseMensal'] as num?) ?? 0;
+          final comissao = (item['salario'] as num?) ?? 0;
+          return soma + total - comissao;
+        });
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: produtos,
+          builder: (_, estado) {
+            final lucroProdutos = (estado.data?['lucroBruto'] as num?) ?? 0;
+            final total = limpezasMurilo + comissaoEmpresa + lucroProdutos;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      child: Icon(Icons.account_balance_wallet_outlined),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Caixa mensal',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Text('Limpezas Murilo: ${formatarMoeda(limpezasMurilo)}'),
+                Text('Comissão empresa: ${formatarMoeda(comissaoEmpresa)}'),
+                const Text(
+                  'Parte restante das limpezas dos colaboradores.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                ),
+                Text('Lucro produtos: ${formatarMoeda(lucroProdutos)}'),
+                const SizedBox(height: 6),
+                Text(
+                  'Total: ${formatarMoeda(total)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
