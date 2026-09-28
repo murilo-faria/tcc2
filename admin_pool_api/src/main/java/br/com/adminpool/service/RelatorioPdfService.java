@@ -35,6 +35,42 @@ public class RelatorioPdfService {
         return gerarComTabela(titulo, filtros, linhas, new float[]{1.45f, 2.55f, 1.05f, 1.15f});
     }
 
+    /** Lista administrativa de clientes, com cabeçalhos próprios para conferência. */
+    public byte[] gerarClientes(String titulo, String filtros, List<LinhaRelatorioPdf> linhas) {
+        try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {
+            Document documento = new Document(PageSize.A4, 40, 40, 35, 35);
+            PdfWriter.getInstance(documento, arquivo);
+            documento.open();
+            adicionarLogo(documento);
+            documento.add(new Paragraph(titulo, fonte(14, Font.BOLD, Color.DARK_GRAY)));
+            documento.add(new Paragraph(filtros, fonte(9, Font.NORMAL, Color.DARK_GRAY)));
+            documento.add(new Paragraph(" "));
+
+            PdfPTable tabela = new PdfPTable(new float[]{2.0f, 1.7f, 1.15f, 1.2f});
+            tabela.setWidthPercentage(100);
+            tabela.setHeaderRows(1);
+            adicionarCabecalho(tabela, "CLIENTE", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "RESPONSÁVEL", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "SITUAÇÃO", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "MENSALIDADE", Element.ALIGN_RIGHT);
+            for (LinhaRelatorioPdf linha : linhas) {
+                adicionarCelula(tabela, linha.getCliente(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, linha.getDescricao(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, formatarValor(linha.getValor()), Element.ALIGN_RIGHT);
+            }
+            documento.add(tabela);
+            Paragraph total = new Paragraph("Total de mensalidades: " + formatarValor(total(linhas)), fonte(12, Font.BOLD, AZUL));
+            total.setAlignment(Element.ALIGN_RIGHT);
+            total.setSpacingBefore(12);
+            documento.add(total);
+            documento.close();
+            return arquivo.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalStateException("Não foi possível preparar o PDF de clientes.", e);
+        }
+    }
+
     /** Comprovante do colaborador: materiais solicitados sem expor valores. */
     public byte[] gerarSolicitacaoInterna(String titulo, String colaborador, List<LinhaRelatorioPdf> linhas) {
         try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {

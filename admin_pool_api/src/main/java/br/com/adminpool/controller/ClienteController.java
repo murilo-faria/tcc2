@@ -9,6 +9,8 @@ import br.com.adminpool.repository.FuncionarioRepository;
 import br.com.adminpool.repository.PiscinaRepository;
 import br.com.adminpool.repository.RoteiroAtendimentoRepository;
 import br.com.adminpool.model.RoteiroAtendimento;
+import br.com.adminpool.service.RelatorioPdfService;
+import br.com.adminpool.dto.LinhaRelatorioPdf;
 import jakarta.transaction.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,8 @@ import org.springframework.security.core.Authentication;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -28,12 +32,14 @@ public class ClienteController {
     private final PiscinaRepository piscinas;
     private final FuncionarioRepository funcionarios;
     private final RoteiroAtendimentoRepository roteiro;
+    private final RelatorioPdfService relatorios;
 
-    public ClienteController(ClienteRepository clientes, PiscinaRepository piscinas, FuncionarioRepository funcionarios, RoteiroAtendimentoRepository roteiro) {
+    public ClienteController(ClienteRepository clientes, PiscinaRepository piscinas, FuncionarioRepository funcionarios, RoteiroAtendimentoRepository roteiro, RelatorioPdfService relatorios) {
         this.clientes = clientes;
         this.piscinas = piscinas;
         this.funcionarios = funcionarios;
         this.roteiro = roteiro;
+        this.relatorios = relatorios;
     }
 
     @GetMapping
@@ -92,6 +98,27 @@ public class ClienteController {
     public Cliente atualizar(@PathVariable Long id, @RequestBody Cliente cliente) {
         cliente.setId(id);
         return clientes.save(cliente);
+    }
+
+    @GetMapping(value = "/relatorio.pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> relatorio(@RequestParam String ids, Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem gerar o relatório de clientes.");
+        }
+        List<Long> ordem = java.util.Arrays.stream(ids.split(","))
+                .map(String::trim).filter(valor -> !valor.isEmpty()).map(Long::valueOf).toList();
+        Map<Long, Cliente> porId = clientes.findAllById(ordem).stream()
+                .collect(Collectors.toMap(Cliente::getId, cliente -> cliente));
+        var linhas = ordem.stream().map(porId::get).filter(java.util.Objects::nonNull).map(cliente -> {
+            Piscina piscina = piscinas.findByClienteIdOrderByNome(cliente.getId()).stream().findFirst().orElse(null);
+            String responsavel = piscina != null && piscina.getResponsavel() != null
+                    ? piscina.getResponsavel().getUsuario().getNome() : "Sem responsável";
+            return new LinhaRelatorioPdf(cliente.getNome(), responsavel,
+                    cliente.isAtivo() ? "Ativo" : "Inativo", cliente.getValorMensalidade());
+        }).toList();
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=relatorio-clientes.pdf")
+                .body(relatorios.gerarClientes("Relatório de clientes", "Clientes exibidos conforme os filtros da tela", linhas));
     }
 
     @PutMapping("/{id}/ativo")

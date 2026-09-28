@@ -376,8 +376,18 @@ class _FiltrosRelatorio extends StatelessWidget {
     final data = DateTime.tryParse('${mes}-01');
     if (data == null) return mes;
     const nomes = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
     ];
     return '${nomes[data.month - 1]}/${data.year.toString().substring(2)}';
   }
@@ -693,8 +703,9 @@ class _ProdutosGerenciamentoPageState
                         .contains('mangueira');
                     final celular = MediaQuery.of(context).size.width < 600;
                     final venda = formatarMoeda(p['precoVenda'] as num);
-                    final rotuloVenda =
-                        mangueira ? 'Venda por metro' : 'Preço de venda';
+                    final rotuloVenda = mangueira
+                        ? 'Venda por metro'
+                        : 'Preço de venda';
                     final descricao =
                         '$rotuloVenda: $venda${widget.gestor ? ' • Compra: ${formatarMoeda(p['precoCompra'] as num)}' : ''}';
                     return ListTile(
@@ -1320,9 +1331,75 @@ class _ListaClientesState extends State<_ListaClientes> {
   }
 
   String _nomeResponsavel(Map<String, dynamic> cliente) =>
-      ((cliente['_responsavelCor'] ?? cliente['funcionario'] ?? {})['usuario'] ??
-                  {})['nome']?.toString() ??
+      ((cliente['_responsavelCor'] ??
+                  cliente['funcionario'] ??
+                  {})['usuario'] ??
+              {})['nome']
+          ?.toString() ??
       'Sem responsável';
+
+  List<dynamic> _aplicarFiltros(List<dynamic> lista) {
+    final dados = lista
+        .where(
+          (c) =>
+              (c['nome'] as String).toLowerCase().contains(filtro) ||
+              (c['telefone'] ?? '').toString().toLowerCase().contains(filtro),
+        )
+        .where(
+          (c) =>
+              responsavelSelecionado == null ||
+              _nomeResponsavel(c as Map<String, dynamic>) ==
+                  responsavelSelecionado,
+        )
+        .where(
+          (c) =>
+              statusAtivoSelecionado == null ||
+              (statusAtivoSelecionado == 'ATIVO'
+                  ? c['ativo'] != false
+                  : c['ativo'] == false),
+        )
+        .toList();
+    if (ordenacaoMensalidade != 'PADRAO') {
+      dados.sort((primeiro, segundo) {
+        final valorPrimeiro = (primeiro['valorMensalidade'] as num?) ?? 0;
+        final valorSegundo = (segundo['valorMensalidade'] as num?) ?? 0;
+        final comparacao = valorPrimeiro.compareTo(valorSegundo);
+        return ordenacaoMensalidade == 'CRESCENTE' ? comparacao : -comparacao;
+      });
+    }
+    return dados;
+  }
+
+  Future<void> _gerarRelatorioClientes() async {
+    final dados = _aplicarFiltros(await clientes);
+    if (dados.isEmpty || !mounted) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não há clientes nos filtros atuais.')),
+        );
+      }
+      return;
+    }
+    final ids = dados.map((cliente) => cliente['id']).join(',');
+    final resposta = await apiService.get(
+      '/api/clientes/relatorio.pdf?ids=$ids',
+    );
+    if (!mounted) return;
+    if (resposta.statusCode == 200) {
+      abrirPdf(resposta, 'relatorio-clientes.pdf');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Relatório de clientes baixado.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Não foi possível gerar o relatório (${resposta.statusCode}).',
+          ),
+        ),
+      );
+    }
+  }
 
   Future<void> excluir(int id) async {
     await apiService.delete('/api/clientes/$id');
@@ -2051,7 +2128,8 @@ class _ListaClientesState extends State<_ListaClientes> {
                                 {})['usuario'] ??
                             {})['nome'] ??
                         'Sem responsável';
-                    final mensalidade = (cliente['valorMensalidade'] as num?) ?? 0;
+                    final mensalidade =
+                        (cliente['valorMensalidade'] as num?) ?? 0;
                     return DataRow(
                       cells: [
                         DataCell(
@@ -2061,9 +2139,13 @@ class _ListaClientesState extends State<_ListaClientes> {
                             children: [
                               Text(
                                 cliente['nome']?.toString() ?? '',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              if ((cliente['telefone'] ?? '').toString().isNotEmpty)
+                              if ((cliente['telefone'] ?? '')
+                                  .toString()
+                                  .isNotEmpty)
                                 Text(
                                   cliente['telefone'].toString(),
                                   style: const TextStyle(
@@ -2121,7 +2203,9 @@ class _ListaClientesState extends State<_ListaClientes> {
                                 onPressed: () => showDialog<void>(
                                   context: context,
                                   builder: (_) => AlertDialog(
-                                    title: Text('Piscinas — ${cliente['nome']}'),
+                                    title: Text(
+                                      'Piscinas — ${cliente['nome']}',
+                                    ),
                                     content: SingleChildScrollView(
                                       child: _celulaPiscinas(cliente),
                                     ),
@@ -2144,7 +2228,8 @@ class _ListaClientesState extends State<_ListaClientes> {
                                     Icons.delete_outline,
                                     color: Colors.red,
                                   ),
-                                  onPressed: () => excluir(cliente['id'] as int),
+                                  onPressed: () =>
+                                      excluir(cliente['id'] as int),
                                 ),
                               ],
                             ],
@@ -2158,131 +2243,139 @@ class _ListaClientesState extends State<_ListaClientes> {
             : SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
-            headingRowHeight: 42,
-            dataRowMinHeight: 50,
-            dataRowMaxHeight: 116,
-            columnSpacing: 32,
-            columns: const [
-              DataColumn(label: Text('Cliente')),
-              DataColumn(label: Text('Piscina')),
-              DataColumn(label: Text('Mensalidade')),
-              DataColumn(label: Text('Responsável')),
-              DataColumn(label: Text('Status')),
-              DataColumn(label: Text('Ações')),
-            ],
-            rows: dados.map((valor) {
-              final cliente = valor as Map<String, dynamic>;
-              final ativo = cliente['ativo'] != false;
-              final responsavel =
-                  ((cliente['_responsavelCor'] ??
-                          cliente['funcionario'] ??
-                          {})['usuario'] ??
-                      {})['nome'] ??
-                  'Sem responsável';
-              final mensalidade = (cliente['valorMensalidade'] as num?) ?? 0;
-              return DataRow(
-                cells: [
-                  DataCell(
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          cliente['nome']?.toString() ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        if ((cliente['telefone'] ?? '').toString().isNotEmpty)
-                          Text(
-                            cliente['telefone'].toString(),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.black54,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  DataCell(_celulaPiscinas(cliente)),
-                  DataCell(Text(formatarMoeda(mensalidade))),
-                  DataCell(Text(responsavel.toString())),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ativo
-                                ? const Color(0xFFE1F5E8)
-                                : const Color(0xFFF0F2F5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            ativo ? 'Ativo' : 'Inativo',
-                            style: TextStyle(
-                              color: ativo
-                                  ? const Color(0xFF238B45)
-                                  : const Color(0xFF667085),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        if (widget.gestor)
-                          Switch(
-                            value: ativo,
-                            onChanged: (_) => alternarAtivo(cliente),
-                          ),
-                      ],
-                    ),
-                  ),
-                  DataCell(
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Ver piscinas',
-                          icon: const Icon(Icons.visibility_outlined),
-                          onPressed: () => showDialog<void>(
-                            context: context,
-                            builder: (_) => AlertDialog(
-                              title: Text('Piscinas — ${cliente['nome']}'),
-                              content: SingleChildScrollView(
-                                child: _celulaPiscinas(cliente),
+                  headingRowHeight: 42,
+                  dataRowMinHeight: 50,
+                  dataRowMaxHeight: 116,
+                  columnSpacing: 32,
+                  columns: const [
+                    DataColumn(label: Text('Cliente')),
+                    DataColumn(label: Text('Piscina')),
+                    DataColumn(label: Text('Mensalidade')),
+                    DataColumn(label: Text('Responsável')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Ações')),
+                  ],
+                  rows: dados.map((valor) {
+                    final cliente = valor as Map<String, dynamic>;
+                    final ativo = cliente['ativo'] != false;
+                    final responsavel =
+                        ((cliente['_responsavelCor'] ??
+                                cliente['funcionario'] ??
+                                {})['usuario'] ??
+                            {})['nome'] ??
+                        'Sem responsável';
+                    final mensalidade =
+                        (cliente['valorMensalidade'] as num?) ?? 0;
+                    return DataRow(
+                      cells: [
+                        DataCell(
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                cliente['nome']?.toString() ?? '',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('Fechar'),
+                              if ((cliente['telefone'] ?? '')
+                                  .toString()
+                                  .isNotEmpty)
+                                Text(
+                                  cliente['telefone'].toString(),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        DataCell(_celulaPiscinas(cliente)),
+                        DataCell(Text(formatarMoeda(mensalidade))),
+                        DataCell(Text(responsavel.toString())),
+                        DataCell(
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: ativo
+                                      ? const Color(0xFFE1F5E8)
+                                      : const Color(0xFFF0F2F5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  ativo ? 'Ativo' : 'Inativo',
+                                  style: TextStyle(
+                                    color: ativo
+                                        ? const Color(0xFF238B45)
+                                        : const Color(0xFF667085),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              if (widget.gestor)
+                                Switch(
+                                  value: ativo,
+                                  onChanged: (_) => alternarAtivo(cliente),
+                                ),
+                            ],
+                          ),
+                        ),
+                        DataCell(
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'Ver piscinas',
+                                icon: const Icon(Icons.visibility_outlined),
+                                onPressed: () => showDialog<void>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    title: Text(
+                                      'Piscinas — ${cliente['nome']}',
+                                    ),
+                                    content: SingleChildScrollView(
+                                      child: _celulaPiscinas(cliente),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Fechar'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (widget.gestor) ...[
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: () => editar(cliente),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () =>
+                                      excluir(cliente['id'] as int),
                                 ),
                               ],
-                            ),
+                            ],
                           ),
                         ),
-                        if (widget.gestor) ...[
-                          IconButton(
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => editar(cliente),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
-                            ),
-                            onPressed: () => excluir(cliente['id'] as int),
-                          ),
-                        ],
                       ],
-                    ),
-                  ),
-                ],
-              );
-            }).toList(),
-          ),
-        ),
+                    );
+                  }).toList(),
+                ),
+              ),
       ),
     ),
   );
@@ -2297,10 +2390,21 @@ class _ListaClientesState extends State<_ListaClientes> {
           titulo: 'Clientes',
           subtitulo: 'Gerencie clientes, mensalidades e atendimentos.',
           acao: widget.gestor
-              ? FilledButton.icon(
-                  onPressed: cadastrar,
-                  icon: const Icon(Icons.person_add_alt_1),
-                  label: const Text('Novo cliente'),
+              ? Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _gerarRelatorioClientes,
+                      icon: const Icon(Icons.picture_as_pdf_outlined),
+                      label: const Text('Gerar PDF'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: cadastrar,
+                      icon: const Icon(Icons.person_add_alt_1),
+                      label: const Text('Novo cliente'),
+                    ),
+                  ],
                 )
               : null,
         ),
@@ -2354,16 +2458,17 @@ class _ListaClientesState extends State<_ListaClientes> {
                     future: clientes,
                     builder: (_, estado) {
                       if (!estado.hasData) return const SizedBox.shrink();
-                      final responsaveis = estado.data!
-                          .map(
-                            (valor) => _nomeResponsavel(
-                              valor as Map<String, dynamic>,
-                            ),
-                          )
-                          .where((nome) => nome != 'Sem responsável')
-                          .toSet()
-                          .toList()
-                        ..sort();
+                      final responsaveis =
+                          estado.data!
+                              .map(
+                                (valor) => _nomeResponsavel(
+                                  valor as Map<String, dynamic>,
+                                ),
+                              )
+                              .where((nome) => nome != 'Sem responsável')
+                              .toSet()
+                              .toList()
+                            ..sort();
                       return Wrap(
                         spacing: 10,
                         runSpacing: 10,
@@ -2486,40 +2591,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                     textAlign: TextAlign.center,
                   ),
                 );
-              final dados = snapshot.data!
-                  .where(
-                    (c) =>
-                        (c['nome'] as String).toLowerCase().contains(filtro) ||
-                        (c['telefone'] ?? '').toString().toLowerCase().contains(
-                          filtro,
-                        ),
-                  )
-                  .where(
-                    (c) =>
-                        responsavelSelecionado == null ||
-                        _nomeResponsavel(c as Map<String, dynamic>) ==
-                            responsavelSelecionado,
-                  )
-                  .where(
-                    (c) =>
-                        statusAtivoSelecionado == null ||
-                        (statusAtivoSelecionado == 'ATIVO'
-                            ? c['ativo'] != false
-                            : c['ativo'] == false),
-                  )
-                  .toList();
-              if (ordenacaoMensalidade != 'PADRAO') {
-                dados.sort((primeiro, segundo) {
-                  final valorPrimeiro =
-                      (primeiro['valorMensalidade'] as num?) ?? 0;
-                  final valorSegundo =
-                      (segundo['valorMensalidade'] as num?) ?? 0;
-                  final comparacao = valorPrimeiro.compareTo(valorSegundo);
-                  return ordenacaoMensalidade == 'CRESCENTE'
-                      ? comparacao
-                      : -comparacao;
-                });
-              }
+              final dados = _aplicarFiltros(snapshot.data!);
               if (dados.isEmpty)
                 return const Center(child: Text('Nenhum cliente cadastrado.'));
               if (MediaQuery.of(context).size.width >= 700) {
