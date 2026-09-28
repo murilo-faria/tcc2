@@ -46,6 +46,17 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
     super.initState();
     _mesSelecionado = _mesAtual;
     _salarios = _carregar();
+    atualizacaoFinanceira.addListener(_atualizarPorMudancaFinanceira);
+  }
+
+  @override
+  void dispose() {
+    atualizacaoFinanceira.removeListener(_atualizarPorMudancaFinanceira);
+    super.dispose();
+  }
+
+  void _atualizarPorMudancaFinanceira() {
+    if (mounted) setState(() => _salarios = _carregar());
   }
 
   Future<List<dynamic>> _carregar() async {
@@ -161,10 +172,20 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
           if (widget.gestor)
             Align(
               alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                onPressed: _abrirVales,
-                icon: const Icon(Icons.payments_outlined),
-                label: const Text('Vale'),
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => setState(() => _salarios = _carregar()),
+                    icon: const Icon(Icons.refresh_outlined),
+                    label: const Text('Atualizar'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _abrirVales,
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('Vale'),
+                  ),
+                ],
               ),
             ),
           const SizedBox(height: 12),
