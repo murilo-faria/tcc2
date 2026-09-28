@@ -1516,6 +1516,16 @@ class _ListaClientesState extends State<_ListaClientes> {
     double medida(String texto) =>
         double.tryParse(texto.replaceAll(',', '.')) ?? 0;
 
+    double? valorMonetario(String texto) {
+      var limpo = texto.replaceAll('R\$', '').replaceAll(' ', '').trim();
+      if (limpo.contains(',') && limpo.contains('.')) {
+        limpo = limpo.replaceAll('.', '').replaceAll(',', '.');
+      } else {
+        limpo = limpo.replaceAll(',', '.');
+      }
+      return double.tryParse(limpo);
+    }
+
     DateTime vencimentoCalculado() {
       if (inicioCobranca == 'PERSONALIZADO' && dataPersonalizada != null) {
         return dataPersonalizada!;
@@ -1526,11 +1536,17 @@ class _ListaClientesState extends State<_ListaClientes> {
           : DateTime(hoje.year, hoje.month + 1);
       final dia = int.tryParse(vencimento.text) ?? 10;
       final ultimoDia = DateTime(mesBase.year, mesBase.month + 1, 0).day;
-      return DateTime(
+      final calculado = DateTime(
         mesBase.year,
         mesBase.month,
         dia > ultimoDia ? ultimoDia : dia,
       );
+      final hojeSemHorario = DateTime(hoje.year, hoje.month, hoje.day);
+      // Ao incluir a mensalidade do mês atual depois do vencimento,
+      // registra como vencimento de hoje em vez de bloquear o cadastro.
+      return inicioCobranca == 'MES_ATUAL' && calculado.isBefore(hojeSemHorario)
+          ? hojeSemHorario
+          : calculado;
     }
 
     String dataApi(DateTime data) =>
@@ -1837,30 +1853,22 @@ class _ListaClientesState extends State<_ListaClientes> {
 
     if (salvar != true || !mounted) return;
 
-    final mensalidade = double.tryParse(valor.text.replaceAll(',', '.'));
+    final mensalidade = valorMonetario(valor.text);
     final dia = int.tryParse(vencimento.text);
-    if (nome.text.trim().isEmpty ||
-        mensalidade == null ||
-        mensalidade < 0 ||
-        dia == null ||
-        dia < 1 ||
-        dia > 31 ||
-        piscinaNome.text.trim().isEmpty ||
-        (inicioCobranca == 'PERSONALIZADO' && dataPersonalizada == null) ||
-        vencimentoCalculado().isBefore(
-          DateTime(
-            DateTime.now().year,
-            DateTime.now().month,
-            DateTime.now().day,
-          ),
-        )) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Preencha cliente, piscina, mensalidade e primeiro vencimento corretamente.',
-          ),
-        ),
-      );
+    String? erro;
+    if (nome.text.trim().isEmpty) {
+      erro = 'Informe o nome do cliente.';
+    } else if (piscinaNome.text.trim().isEmpty) {
+      erro = 'Informe o nome ou identificação da piscina.';
+    } else if (mensalidade == null || mensalidade < 0) {
+      erro = 'Informe uma mensalidade válida, por exemplo: 260,00.';
+    } else if (dia == null || dia < 1 || dia > 31) {
+      erro = 'O dia de vencimento deve ser entre 1 e 31.';
+    } else if (inicioCobranca == 'PERSONALIZADO' && dataPersonalizada == null) {
+      erro = 'Escolha o primeiro vencimento.';
+    }
+    if (erro != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
       return;
     }
 
