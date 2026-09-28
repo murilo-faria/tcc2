@@ -119,7 +119,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
     final total = (resumo['totalPagar'] as num?) ?? salario + reembolsos;
     return Card(
       child: InkWell(
-        onTap: widget.gestor ? () => _abrirReembolsos(resumo) : null,
+        onTap: () => _abrirReembolsos(resumo),
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
@@ -643,7 +643,9 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
     super.initState();
     _reembolsos = _carregar();
     _vales = _carregarVales();
-    _piscinas = _carregarPiscinas();
+    _piscinas = widget.gestor
+        ? _carregarPiscinas()
+        : Future<List<dynamic>>.value(const []);
   }
 
   Future<List<dynamic>> _carregarPiscinas() async {
@@ -733,34 +735,36 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
             );
             return ListView(
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text(
-                    'Composição da comissão',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                if (widget.gestor) ...[
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Composição da comissão',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
-                ),
-                Text(
-                  'Base: ${formatarMoeda(base)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                ...piscinas.map((item) {
-                  final piscina = item as Map<String, dynamic>;
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: celular ? 2 : 16,
-                    ),
-                    title: Text(piscina['cliente'] ?? ''),
-                    subtitle: Text(piscina['piscina'] ?? ''),
-                    trailing: Text(
-                      formatarMoeda((piscina['valor'] as num?) ?? 0),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  );
-                }),
-                const Divider(height: 28),
+                  Text(
+                    'Base: ${formatarMoeda(base)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  ...piscinas.map((item) {
+                    final piscina = item as Map<String, dynamic>;
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: celular ? 2 : 16,
+                      ),
+                      title: Text(piscina['cliente'] ?? ''),
+                      subtitle: Text(piscina['piscina'] ?? ''),
+                      trailing: Text(
+                        formatarMoeda((piscina['valor'] as num?) ?? 0),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  }),
+                  const Divider(height: 28),
+                ],
                 const Padding(
                   padding: EdgeInsets.only(bottom: 8),
                   child: Text(
