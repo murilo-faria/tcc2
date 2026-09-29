@@ -328,7 +328,18 @@ public class CobrancaService {
     }
 
     private void garantirMensalidade(CobrancaMensal cobranca, Cliente cliente) {
-        if (itens.existsByCobrancaIdAndTipo(cobranca.getId(), TipoLancamentoCobranca.MENSALIDADE)) {
+        List<ItemCobranca> mensalidades = itens.findByCobrancaIdAndTipo(
+                cobranca.getId(), TipoLancamentoCobranca.MENSALIDADE);
+        if (!mensalidades.isEmpty()) {
+            ItemCobranca mensalidade = mensalidades.getFirst();
+            // Enquanto estiver totalmente em aberto, a mensalidade acompanha as
+            // piscinas atuais do cliente. Cobranças já recebidas não são alteradas.
+            if (mensalidade.getValorPago().compareTo(BigDecimal.ZERO) == 0
+                    && STATUS_EM_ABERTO.contains(mensalidade.getStatus())) {
+                mensalidade.setValorOriginal(valorMensalidadeDasPiscinas(cliente));
+                itens.save(mensalidade);
+                recalcular(cobranca);
+            }
             return;
         }
         ItemCobranca item = new ItemCobranca();

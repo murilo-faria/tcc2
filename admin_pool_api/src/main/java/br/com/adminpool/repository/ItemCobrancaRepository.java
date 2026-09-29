@@ -9,6 +9,7 @@ import java.time.LocalDate;
 
 public interface ItemCobrancaRepository extends JpaRepository<ItemCobranca,Long> {
     List<ItemCobranca> findByCobrancaIdOrderByDataLancamentoAscIdAsc(Long cobrancaId);
+    List<ItemCobranca> findByCobrancaIdAndTipo(Long cobrancaId, TipoLancamentoCobranca tipo);
     List<ItemCobranca> findByCobrancaClienteIdOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(Long clienteId);
     List<ItemCobranca> findByCobrancaClienteIdAndStatusInOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(Long clienteId, List<StatusItemCobranca> status);
     boolean existsByCobrancaIdAndTipo(Long cobrancaId, TipoLancamentoCobranca tipo);
