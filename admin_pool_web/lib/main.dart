@@ -23,13 +23,17 @@ part 'pages/salarios_page.dart';
 
 void main() => runApp(const AdminPoolApp());
 
+bool get navegadorMovel => RegExp(
+  r'android|iphone|ipad|ipod|mobile',
+  caseSensitive: false,
+).hasMatch(html.window.navigator.userAgent);
+
 void abrirPdf(http.Response resposta, String arquivo) {
   final blob = html.Blob([resposta.bodyBytes], 'application/pdf');
   final url = html.Url.createObjectUrlFromBlob(blob);
-  html.AnchorElement(href: url)
-    ..target = '_blank'
-    ..download = arquivo
-    ..click();
+  final link = html.AnchorElement(href: url)..download = arquivo;
+  if (navegadorMovel) link.target = '_blank';
+  link.click();
   // No celular, o navegador ainda precisa ler o arquivo depois do clique.
   // Revogar o endereço imediatamente fazia o PDF não abrir/baixar.
   Future<void>.delayed(const Duration(minutes: 2), () {
@@ -37,13 +41,12 @@ void abrirPdf(http.Response resposta, String arquivo) {
   });
 }
 
-/// Abre a folha nativa do celular (incluindo WhatsApp) com o PDF do pedido.
-/// Em navegadores que não suportam compartilhamento de arquivos, baixa o PDF.
+/// No celular, abre a folha nativa (incluindo WhatsApp); no computador, baixa.
 Future<bool> compartilharPdf(http.Response resposta, String arquivo) async {
   final navegador = html.window.navigator;
-  if (!js_util.hasProperty(navegador, 'share')) {
+  if (!navegadorMovel || !js_util.hasProperty(navegador, 'share')) {
     abrirPdf(resposta, arquivo);
-    return false;
+    return true;
   }
 
   final arquivoPdf = html.File(
