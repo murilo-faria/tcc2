@@ -2340,27 +2340,6 @@ class _ListaClientesState extends State<_ListaClientes> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              IconButton(
-                                tooltip: 'Ver piscinas',
-                                icon: const Icon(Icons.visibility_outlined),
-                                onPressed: () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    title: Text(
-                                      'Piscinas — ${cliente['nome']}',
-                                    ),
-                                    content: SingleChildScrollView(
-                                      child: _celulaPiscinas(cliente),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Fechar'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
                               if (widget.gestor) ...[
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),
@@ -2470,27 +2449,6 @@ class _ListaClientesState extends State<_ListaClientes> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              IconButton(
-                                tooltip: 'Ver piscinas',
-                                icon: const Icon(Icons.visibility_outlined),
-                                onPressed: () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) => AlertDialog(
-                                    title: Text(
-                                      'Piscinas — ${cliente['nome']}',
-                                    ),
-                                    content: SingleChildScrollView(
-                                      child: _celulaPiscinas(cliente),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Fechar'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
                               if (widget.gestor) ...[
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),

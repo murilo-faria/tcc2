@@ -786,11 +786,6 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                                 value: 'concluir',
                                 child: Text('Concluir OS'),
                               ),
-                            if (widget.gestor && aberta)
-                              const PopupMenuItem(
-                                value: 'cancelar',
-                                child: Text('Cancelar OS'),
-                              ),
                             if (widget.gestor)
                               const PopupMenuItem(
                                 value: 'excluir',
