@@ -192,10 +192,6 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
               context,
             ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'A comissão e os reembolsos são calculados separadamente.',
-          ),
           if (widget.gestor)
             Align(
               alignment: Alignment.centerRight,

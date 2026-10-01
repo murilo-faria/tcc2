@@ -322,8 +322,6 @@ class _CabecalhoResponsivo extends StatelessWidget {
             context,
           ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 6),
-        Text(subtitulo),
       ],
     );
     if (estreito) {
@@ -3026,8 +3024,6 @@ class _Dashboard extends StatelessWidget {
             context,
           ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 4),
-        const Text('Acompanhe o resumo deste mês.'),
         const SizedBox(height: 24),
         Wrap(
           spacing: 16,

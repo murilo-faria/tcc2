@@ -247,10 +247,20 @@ class _PiscinasPageState extends State<_PiscinasPage> {
   String filtro = '';
   double _medida(String valor) =>
       double.tryParse(valor.replaceAll(',', '.')) ?? 0;
-  double _litragem(String comprimento, String largura, String profundidade, String perdaEscada) {
+  double _litragem(
+    String comprimento,
+    String largura,
+    String profundidade,
+    String perdaEscada,
+  ) {
     final perda = _medida(perdaEscada).clamp(0, 100).toDouble();
-    return _medida(comprimento) * _medida(largura) * _medida(profundidade) * 1000 * (1 - perda / 100);
+    return _medida(comprimento) *
+        _medida(largura) *
+        _medida(profundidade) *
+        1000 *
+        (1 - perda / 100);
   }
+
   @override
   void initState() {
     super.initState();
@@ -274,98 +284,176 @@ class _PiscinasPageState extends State<_PiscinasPage> {
     final nome = TextEditingController(),
         endereco = TextEditingController(),
         valor = TextEditingController(),
-        comprimento = TextEditingController(text: '0'), largura = TextEditingController(text: '0'),
-        profundidade = TextEditingController(text: '1,40'), perdaEscada = TextEditingController(text: '15');
+        comprimento = TextEditingController(text: '0'),
+        largura = TextEditingController(text: '0'),
+        profundidade = TextEditingController(text: '1,40'),
+        perdaEscada = TextEditingController(text: '15');
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (_, setL) {
           final metragem = _medida(comprimento.text) * _medida(largura.text);
-          final litragem = _litragem(comprimento.text, largura.text, profundidade.text, perdaEscada.text);
+          final litragem = _litragem(
+            comprimento.text,
+            largura.text,
+            profundidade.text,
+            perdaEscada.text,
+          );
           return AlertDialog(
-          title: const Text('Nova piscina'),
-          content: SizedBox(
-            width: 500,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<int>(
-                    initialValue: cliente,
-                    decoration: const InputDecoration(labelText: 'Cliente *'),
-                    items: clientes
-                        .map<DropdownMenuItem<int>>(
-                          (x) => DropdownMenuItem(
-                            value: x['id'],
-                            child: Text(x['nome']),
+            title: const Text('Nova piscina'),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<int>(
+                      initialValue: cliente,
+                      decoration: const InputDecoration(labelText: 'Cliente *'),
+                      items: clientes
+                          .map<DropdownMenuItem<int>>(
+                            (x) => DropdownMenuItem(
+                              value: x['id'],
+                              child: Text(x['nome']),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (x) => setL(() => cliente = x!),
+                    ),
+                    TextField(
+                      controller: nome,
+                      decoration: const InputDecoration(
+                        labelText: 'Nome ou identificação *',
+                      ),
+                    ),
+                    TextField(
+                      controller: endereco,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Endereço da piscina *',
+                      ),
+                    ),
+                    DropdownButtonFormField<String>(
+                      initialValue: tipoSelecionado,
+                      decoration: const InputDecoration(
+                        labelText: 'Tipo da piscina',
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Fibra', child: Text('Fibra')),
+                        DropdownMenuItem(
+                          value: 'Alvenaria',
+                          child: Text('Alvenaria'),
+                        ),
+                      ],
+                      onChanged: (valor) => setL(() => tipoSelecionado = valor),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: comprimento,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setL(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Comprimento (m)',
+                            ),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (x) => setL(() => cliente = x!),
-                  ),
-                  TextField(
-                    controller: nome,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome ou identificação *',
-                    ),
-                  ),
-                  TextField(
-                    controller: endereco,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Endereço da piscina *',
-                    ),
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: tipoSelecionado,
-                    decoration: const InputDecoration(labelText: 'Tipo da piscina'),
-                    items: const [
-                      DropdownMenuItem(value: 'Fibra', child: Text('Fibra')),
-                      DropdownMenuItem(value: 'Alvenaria', child: Text('Alvenaria')),
-                    ],
-                    onChanged: (valor) => setL(() => tipoSelecionado = valor),
-                  ),
-                  Row(children: [
-                    Expanded(child: TextField(controller: comprimento, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setL(() {}), decoration: const InputDecoration(labelText: 'Comprimento (m)'))),
-                    const SizedBox(width: 16),
-                    Expanded(child: TextField(controller: largura, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setL(() {}), decoration: const InputDecoration(labelText: 'Largura (m)'))),
-                  ]),
-                  Row(children: [
-                    Expanded(child: TextField(controller: profundidade, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setL(() {}), decoration: const InputDecoration(labelText: 'Profundidade (m)'))),
-                    const SizedBox(width: 16),
-                    Expanded(child: TextField(controller: perdaEscada, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setL(() {}), decoration: const InputDecoration(labelText: 'Perda da escada (%)'))),
-                  ]),
-                  Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Metragem: ${metragem.toStringAsFixed(2)} m²\nLitragem: ${(litragem / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³', style: const TextStyle(fontWeight: FontWeight.bold)))),
-                  TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
-                  DropdownButtonFormField<int>(
-                    initialValue: responsavel,
-                    decoration: const InputDecoration(
-                      labelText: 'Colaborador responsável',
-                    ),
-                    items: funcs
-                        .map<DropdownMenuItem<int>>(
-                          (x) => DropdownMenuItem(
-                            value: x['id'],
-                            child: Text((x['usuario'] ?? {})['nome'] ?? ''),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextField(
+                            controller: largura,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setL(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Largura (m)',
+                            ),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (x) => setL(() => responsavel = x),
-                  ),
-                ],
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: profundidade,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setL(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Profundidade (m)',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextField(
+                            controller: perdaEscada,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => setL(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Perda da escada (%)',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Metragem: ${metragem.toStringAsFixed(2)} m²\nLitragem: ${(litragem / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    TextField(
+                      controller: valor,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Valor mensal da piscina',
+                        prefixText: 'R\$ ',
+                      ),
+                    ),
+                    DropdownButtonFormField<int>(
+                      initialValue: responsavel,
+                      decoration: const InputDecoration(
+                        labelText: 'Colaborador responsável',
+                      ),
+                      items: funcs
+                          .map<DropdownMenuItem<int>>(
+                            (x) => DropdownMenuItem(
+                              value: x['id'],
+                              child: Text((x['usuario'] ?? {})['nome'] ?? ''),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (x) => setL(() => responsavel = x),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Cadastrar'),
-            ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Cadastrar'),
+              ),
+            ],
           );
         },
       ),
@@ -384,7 +472,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
         'descontoEscada': _medida(perdaEscada.text),
         'responsavelId': responsavel,
         'observacoes': '',
-        'valorMensalidade': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
+        'valorMensalidade':
+            double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
       },
     );
     if (!mounted) return;
@@ -434,81 +523,202 @@ class _PiscinasPageState extends State<_PiscinasPage> {
     final funcs = await _lista('/api/funcionarios');
     final nome = TextEditingController(text: p['nome'] ?? ''),
         endereco = TextEditingController(text: p['endereco'] ?? ''),
-        valor = TextEditingController(text: (p['valorMensalidade'] ?? 0).toString()),
-        comprimento = TextEditingController(text: (p['comprimento'] ?? 0).toString()),
+        valor = TextEditingController(
+          text: (p['valorMensalidade'] ?? 0).toString(),
+        ),
+        comprimento = TextEditingController(
+          text: (p['comprimento'] ?? 0).toString(),
+        ),
         largura = TextEditingController(text: (p['largura'] ?? 0).toString()),
-        profundidade = TextEditingController(text: (p['profundidade'] ?? 1.4).toString()),
-        perdaEscada = TextEditingController(text: (p['descontoEscada'] ?? 15).toString());
+        profundidade = TextEditingController(
+          text: (p['profundidade'] ?? 1.4).toString(),
+        ),
+        perdaEscada = TextEditingController(
+          text: (p['descontoEscada'] ?? 15).toString(),
+        );
     int? responsavel = (p['responsavel'] ?? {})['id'];
-    String? tipoSelecionado = ['Fibra', 'Alvenaria'].contains(p['tipo']) ? p['tipo'] as String : null;
+    String? tipoSelecionado = ['Fibra', 'Alvenaria'].contains(p['tipo'])
+        ? p['tipo'] as String
+        : null;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => StatefulBuilder(builder: (contextoFormulario, setLocal) {
-        final metragem = _medida(comprimento.text) * _medida(largura.text);
-        final litragem = _litragem(comprimento.text, largura.text, profundidade.text, perdaEscada.text);
-        final midia = MediaQuery.of(contextoFormulario);
-        final alturaDisponivel = (midia.size.height - midia.viewInsets.bottom - 210)
-            .clamp(190.0, 520.0)
-            .toDouble();
-        return AlertDialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        title: const Text('Editar piscina'),
-        content: SizedBox(
-          width: 440,
-          height: alturaDisponivel,
-          child: Scrollbar(
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-              child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nome,
-                decoration: const InputDecoration(labelText: 'Nome'),
-              ),
-              TextField(
-                controller: endereco,
-                decoration: const InputDecoration(labelText: 'Endereço'),
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: tipoSelecionado,
-                decoration: const InputDecoration(labelText: 'Tipo da piscina'),
-                items: const [
-                  DropdownMenuItem(value: 'Fibra', child: Text('Fibra')),
-                  DropdownMenuItem(value: 'Alvenaria', child: Text('Alvenaria')),
-                ],
-                onChanged: (valor) => setLocal(() => tipoSelecionado = valor),
-              ),
-              Row(children: [
-                Expanded(child: TextField(controller: comprimento, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Comprimento (m)'))),
-                const SizedBox(width: 16),
-                Expanded(child: TextField(controller: largura, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Largura (m)'))),
-              ]),
-              Row(children: [
-                Expanded(child: TextField(controller: profundidade, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Profundidade (m)'))),
-                const SizedBox(width: 16),
-                Expanded(child: TextField(controller: perdaEscada, keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setLocal(() {}), decoration: const InputDecoration(labelText: 'Perda da escada (%)'))),
-              ]),
-              Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text('Metragem: ${metragem.toStringAsFixed(2)} m²\nLitragem: ${(litragem / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³', style: const TextStyle(fontWeight: FontWeight.bold)))),
-              TextField(controller: valor, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor mensal da piscina', prefixText: 'R\$ ')),
-              DropdownButtonFormField<int?>(initialValue: responsavel, decoration: const InputDecoration(labelText: 'Colaborador responsável'), items: [const DropdownMenuItem<int?>(value: null, child: Text('Definir depois')), ...funcs.map<DropdownMenuItem<int?>>((f) => DropdownMenuItem<int?>(value: f['id'], child: Text((f['usuario'] ?? {})['nome'] ?? '')))], onChanged: (v) => setLocal(() => responsavel = v)),
-            ],
+      builder: (_) => StatefulBuilder(
+        builder: (contextoFormulario, setLocal) {
+          final metragem = _medida(comprimento.text) * _medida(largura.text);
+          final litragem = _litragem(
+            comprimento.text,
+            largura.text,
+            profundidade.text,
+            perdaEscada.text,
+          );
+          final midia = MediaQuery.of(contextoFormulario);
+          final alturaDisponivel =
+              (midia.size.height - midia.viewInsets.bottom - 210)
+                  .clamp(190.0, 520.0)
+                  .toDouble();
+          return AlertDialog(
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 16,
+            ),
+            title: const Text('Editar piscina'),
+            content: SizedBox(
+              width: 440,
+              height: alturaDisponivel,
+              child: Scrollbar(
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.manual,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: nome,
+                        decoration: const InputDecoration(labelText: 'Nome'),
+                      ),
+                      TextField(
+                        controller: endereco,
+                        decoration: const InputDecoration(
+                          labelText: 'Endereço',
+                        ),
+                      ),
+                      DropdownButtonFormField<String>(
+                        initialValue: tipoSelecionado,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo da piscina',
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'Fibra',
+                            child: Text('Fibra'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Alvenaria',
+                            child: Text('Alvenaria'),
+                          ),
+                        ],
+                        onChanged: (valor) =>
+                            setLocal(() => tipoSelecionado = valor),
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: comprimento,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              onChanged: (_) => setLocal(() {}),
+                              decoration: const InputDecoration(
+                                labelText: 'Comprimento (m)',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: largura,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              onChanged: (_) => setLocal(() {}),
+                              decoration: const InputDecoration(
+                                labelText: 'Largura (m)',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: profundidade,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              onChanged: (_) => setLocal(() {}),
+                              decoration: const InputDecoration(
+                                labelText: 'Profundidade (m)',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: perdaEscada,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              onChanged: (_) => setLocal(() {}),
+                              decoration: const InputDecoration(
+                                labelText: 'Perda da escada (%)',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Metragem: ${metragem.toStringAsFixed(2)} m²\nLitragem: ${(litragem / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                      TextField(
+                        controller: valor,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Valor mensal da piscina',
+                          prefixText: 'R\$ ',
+                        ),
+                      ),
+                      DropdownButtonFormField<int?>(
+                        initialValue: responsavel,
+                        decoration: const InputDecoration(
+                          labelText: 'Colaborador responsável',
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('Definir depois'),
+                          ),
+                          ...funcs.map<DropdownMenuItem<int?>>(
+                            (f) => DropdownMenuItem<int?>(
+                              value: f['id'],
+                              child: Text((f['usuario'] ?? {})['nome'] ?? ''),
+                            ),
+                          ),
+                        ],
+                        onChanged: (v) => setLocal(() => responsavel = v),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Salvar'),
-          ),
-        ],
-        );
-      }),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Salvar'),
+              ),
+            ],
+          );
+        },
+      ),
     );
     if (ok == true) {
       final r = await apiService.put(
@@ -524,7 +734,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
           'profundidade': _medida(profundidade.text),
           'descontoEscada': _medida(perdaEscada.text),
           'observacoes': p['observacoes'] ?? '',
-          'valorMensalidade': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
+          'valorMensalidade':
+              double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
         },
       );
       if (r.statusCode >= 200 && r.statusCode < 300)
@@ -573,7 +784,8 @@ class _PiscinasPageState extends State<_PiscinasPage> {
             labelText: 'Pesquisar piscina, cliente ou endereço',
             border: OutlineInputBorder(),
           ),
-          onChanged: (valor) => setState(() => filtro = valor.trim().toLowerCase()),
+          onChanged: (valor) =>
+              setState(() => filtro = valor.trim().toLowerCase()),
         ),
         const SizedBox(height: 12),
         Expanded(
@@ -583,14 +795,14 @@ class _PiscinasPageState extends State<_PiscinasPage> {
               if (s.connectionState != ConnectionState.done)
                 return const Center(child: CircularProgressIndicator());
               if (s.hasError) return Center(child: Text('${s.error}'));
-              final piscinas = s.data!
-                  .where((item) {
-                    final piscina = item as Map<String, dynamic>;
-                    final cliente = piscina['cliente'] ?? {};
-                    final texto = '${piscina['nome'] ?? ''} ${cliente['nome'] ?? ''} ${piscina['endereco'] ?? ''}'.toLowerCase();
-                    return texto.contains(filtro);
-                  })
-                  .toList();
+              final piscinas = s.data!.where((item) {
+                final piscina = item as Map<String, dynamic>;
+                final cliente = piscina['cliente'] ?? {};
+                final texto =
+                    '${piscina['nome'] ?? ''} ${cliente['nome'] ?? ''} ${piscina['endereco'] ?? ''}'
+                        .toLowerCase();
+                return texto.contains(filtro);
+              }).toList();
               if (piscinas.isEmpty)
                 return const Center(child: Text('Nenhuma piscina cadastrada.'));
               return Card(
@@ -863,16 +1075,30 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
   }
 
   Future<List<List<dynamic>>> _carregar() async {
-    final respostas = await Future.wait([apiService.get('/api/roteiro'), apiService.get('/api/clientes')]);
-    if (respostas.any((r) => r.statusCode != 200)) throw Exception('Não foi possível carregar o roteiro.');
+    final respostas = await Future.wait([
+      apiService.get('/api/roteiro'),
+      apiService.get('/api/clientes'),
+    ]);
+    if (respostas.any((r) => r.statusCode != 200))
+      throw Exception('Não foi possível carregar o roteiro.');
     return respostas.map((r) => jsonDecode(r.body) as List<dynamic>).toList();
   }
 
-  Future<void> _salvarRota(String rota, String metodo, Map<String, dynamic>? corpo) async {
-    final resposta = metodo == 'POST' ? await apiService.post(rota, body: corpo) : metodo == 'PUT' ? await apiService.put(rota, body: corpo) : await apiService.delete(rota);
+  Future<void> _salvarRota(
+    String rota,
+    String metodo,
+    Map<String, dynamic>? corpo,
+  ) async {
+    final resposta = metodo == 'POST'
+        ? await apiService.post(rota, body: corpo)
+        : metodo == 'PUT'
+        ? await apiService.put(rota, body: corpo)
+        : await apiService.delete(rota);
     if (!mounted) return;
     if (resposta.statusCode < 200 || resposta.statusCode >= 300) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível atualizar a rota.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível atualizar a rota.')),
+      );
       return;
     }
     setState(() => _dados = _carregar());
@@ -888,18 +1114,57 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
           content: SizedBox(
             width: 420,
             height: 420,
-            child: Column(children: [
-              TextField(controller: busca, autofocus: true, decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Pesquisar cliente'), onChanged: (_) => atualizar(() {})),
-              const SizedBox(height: 8),
-              Expanded(child: ListView(children: clientes.where((c) => '${c['nome']}'.toLowerCase().contains(busca.text.toLowerCase())).map((c) => ListTile(title: Text('${c['nome']}'), trailing: const Icon(Icons.add_circle_outline), onTap: () => Navigator.pop(contexto, c as Map<String, dynamic>))).toList())),
-            ]),
+            child: Column(
+              children: [
+                TextField(
+                  controller: busca,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search),
+                    hintText: 'Pesquisar cliente',
+                  ),
+                  onChanged: (_) => atualizar(() {}),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView(
+                    children: clientes
+                        .where(
+                          (c) => '${c['nome']}'.toLowerCase().contains(
+                            busca.text.toLowerCase(),
+                          ),
+                        )
+                        .map(
+                          (c) => ListTile(
+                            title: Text('${c['nome']}'),
+                            trailing: const Icon(Icons.add_circle_outline),
+                            onTap: () => Navigator.pop(
+                              contexto,
+                              c as Map<String, dynamic>,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ),
+              ],
+            ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(contexto), child: const Text('Cancelar'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(contexto),
+              child: const Text('Cancelar'),
+            ),
+          ],
         ),
-        ),
+      ),
     );
     busca.dispose();
-    if (escolhido != null) await _salvarRota('/api/roteiro', 'POST', {'clienteId': escolhido['id'], 'diaAtendimento': dia});
+    if (escolhido != null)
+      await _salvarRota('/api/roteiro', 'POST', {
+        'clienteId': escolhido['id'],
+        'diaAtendimento': dia,
+      });
   }
 
   @override
@@ -916,63 +1181,130 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
         runSpacing: 12,
         children: [
           ...dias.map((dia) {
-          final visitas = rotas.where((r) => r['diaAtendimento'] == dia).cast<Map<String, dynamic>>().toList();
-          return SizedBox(
-            width: 220,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      dia.toUpperCase(),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const Divider(),
-                    ...visitas.map((visita) {
-                      return Row(children: [
-                        Expanded(child: Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text('${visita['clienteNome']}'))),
-                        PopupMenuButton<String>(
-                          tooltip: 'Mudar dia',
-                          icon: const Icon(Icons.edit_calendar_outlined, size: 19),
-                          onSelected: (novoDia) => _salvarRota('/api/roteiro/${visita['id']}', novoDia == '_REMOVER_' ? 'DELETE' : 'PUT', novoDia == '_REMOVER_' ? null : {'clienteId': visita['clienteId'], 'diaAtendimento': novoDia}),
-                          itemBuilder: (_) => [
-                            ...dias.map((d) => PopupMenuItem(value: d, child: Text(d))),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem(value: '_REMOVER_', child: Text('Remover da rota', style: TextStyle(color: Colors.red))),
+            final visitas = rotas
+                .where((r) => r['diaAtendimento'] == dia)
+                .cast<Map<String, dynamic>>()
+                .toList();
+            return SizedBox(
+              width: 220,
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        dia.toUpperCase(),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const Divider(),
+                      ...visitas.map((visita) {
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 3,
+                                ),
+                                child: Text('${visita['clienteNome']}'),
+                              ),
+                            ),
+                            PopupMenuButton<String>(
+                              tooltip: 'Mudar dia',
+                              icon: const Icon(
+                                Icons.edit_calendar_outlined,
+                                size: 19,
+                              ),
+                              onSelected: (novoDia) => _salvarRota(
+                                '/api/roteiro/${visita['id']}',
+                                novoDia == '_REMOVER_' ? 'DELETE' : 'PUT',
+                                novoDia == '_REMOVER_'
+                                    ? null
+                                    : {
+                                        'clienteId': visita['clienteId'],
+                                        'diaAtendimento': novoDia,
+                                      },
+                              ),
+                              itemBuilder: (_) => [
+                                ...dias.map(
+                                  (d) =>
+                                      PopupMenuItem(value: d, child: Text(d)),
+                                ),
+                                const PopupMenuDivider(),
+                                const PopupMenuItem(
+                                  value: '_REMOVER_',
+                                  child: Text(
+                                    'Remover da rota',
+                                    style: TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
-                        ),
-                      ]);
-                    }),
-                    TextButton.icon(
-                      onPressed: () => _adicionarCliente(dia, clientes),
-                      icon: const Icon(Icons.add_circle_outline, size: 19),
-                      label: const Text('Adicionar cliente'),
-                    ),
-                    const Divider(),
-                    Text(
-                      '${visitas.length} cliente(s)',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                        );
+                      }),
+                      TextButton.icon(
+                        onPressed: () => _adicionarCliente(dia, clientes),
+                        icon: const Icon(Icons.add_circle_outline, size: 19),
+                        label: const Text('Adicionar cliente'),
+                      ),
+                      const Divider(),
+                      Text(
+                        '${visitas.length} cliente(s)',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          );
+            );
           }).toList(),
-          Builder(builder: (_) {
-            final vinculados = rotas.map((r) => '${r['clienteId']}').toSet();
-            final listaClientes = clientes.cast<Map<String, dynamic>>().toList()
-              ..sort((a, b) => '${a['nome']}'.compareTo('${b['nome']}'));
-            final clientesSemRota = listaClientes.where((cliente) => !vinculados.contains('${cliente['id']}')).toList();
-            return SizedBox(width: 280, child: Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('CLIENTES SEM ROTA', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange)),
-                const Divider(),
-                if (clientesSemRota.isEmpty) const Text('Todos os clientes estão na agenda.') else ...clientesSemRota.map((cliente) => Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Text('${cliente['nome']}'))),
-                const Divider(), Text('${clientesSemRota.length} cliente(s) sem rota', style: const TextStyle(fontWeight: FontWeight.bold)),
-            ]))));
-          }),
+          Builder(
+            builder: (_) {
+              final vinculados = rotas.map((r) => '${r['clienteId']}').toSet();
+              final listaClientes =
+                  clientes.cast<Map<String, dynamic>>().toList()
+                    ..sort((a, b) => '${a['nome']}'.compareTo('${b['nome']}'));
+              final clientesSemRota = listaClientes
+                  .where((cliente) => !vinculados.contains('${cliente['id']}'))
+                  .toList();
+              return SizedBox(
+                width: 280,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'CLIENTES SEM ROTA',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepOrange,
+                          ),
+                        ),
+                        const Divider(),
+                        if (clientesSemRota.isEmpty)
+                          const Text('Todos os clientes estão na agenda.')
+                        else
+                          ...clientesSemRota.map(
+                            (cliente) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 3),
+                              child: Text('${cliente['nome']}'),
+                            ),
+                          ),
+                        const Divider(),
+                        Text(
+                          '${clientesSemRota.length} cliente(s) sem rota',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       );
     },
@@ -1011,8 +1343,6 @@ class _PaginaLista extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(subtitulo),
                 ],
               ),
             ),
