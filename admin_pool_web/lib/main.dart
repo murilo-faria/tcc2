@@ -3048,103 +3048,20 @@ class _Dashboard extends StatelessWidget {
                 ]
               : const [_ResumoFuncionario()],
         ),
-        const SizedBox(height: 32),
-        Text(
-          gestor ? 'Cobranças do mês' : 'Próximos serviços',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        gestor ? const _CobrancasDoMes() : const _ProximosServicosFuncionario(),
+        if (!gestor) ...[
+          const SizedBox(height: 32),
+          Text(
+            'Próximos serviços',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          const _ProximosServicosFuncionario(),
+        ],
       ],
     );
   }
-}
-
-class _CobrancasDoMes extends StatefulWidget {
-  const _CobrancasDoMes();
-  @override
-  State<_CobrancasDoMes> createState() => _CobrancasDoMesState();
-}
-
-class _CobrancasDoMesState extends State<_CobrancasDoMes> {
-  late Future<List<dynamic>> cobrancas;
-  @override
-  void initState() {
-    super.initState();
-    cobrancas = carregar();
-  }
-
-  Future<List<dynamic>> carregar() async {
-    final r = await apiService.get('/api/cobrancas');
-    if (r.statusCode != 200) throw Exception('API indisponível');
-    return jsonDecode(r.body) as List<dynamic>;
-  }
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<List<dynamic>>(
-    future: cobrancas,
-    builder: (context, s) {
-      if (s.connectionState != ConnectionState.done)
-        return const Center(child: CircularProgressIndicator());
-      if (s.hasError) return Text('${s.error}');
-      final lista = [...s.data!];
-      const ordem = {'VENCIDO': 0, 'PENDENTE': 1, 'PAGO': 2};
-      lista.sort((a, b) {
-        final porStatus = (ordem[a['status']] ?? 9).compareTo(
-          ordem[b['status']] ?? 9,
-        );
-        if (porStatus != 0) return porStatus;
-        final porData = (a['vencimento'] as String).compareTo(
-          b['vencimento'] as String,
-        );
-        if (porData != 0) return porData;
-        return (a['cliente']['nome'] as String).compareTo(
-          b['cliente']['nome'] as String,
-        );
-      });
-      return Card(
-        child: ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: lista.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (_, i) {
-            final c = lista[i] as Map<String, dynamic>;
-            final status = c['status'] as String;
-            final cor = status == 'PAGO'
-                ? Colors.green
-                : status == 'VENCIDO'
-                ? Colors.red
-                : Colors.amber;
-            final cliente = c['cliente'] as Map<String, dynamic>;
-            final valor = formatarMoeda(c['total'] as num);
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: cor.withValues(alpha: .16),
-                foregroundColor: cor,
-                child: const Icon(Icons.person),
-              ),
-              title: Text(cliente['nome']),
-              subtitle: Text('Vencimento: ${c['vencimento']}'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(valor),
-                  const SizedBox(width: 12),
-                  Icon(
-                    status == 'PAGO' ? Icons.check_circle : Icons.chevron_right,
-                    color: cor,
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      );
-    },
-  );
 }
 
 class _FaturamentoCard extends StatelessWidget {
