@@ -226,6 +226,41 @@ public class RelatorioPdfService {
         }
     }
 
+    public byte[] gerarUsoInterno(String titulo, String filtros, List<LinhaRelatorioPdf> linhas) {
+        try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {
+            Document documento = new Document(PageSize.A4, 40, 40, 35, 35);
+            PdfWriter.getInstance(documento, arquivo);
+            documento.open();
+            adicionarLogo(documento);
+            documento.add(new Paragraph(titulo, fonte(14, Font.BOLD, Color.DARK_GRAY)));
+            documento.add(new Paragraph(filtros, fonte(9, Font.NORMAL, Color.DARK_GRAY)));
+            documento.add(new Paragraph(" "));
+
+            PdfPTable tabela = new PdfPTable(new float[]{1.6f, 3.3f, 1.2f, 1.2f});
+            tabela.setWidthPercentage(100);
+            tabela.setHeaderRows(1);
+            adicionarCabecalho(tabela, "COLABORADOR", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "MATERIAL", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "DATA", Element.ALIGN_LEFT);
+            adicionarCabecalho(tabela, "CUSTO", Element.ALIGN_RIGHT);
+            for (LinhaRelatorioPdf linha : linhas) {
+                adicionarCelula(tabela, linha.getCliente(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, linha.getDescricao(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, formatarValor(linha.getValor()), Element.ALIGN_RIGHT);
+            }
+            documento.add(tabela);
+            Paragraph total = new Paragraph("Total de despesas: " + formatarValor(total(linhas)), fonte(12, Font.BOLD, AZUL));
+            total.setAlignment(Element.ALIGN_RIGHT);
+            total.setSpacingBefore(12);
+            documento.add(total);
+            documento.close();
+            return arquivo.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalStateException("Não foi possível preparar o PDF de uso interno.", e);
+        }
+    }
+
     private Font fonte(int tamanho, int estilo, Color cor) {
         return new Font(Font.HELVETICA, tamanho, estilo, cor);
     }

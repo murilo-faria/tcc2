@@ -14,6 +14,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   String? _clienteSelecionado;
   String? _mesSelecionado;
   String? _statusSelecionado;
+  String? _tipoSelecionado;
   bool _mostrarFiltros = false;
   DateTime? _dataInicial;
   DateTime? _dataFinal;
@@ -79,6 +80,18 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     return true;
   }
 
+  bool _correspondeAoTipo(Map<String, dynamic> pedido) {
+    if (_tipoSelecionado == null) return true;
+    final usoInterno = pedido['funcionario'] != null;
+    final capa = pedido['tipoPedido'] == 'CAPA';
+    return switch (_tipoSelecionado) {
+      'PRODUTOS' => !usoInterno && !capa,
+      'USO_INTERNO' => usoInterno,
+      'CAPA' => !usoInterno && capa,
+      _ => true,
+    };
+  }
+
   List<MapEntry<int, List<Map<String, dynamic>>>> _filtrarGrupos(
     List<dynamic> linhas,
   ) {
@@ -93,6 +106,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           )
           .join(' ');
       return (_clienteSelecionado == null || cliente == _clienteSelecionado) &&
+          _correspondeAoTipo(primeiro) &&
           (_statusSelecionado == null ||
               primeiro['status']?.toString() == _statusSelecionado) &&
           _noPeriodo(primeiro['dataPedido']) &&
@@ -232,6 +246,15 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
               subtitle: Text('Cliente, produtos, compra, venda e lucro.'),
             ),
           ),
+          const Divider(height: 1),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'USO_INTERNO'),
+            child: const ListTile(
+              leading: Icon(Icons.inventory_2_outlined),
+              title: Text('Uso interno'),
+              subtitle: Text('Somente despesas, com o valor de compra.'),
+            ),
+          ),
         ],
       ),
     );
@@ -249,6 +272,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
         'inicio': _dataInicial?.toIso8601String().substring(0, 10),
         'fim': _dataFinal?.toIso8601String().substring(0, 10),
         'status': _statusSelecionado,
+        'categoria': _tipoSelecionado,
         'tipo': tipo,
       });
       final resposta = await apiService.get(
@@ -259,6 +283,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
             ? 'relatorio-compras-pedidos.pdf'
             : tipo == 'COMPLETO'
             ? 'relatorio-pedidos-completo.pdf'
+            : tipo == 'USO_INTERNO'
+            ? 'relatorio-uso-interno.pdf'
             : 'relatorio-vendas-pedidos.pdf';
         abrirPdf(resposta, arquivo);
       } else if (mounted) {
@@ -764,6 +790,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                     _clienteSelecionado = null;
                     _mesSelecionado = null;
                     _statusSelecionado = null;
+                    _tipoSelecionado = null;
                     _dataInicial = null;
                     _dataFinal = null;
                   }),
@@ -798,6 +825,33 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 ],
                 onChanged: (valor) =>
                     setState(() => _statusSelecionado = valor),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: MediaQuery.of(context).size.width < 600 ? 180 : 220,
+              child: DropdownButtonFormField<String>(
+                value: _tipoSelecionado,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Tipo de pedido',
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: null, child: Text('Todos os tipos')),
+                  DropdownMenuItem(value: 'PRODUTOS', child: Text('Produtos')),
+                  DropdownMenuItem(
+                    value: 'USO_INTERNO',
+                    child: Text('Uso interno'),
+                  ),
+                  DropdownMenuItem(value: 'CAPA', child: Text('Capa sob medida')),
+                ],
+                onChanged: (valor) => setState(() => _tipoSelecionado = valor),
               ),
             ),
           ],

@@ -122,6 +122,7 @@ public class PedidoProdutoController {
                                              @RequestParam(required = false) LocalDate inicio,
                                              @RequestParam(required = false) LocalDate fim,
                                              @RequestParam(required = false) String status,
+                                             @RequestParam(required = false) String categoria,
                                              @RequestParam(defaultValue = "VENDAS") String tipo) {
         List<PedidoProduto> lista = pedidos.findAllByOrderByDataPedidoDesc().stream()
                 .filter(p -> clienteId == null || p.getCliente() != null && p.getCliente().getId().equals(clienteId))
@@ -131,6 +132,17 @@ public class PedidoProdutoController {
                 .filter(p -> status == null || status.isBlank() || status.equalsIgnoreCase(p.getStatus()))
                 .toList();
         String relatorio = tipo == null ? "VENDAS" : tipo.toUpperCase();
+        if ("USO_INTERNO".equals(relatorio)) {
+            var internos = lista.stream().filter(p -> p.getFuncionario() != null).toList();
+            var linhas = internos.stream().map(p -> new LinhaRelatorioPdf(destinatario(p),
+                    descricaoItem(p), p.getDataPedido().toString(), p.getTotalCompra())).toList();
+            return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio-uso-interno.pdf")
+                    .body(relatorios.gerarUsoInterno("Relatório de uso interno", "Filtros aplicados na tela", linhas));
+        }
+        lista = lista.stream()
+                .filter(p -> p.getFuncionario() == null)
+                .filter(p -> correspondeCategoria(p, categoria))
+                .toList();
         if ("COMPLETO".equals(relatorio)) {
             return ResponseEntity.ok().header("Content-Disposition", "attachment; filename=relatorio-pedidos-completo.pdf")
                     .body(relatorios.gerarPedidosCompleto("Relatório completo de pedidos", "Filtros aplicados na tela",
@@ -266,6 +278,13 @@ public class PedidoProdutoController {
             return new LinhaRelatorioPedidoCompleto(destinatario(primeiro), produtos, compra, venda,
                     venda.subtract(compra));
         }).toList();
+    }
+
+    private boolean correspondeCategoria(PedidoProduto pedido, String categoria) {
+        if (categoria == null || categoria.isBlank()) return true;
+        if ("PRODUTOS".equalsIgnoreCase(categoria)) return !"CAPA".equalsIgnoreCase(pedido.getTipoPedido());
+        if ("CAPA".equalsIgnoreCase(categoria)) return "CAPA".equalsIgnoreCase(pedido.getTipoPedido());
+        return false;
     }
 
     private boolean possuiTexto(String valor) {
