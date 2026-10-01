@@ -136,6 +136,12 @@ public class CobrancaController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/itens/{itemId}/estornar-baixa")
+    public ResponseEntity<Void> estornarBaixa(@PathVariable Long itemId) {
+        cobrancaService.estornarBaixaItem(itemId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/itens/baixar")
     public ResponseEntity<Void> baixarItens(@RequestBody BaixaItensRequest requisicao) {
         cobrancaService.baixarItens(requisicao.itemIds(), requisicao.formaPagamento());

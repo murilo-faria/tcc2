@@ -236,6 +236,20 @@ public class CobrancaService {
     }
 
     @Transactional
+    public void estornarBaixaItem(Long itemId) {
+        ItemCobranca item = itens.findById(itemId).orElseThrow();
+        if (item.getStatus() != StatusItemCobranca.PAGO) {
+            throw new IllegalStateException("Somente uma cobrança paga pode ser reaberta.");
+        }
+        baixas.deleteAll(baixas.findByItemIdOrderByDataPagamentoDesc(itemId));
+        item.setValorPago(BigDecimal.ZERO);
+        item.setStatus(StatusItemCobranca.PENDENTE);
+        item.setDataUltimoPagamento(null);
+        itens.save(item);
+        recalcular(item.getCobranca());
+    }
+
+    @Transactional
     public void baixarItens(List<Long> itemIds, String formaPagamento) {
         if (itemIds == null || itemIds.isEmpty()) {
             throw new IllegalArgumentException("Selecione pelo menos um item.");

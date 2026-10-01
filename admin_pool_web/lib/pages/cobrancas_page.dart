@@ -593,6 +593,26 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
+  Future<void> _estornarBaixa(Map<String, dynamic> item) async {
+    final confirmar = await _confirmar(
+      'Desfazer baixa?',
+      'A baixa de ${item['descricao']} será desfeita e o valor voltará a ficar pendente.',
+      'Desfazer baixa',
+    );
+    if (!confirmar) return;
+    final resposta = await apiService.put(
+      '/api/cobrancas/itens/${item['id']}/estornar-baixa',
+      body: {},
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível desfazer a baixa.')),
+      );
+    }
+  }
+
   Future<void> _baixarSelecionados() async {
     if (_selecionados.isEmpty) return;
     final ok = await _confirmar(
@@ -842,22 +862,26 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         trailing: celular
-                            ? (aberto
-                                  ? PopupMenuButton<String>(
-                                      tooltip: 'Opções da cobrança',
-                                      onSelected: (opcao) {
-                                        if (opcao == 'confirmar') {
-                                          _baixarItem(item);
-                                        }
-                                      },
-                                      itemBuilder: (_) => const [
-                                        PopupMenuItem(
-                                          value: 'confirmar',
-                                          child: Text('Confirmar pagamento'),
-                                        ),
-                                      ],
-                                    )
-                                  : null)
+                            ? PopupMenuButton<String>(
+                                tooltip: 'Opções da cobrança',
+                                onSelected: (opcao) {
+                                  if (opcao == 'confirmar') {
+                                    _baixarItem(item);
+                                  } else if (opcao == 'estornar') {
+                                    _estornarBaixa(item);
+                                  }
+                                },
+                                itemBuilder: (_) => [
+                                  PopupMenuItem(
+                                    value: aberto ? 'confirmar' : 'estornar',
+                                    child: Text(
+                                      aberto
+                                          ? 'Confirmar pagamento'
+                                          : 'Desfazer baixa',
+                                    ),
+                                  ),
+                                ],
+                              )
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -873,13 +897,19 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                     icon: const Icon(Icons.visibility_outlined),
                                   ),
                                   IconButton(
-                                    tooltip: 'Confirmar pagamento',
+                                    tooltip: aberto
+                                        ? 'Confirmar pagamento'
+                                        : 'Desfazer baixa',
                                     onPressed: aberto
                                         ? () => _baixarItem(item)
-                                        : null,
+                                        : () => _estornarBaixa(item),
                                     icon: Icon(
-                                      Icons.check_circle_outline,
-                                      color: aberto ? Colors.green : null,
+                                      aberto
+                                          ? Icons.check_circle_outline
+                                          : Icons.undo_outlined,
+                                      color: aberto
+                                          ? Colors.green
+                                          : Colors.orange,
                                     ),
                                   ),
                                 ],
