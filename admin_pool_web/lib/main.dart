@@ -3177,14 +3177,6 @@ class _FluxoCaixaCard extends StatelessWidget {
                                         item['descricao']?.toString() ??
                                             'Pagamento',
                                       ),
-                                      subtitle: Text(
-                                        item['formaPagamento']
-                                                    ?.toString()
-                                                    .isNotEmpty ==
-                                                true
-                                            ? item['formaPagamento'].toString()
-                                            : 'Forma de pagamento não informada',
-                                      ),
                                       trailing: Text(
                                         formatarMoeda(
                                           (item['valor'] as num?)?.toDouble() ??
