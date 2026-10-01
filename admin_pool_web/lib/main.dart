@@ -2260,13 +2260,14 @@ class _ListaClientesState extends State<_ListaClientes> {
                   dataRowMinHeight: 50,
                   dataRowMaxHeight: 116,
                   columnSpacing: 32,
-                  columns: const [
-                    DataColumn(label: Text('Cliente')),
-                    DataColumn(label: Text('Piscina')),
-                    DataColumn(label: Text('Mensalidade')),
-                    DataColumn(label: Text('Responsável')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Ações')),
+                  columns: [
+                    const DataColumn(label: Text('Cliente')),
+                    const DataColumn(label: Text('Piscina')),
+                    if (widget.gestor)
+                      const DataColumn(label: Text('Mensalidade')),
+                    const DataColumn(label: Text('Responsável')),
+                    const DataColumn(label: Text('Status')),
+                    if (widget.gestor) const DataColumn(label: Text('Ações')),
                   ],
                   rows: dados.map((valor) {
                     final cliente = valor as Map<String, dynamic>;
@@ -2300,7 +2301,8 @@ class _ListaClientesState extends State<_ListaClientes> {
                           ),
                         ),
                         DataCell(_celulaPiscinas(cliente)),
-                        DataCell(Text(formatarMoeda(mensalidade))),
+                        if (widget.gestor)
+                          DataCell(Text(formatarMoeda(mensalidade))),
                         DataCell(_celulaResponsaveis(cliente)),
                         DataCell(
                           Row(
@@ -2336,11 +2338,11 @@ class _ListaClientesState extends State<_ListaClientes> {
                             ],
                           ),
                         ),
-                        DataCell(
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (widget.gestor) ...[
+                        if (widget.gestor)
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),
                                   onPressed: () => editar(cliente),
@@ -2354,9 +2356,8 @@ class _ListaClientesState extends State<_ListaClientes> {
                                       excluir(cliente['id'] as int),
                                 ),
                               ],
-                            ],
+                            ),
                           ),
-                        ),
                       ],
                     );
                   }).toList(),
@@ -2369,13 +2370,14 @@ class _ListaClientesState extends State<_ListaClientes> {
                   dataRowMinHeight: 50,
                   dataRowMaxHeight: 116,
                   columnSpacing: 32,
-                  columns: const [
-                    DataColumn(label: Text('Cliente')),
-                    DataColumn(label: Text('Piscina')),
-                    DataColumn(label: Text('Mensalidade')),
-                    DataColumn(label: Text('Responsável')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Ações')),
+                  columns: [
+                    const DataColumn(label: Text('Cliente')),
+                    const DataColumn(label: Text('Piscina')),
+                    if (widget.gestor)
+                      const DataColumn(label: Text('Mensalidade')),
+                    const DataColumn(label: Text('Responsável')),
+                    const DataColumn(label: Text('Status')),
+                    if (widget.gestor) const DataColumn(label: Text('Ações')),
                   ],
                   rows: dados.map((valor) {
                     final cliente = valor as Map<String, dynamic>;
@@ -2409,7 +2411,8 @@ class _ListaClientesState extends State<_ListaClientes> {
                           ),
                         ),
                         DataCell(_celulaPiscinas(cliente)),
-                        DataCell(Text(formatarMoeda(mensalidade))),
+                        if (widget.gestor)
+                          DataCell(Text(formatarMoeda(mensalidade))),
                         DataCell(_celulaResponsaveis(cliente)),
                         DataCell(
                           Row(
@@ -2445,11 +2448,11 @@ class _ListaClientesState extends State<_ListaClientes> {
                             ],
                           ),
                         ),
-                        DataCell(
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (widget.gestor) ...[
+                        if (widget.gestor)
+                          DataCell(
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 IconButton(
                                   icon: const Icon(Icons.edit_outlined),
                                   onPressed: () => editar(cliente),
@@ -2463,9 +2466,8 @@ class _ListaClientesState extends State<_ListaClientes> {
                                       excluir(cliente['id'] as int),
                                 ),
                               ],
-                            ],
+                            ),
                           ),
-                        ),
                       ],
                     );
                   }).toList(),
