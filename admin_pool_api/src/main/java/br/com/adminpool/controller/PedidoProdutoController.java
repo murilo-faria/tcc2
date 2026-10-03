@@ -118,14 +118,22 @@ public class PedidoProdutoController {
 
     @GetMapping(value = "/relatorio.pdf", produces = "application/pdf")
     public ResponseEntity<byte[]> relatorio(@RequestParam(required = false) Long clienteId,
+                                             @RequestParam(required = false) String clienteIds,
                                              @RequestParam(required = false) String mes,
                                              @RequestParam(required = false) LocalDate inicio,
                                              @RequestParam(required = false) LocalDate fim,
                                              @RequestParam(required = false) String status,
                                              @RequestParam(required = false) String categoria,
                                              @RequestParam(defaultValue = "VENDAS") String tipo) {
+        java.util.Set<Long> clientesSelecionados = clienteIds == null || clienteIds.isBlank()
+                ? java.util.Set.of()
+                : java.util.Arrays.stream(clienteIds.split(","))
+                        .map(String::trim).filter(valor -> !valor.isEmpty()).map(Long::valueOf)
+                        .collect(java.util.stream.Collectors.toSet());
         List<PedidoProduto> lista = pedidos.findAllByOrderByDataPedidoDesc().stream()
-                .filter(p -> clienteId == null || p.getCliente() != null && p.getCliente().getId().equals(clienteId))
+                .filter(p -> clientesSelecionados.isEmpty()
+                        ? clienteId == null || p.getCliente() != null && p.getCliente().getId().equals(clienteId)
+                        : p.getCliente() != null && clientesSelecionados.contains(p.getCliente().getId()))
                 .filter(p -> mes == null || mes.isBlank() || p.getDataPedido().toString().startsWith(mes))
                 .filter(p -> inicio == null || !p.getDataPedido().isBefore(inicio))
                 .filter(p -> fim == null || !p.getDataPedido().isAfter(fim))

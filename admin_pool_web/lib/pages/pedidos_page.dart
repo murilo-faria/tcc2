@@ -11,7 +11,7 @@ class _PedidosPageNova extends StatefulWidget {
 class _PedidosPageNovaState extends State<_PedidosPageNova> {
   late Future<List<dynamic>> _pedidos;
   String _filtro = '';
-  String? _clienteSelecionado;
+  final List<String> _clientesSelecionados = [];
   String? _mesSelecionado;
   String? _statusSelecionado;
   String? _tipoSelecionado;
@@ -105,7 +105,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                     .toLowerCase(),
           )
           .join(' ');
-      return (_clienteSelecionado == null || cliente == _clienteSelecionado) &&
+      return (_clientesSelecionados.isEmpty ||
+              _clientesSelecionados.contains(cliente)) &&
           _correspondeAoTipo(primeiro) &&
           (_statusSelecionado == null ||
               primeiro['status']?.toString() == _statusSelecionado) &&
@@ -118,9 +119,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       if (concluidoPrimeiro != concluidoSegundo) {
         return concluidoPrimeiro ? 1 : -1;
       }
-      return _data(segundo.value.first['dataPedido'])!.compareTo(
-        _data(primeiro.value.first['dataPedido'])!,
-      );
+      return segundo.key.compareTo(primeiro.key);
     });
     return grupos;
   }
@@ -261,13 +260,19 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     if (tipo == null) return;
     try {
       final consulta = consultaPdf({
-        'clienteId': _clienteSelecionado == null
+        'clienteIds': _clientesSelecionados.isEmpty
             ? null
             : (await _pedidos)
-                  .firstWhere(
-                    (p) => (p['cliente'] ?? {})['nome'] == _clienteSelecionado,
-                  )['cliente']['id']
-                  .toString(),
+                  .where(
+                    (p) => _clientesSelecionados.contains(
+                      (p['cliente'] ?? {})['nome']?.toString(),
+                    ),
+                  )
+                  .map((p) => (p['cliente'] ?? {})['id'])
+                  .whereType<num>()
+                  .map((id) => id.toInt().toString())
+                  .toSet()
+                  .join(','),
         'mes': _mesSelecionado,
         'inicio': _dataInicial?.toIso8601String().substring(0, 10),
         'fim': _dataFinal?.toIso8601String().substring(0, 10),
@@ -778,16 +783,21 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 return _FiltrosRelatorio(
                   clientes: clientes,
                   meses: meses,
-                  clienteSelecionado: _clienteSelecionado,
+                  clienteSelecionado: null,
+                  clientesSelecionados: _clientesSelecionados,
                   mesSelecionado: _mesSelecionado,
                   dataInicial: _dataInicial,
                   dataFinal: _dataFinal,
-                  aoMudarCliente: (v) =>
-                      setState(() => _clienteSelecionado = v),
+                  aoMudarClientes: (selecionados) => setState(() {
+                    _clientesSelecionados
+                      ..clear()
+                      ..addAll(selecionados);
+                  }),
+                  aoMudarCliente: (_) {},
                   aoMudarMes: (v) => setState(() => _mesSelecionado = v),
                   aoEscolherData: _escolherData,
                   aoLimpar: () => setState(() {
-                    _clienteSelecionado = null;
+                    _clientesSelecionados.clear();
                     _mesSelecionado = null;
                     _statusSelecionado = null;
                     _tipoSelecionado = null;

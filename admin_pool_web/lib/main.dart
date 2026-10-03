@@ -356,6 +356,8 @@ class _FiltrosRelatorio extends StatelessWidget {
     required this.aoMudarMes,
     required this.aoEscolherData,
     required this.aoLimpar,
+    this.clientesSelecionados,
+    this.aoMudarClientes,
   });
 
   final List<String> clientes;
@@ -368,6 +370,8 @@ class _FiltrosRelatorio extends StatelessWidget {
   final ValueChanged<String?> aoMudarMes;
   final ValueChanged<bool> aoEscolherData;
   final VoidCallback aoLimpar;
+  final List<String>? clientesSelecionados;
+  final ValueChanged<List<String>>? aoMudarClientes;
 
   String _textoData(DateTime? data, String vazio) => data == null
       ? vazio
@@ -393,6 +397,84 @@ class _FiltrosRelatorio extends StatelessWidget {
     return '${nomes[data.month - 1]}/${data.year.toString().substring(2)}';
   }
 
+  Future<void> _selecionarClientes(BuildContext context) async {
+    final selecionados = (clientesSelecionados ?? const <String>[]).toSet();
+    var busca = '';
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocal) {
+          final exibidos = clientes
+              .where((nome) => nome.toLowerCase().contains(busca))
+              .toList();
+          return AlertDialog(
+            title: const Text('Selecionar clientes'),
+            content: SizedBox(
+              width: 420,
+              height: 430,
+              child: Column(
+                children: [
+                  TextField(
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search),
+                      hintText: 'Buscar cliente',
+                    ),
+                    onChanged: (valor) =>
+                        setLocal(() => busca = valor.trim().toLowerCase()),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('${selecionados.length} selecionado(s)'),
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: ListView(
+                      children: exibidos
+                          .map(
+                            (nome) => CheckboxListTile(
+                              value: selecionados.contains(nome),
+                              title: Text(nome),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              onChanged: (marcado) => setLocal(() {
+                                if (marcado == true) {
+                                  selecionados.add(nome);
+                                } else {
+                                  selecionados.remove(nome);
+                                }
+                              }),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => setLocal(selecionados.clear),
+                child: const Text('Limpar'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  aoMudarClientes?.call(selecionados.toList()..sort());
+                  Navigator.pop(context);
+                },
+                child: const Text('Aplicar'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final celular = MediaQuery.of(context).size.width < 600;
@@ -401,35 +483,50 @@ class _FiltrosRelatorio extends StatelessWidget {
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        SizedBox(
-          width: celular ? 220 : 220,
-          child: DropdownButtonFormField<String>(
-            value: clienteSelecionado,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Cliente',
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
+        if (clientesSelecionados != null && aoMudarClientes != null)
+          SizedBox(
+            width: celular ? 220 : 260,
+            child: OutlinedButton.icon(
+              onPressed: () => _selecionarClientes(context),
+              icon: const Icon(Icons.people_outline),
+              label: Text(
+                clientesSelecionados!.isEmpty
+                    ? 'Todos os clientes'
+                    : '${clientesSelecionados!.length} cliente(s)',
+                overflow: TextOverflow.ellipsis,
               ),
-              border: OutlineInputBorder(),
             ),
-            items: [
-              const DropdownMenuItem(
-                value: null,
-                child: Text('Todos os clientes'),
-              ),
-              ...clientes.map(
-                (nome) => DropdownMenuItem(
-                  value: nome,
-                  child: Text(nome, overflow: TextOverflow.ellipsis),
+          )
+        else
+          SizedBox(
+            width: celular ? 220 : 220,
+            child: DropdownButtonFormField<String>(
+              value: clienteSelecionado,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Cliente',
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
+                border: OutlineInputBorder(),
               ),
-            ],
-            onChanged: aoMudarCliente,
+              items: [
+                const DropdownMenuItem(
+                  value: null,
+                  child: Text('Todos os clientes'),
+                ),
+                ...clientes.map(
+                  (nome) => DropdownMenuItem(
+                    value: nome,
+                    child: Text(nome, overflow: TextOverflow.ellipsis),
+                  ),
+                ),
+              ],
+              onChanged: aoMudarCliente,
+            ),
           ),
-        ),
         SizedBox(
           width: celular ? 220 : 180,
           child: DropdownButtonFormField<String>(
