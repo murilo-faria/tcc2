@@ -120,10 +120,16 @@ public class CobrancaController {
         try {
             String codigoTexto = descricao.substring("Pedido #".length()).trim().split("\\s+")[0];
             Long codigo = Long.valueOf(codigoTexto);
-            return pedidos.findByCodigoPedidoOrderByIdAsc(codigo).stream().findFirst()
-                    .map(pedido -> "Pedido #" + codigo + " - "
-                            + ("CAPA".equals(pedido.getTipoPedido()) ? "Capa" : "Produto"))
-                    .orElse(descricao);
+            var itensDoPedido = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
+            if (itensDoPedido.isEmpty()) return descricao;
+            boolean capa = "CAPA".equals(itensDoPedido.get(0).getTipoPedido());
+            String itens = itensDoPedido.stream()
+                    .map(pedido -> capa
+                            ? pedido.getDescricaoCapa()
+                            : pedido.getProduto().getNome() + " - " + pedido.getQuantidade() + " un.")
+                    .collect(java.util.stream.Collectors.joining("\n- "));
+            return "Pedido #" + codigo + " - " + (capa ? "Capa" : "Produto")
+                    + "\n- " + itens;
         } catch (NumberFormatException excecao) {
             return descricao;
         }
