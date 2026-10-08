@@ -2,6 +2,7 @@ package br.com.adminpool.service;
 
 import br.com.adminpool.dto.ResumoCobrancaCliente;
 import br.com.adminpool.dto.FluxoCaixaEntrada;
+import br.com.adminpool.dto.LinhaHistoricoCobranca;
 import br.com.adminpool.model.BaixaItemCobranca;
 import br.com.adminpool.model.Cliente;
 import br.com.adminpool.model.CobrancaMensal;
@@ -26,6 +27,9 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -89,6 +93,40 @@ public class CobrancaService {
                 .filter(item -> (pendentes && STATUS_EM_ABERTO.contains(item.getStatus()))
                         || (pagos && item.getStatus() == StatusItemCobranca.PAGO))
                 .toList();
+    }
+
+    public List<LinhaHistoricoCobranca> listarHistoricoCliente(Long clienteId, boolean pendentes, boolean pagos) {
+        List<ItemCobranca> itensCliente = listarItensCliente(clienteId);
+        List<BaixaItemCobranca> baixasCliente = baixas
+                .findByItem_Cobranca_Cliente_IdOrderByDataPagamentoDesc(clienteId);
+        Map<String, List<BaixaItemCobranca>> porGrupo = baixasCliente.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        baixa -> baixa.getGrupoPagamento() == null ? "baixa-" + baixa.getId() : baixa.getGrupoPagamento(),
+                        LinkedHashMap::new, java.util.stream.Collectors.toList()));
+        Set<String> gruposParciais = porGrupo.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith("PARCIAL:") || entry.getValue().stream().anyMatch(baixa ->
+                        baixa.getItem().getStatus() != StatusItemCobranca.PAGO))
+                .map(Map.Entry::getKey).collect(java.util.stream.Collectors.toSet());
+        Set<Long> itensDeAbatesParciais = porGrupo.entrySet().stream()
+                .filter(entry -> gruposParciais.contains(entry.getKey()))
+                .flatMap(entry -> entry.getValue().stream())
+                .map(baixa -> baixa.getItem().getId()).collect(java.util.stream.Collectors.toSet());
+        List<LinhaHistoricoCobranca> resultado = new ArrayList<>();
+        if (pendentes) {
+            itensCliente.stream().filter(item -> STATUS_EM_ABERTO.contains(item.getStatus()))
+                    .map(this::linhaDoItem).forEach(resultado::add);
+        }
+        if (pagos) {
+            itensCliente.stream()
+                    .filter(item -> item.getStatus() == StatusItemCobranca.PAGO)
+                    .filter(item -> !itensDeAbatesParciais.contains(item.getId()))
+                    .map(this::linhaDoItem).forEach(resultado::add);
+            porGrupo.entrySet().stream().filter(entry -> gruposParciais.contains(entry.getKey()))
+                    .map(entry -> linhaDoPagamento(entry, true)).forEach(resultado::add);
+        }
+        return resultado.stream().sorted(Comparator
+                .comparing(LinhaHistoricoCobranca::data, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(LinhaHistoricoCobranca::id, Comparator.reverseOrder())).toList();
     }
 
     public ItemCobranca detalharItem(Long itemId) {
@@ -228,7 +266,10 @@ public class CobrancaService {
         BigDecimal saldo = item.getSaldoPendente();
         BigDecimal valorBaixa = valor == null ? saldo : valor;
         validarValorBaixa(valorBaixa, saldo);
-        registrarBaixa(item, valorBaixa, formaPagamento, UUID.randomUUID().toString());
+        String grupo = valorBaixa.compareTo(saldo) < 0
+                ? "PARCIAL:" + UUID.randomUUID()
+                : UUID.randomUUID().toString();
+        registrarBaixa(item, valorBaixa, formaPagamento, grupo);
         if (valorBaixa.compareTo(saldo) < 0) {
             transferirSaldo(item);
         }
@@ -254,7 +295,7 @@ public class CobrancaService {
         if (itemIds == null || itemIds.isEmpty()) {
             throw new IllegalArgumentException("Selecione pelo menos um item.");
         }
-        String grupo = UUID.randomUUID().toString();
+        String grupo = "PARCIAL:" + UUID.randomUUID();
         for (Long itemId : itemIds) {
             ItemCobranca item = itens.findById(itemId).orElseThrow();
             BigDecimal saldo = item.getSaldoPendente();
@@ -424,7 +465,7 @@ public class CobrancaService {
         saldoAnterior.setCobranca(destino);
         saldoAnterior.setTipo(TipoLancamentoCobranca.SALDO_ANTERIOR);
         saldoAnterior.setOrigemId(item.getId());
-        saldoAnterior.setDescricao("Saldo de " + item.getDescricao());
+        saldoAnterior.setDescricao(descricaoSemSaldoAnterior(item.getDescricao()));
         saldoAnterior.setDataLancamento(LocalDate.now());
         saldoAnterior.setValorOriginal(saldo);
         saldoAnterior.setValorPago(BigDecimal.ZERO);
@@ -435,6 +476,34 @@ public class CobrancaService {
         itens.save(item);
         recalcular(item.getCobranca());
         recalcular(destino);
+    }
+
+    private LinhaHistoricoCobranca linhaDoItem(ItemCobranca item) {
+        return new LinhaHistoricoCobranca(item.getId(), descricaoSemSaldoAnterior(item.getDescricao()),
+                item.getReferencia(), item.getVencimento(),
+                item.getDataUltimoPagamento() == null ? item.getDataLancamento() : item.getDataUltimoPagamento(),
+                item.getSaldoPendente(), item.getValorPago(), item.getStatus().name(), item.isAtrasado(), false);
+    }
+
+    private LinhaHistoricoCobranca linhaDoPagamento(Map.Entry<String, List<BaixaItemCobranca>> grupo,
+                                                     boolean abateParcial) {
+        List<BaixaItemCobranca> baixasDoGrupo = grupo.getValue();
+        BaixaItemCobranca primeira = baixasDoGrupo.getFirst();
+        BigDecimal valor = baixasDoGrupo.stream().map(BaixaItemCobranca::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        LocalDate data = baixasDoGrupo.stream().map(BaixaItemCobranca::getDataPagamento)
+                .max(Comparator.naturalOrder()).orElseThrow().toLocalDate();
+        String descricaoBase = baixasDoGrupo.stream()
+                .map(baixa -> descricaoSemSaldoAnterior(baixa.getItem().getDescricao()))
+                .distinct().collect(java.util.stream.Collectors.joining(", "));
+        String descricao = (abateParcial ? "Abate parcial" : "Pagamento") + " — " + descricaoBase;
+        return new LinhaHistoricoCobranca(primeira.getId(), descricao, primeira.getItem().getReferencia(),
+                primeira.getItem().getVencimento(), data, BigDecimal.ZERO, valor,
+                StatusItemCobranca.PAGO.name(), false, true);
+    }
+
+    private String descricaoSemSaldoAnterior(String descricao) {
+        return descricao == null ? "" : descricao.replaceFirst("^Saldo de ", "");
     }
 
     private void validarValorBaixa(BigDecimal valor, BigDecimal saldo) {

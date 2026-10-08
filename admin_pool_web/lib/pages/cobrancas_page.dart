@@ -644,11 +644,23 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
   }
 
   Future<void> _baixarParcial() async {
+    if (_selecionados.length != 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione exatamente um item para dar baixa parcial.')),
+      );
+      return;
+    }
+    final itensAtuais = await _itens;
+    final item = itensAtuais.cast<Map<String, dynamic>>().firstWhere(
+      (item) => item['id'] == _selecionados.first,
+    );
+    if (!_aberto(item)) return;
+    final saldo = (item['saldoPendente'] as num?) ?? 0;
     final controlador = TextEditingController();
     final valor = await showDialog<double>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Dar baixa parcial'),
+        title: Text('Baixa parcial — ${item['descricao']}'),
         content: TextField(
           controller: controlador,
           autofocus: true,
@@ -656,7 +668,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
           decoration: const InputDecoration(
             labelText: 'Valor recebido',
             prefixText: 'R\$ ',
-            helperText: 'O saldo restante será levado para o próximo mês.',
+            helperText: 'Saldo atual: ${formatarMoeda(saldo)}',
           ),
         ),
         actions: [
@@ -676,7 +688,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     );
     if (valor == null || valor <= 0) return;
     final resposta = await apiService.put(
-      '/api/cobrancas/clientes/$clienteId/baixar-parcial',
+      '/api/cobrancas/itens/${item['id']}/baixar',
       body: {'valor': valor},
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
@@ -775,7 +787,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                 OutlinedButton.icon(
                   onPressed: _baixarParcial,
                   icon: const Icon(Icons.payments_outlined),
-                  label: const Text('Baixa parcial'),
+                  label: const Text('Baixa parcial selecionada'),
                 ),
                 OutlinedButton.icon(
                   onPressed: _gerarHistoricoPdf,
@@ -828,6 +840,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                     itemBuilder: (_, indice) {
                       final item = estado.data![indice] as Map<String, dynamic>;
                       final aberto = _aberto(item);
+                      final registroPagamento = item['registroPagamento'] == true;
                       final id = item['id'] as int;
                       final valor = formatarMoeda(
                         ((aberto ? item['saldoPendente'] : item['valorPago'])
@@ -838,30 +851,39 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                         contentPadding: EdgeInsets.symmetric(
                           horizontal: celular ? 2 : 16,
                         ),
-                        onTap: () => _abrirDetalhes(item),
-                        leading: Checkbox(
-                          value: _selecionados.contains(id),
-                          onChanged: aberto
-                              ? (marcado) => setState(
-                                  () => marcado == true
-                                      ? _selecionados.add(id)
-                                      : _selecionados.remove(id),
-                                )
-                              : null,
-                        ),
+                        onTap: registroPagamento ? null : () => _abrirDetalhes(item),
+                        leading: registroPagamento
+                            ? const Icon(Icons.payments_outlined, color: Colors.green)
+                            : Checkbox(
+                                value: _selecionados.contains(id),
+                                onChanged: aberto
+                                    ? (marcado) => setState(
+                                        () => marcado == true
+                                            ? _selecionados.add(id)
+                                            : _selecionados.remove(id),
+                                      )
+                                    : null,
+                              ),
                         title: Text(
                           item['descricao'] ?? item['tipo'] ?? '',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
-                          celular
+                          registroPagamento
+                              ? '${item['referencia']} • pago ${item['data']}'
+                              : celular
                               ? '${item['referencia']} • vence ${item['vencimento']}\n$valor • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}'
                               : '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        trailing: celular
+                        trailing: registroPagamento
+                            ? Text(
+                                valor,
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              )
+                            : celular
                             ? PopupMenuButton<String>(
                                 tooltip: 'Opções da cobrança',
                                 onSelected: (opcao) {

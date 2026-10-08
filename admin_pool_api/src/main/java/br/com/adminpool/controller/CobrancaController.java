@@ -6,6 +6,7 @@ import br.com.adminpool.dto.BaixaItensRequest;
 import br.com.adminpool.dto.ResumoCobrancaCliente;
 import br.com.adminpool.dto.FluxoCaixaEntrada;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
+import br.com.adminpool.dto.LinhaHistoricoCobranca;
 import br.com.adminpool.model.CobrancaMensal;
 import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.repository.ClienteRepository;
@@ -86,10 +87,10 @@ public class CobrancaController {
     }
 
     @GetMapping("/clientes/{clienteId}/itens")
-    public List<ItemCobranca> listarItens(@PathVariable Long clienteId,
-                                          @RequestParam(defaultValue = "true") boolean pendentes,
-                                          @RequestParam(defaultValue = "true") boolean pagos) {
-        return cobrancaService.listarItensCliente(clienteId, pendentes, pagos);
+    public List<LinhaHistoricoCobranca> listarItens(@PathVariable Long clienteId,
+                                                    @RequestParam(defaultValue = "true") boolean pendentes,
+                                                    @RequestParam(defaultValue = "true") boolean pagos) {
+        return cobrancaService.listarHistoricoCliente(clienteId, pendentes, pagos);
     }
 
     @GetMapping(value = "/clientes/{clienteId}/historico.pdf", produces = "application/pdf")
@@ -97,13 +98,11 @@ public class CobrancaController {
                                                        @RequestParam(defaultValue = "true") boolean pendentes,
                                                        @RequestParam(defaultValue = "true") boolean pagos) {
         var cliente = clientes.findById(clienteId).orElseThrow();
-        var linhas = cobrancaService.listarItensCliente(clienteId, pendentes, pagos).stream()
+        var linhas = cobrancaService.listarHistoricoCliente(clienteId, pendentes, pagos).stream()
                 .map(item -> new LinhaRelatorioPdf(cliente.getNome(),
-                        item.getDescricao() + " - " + item.getStatus(),
-                        item.getDataUltimoPagamento() == null
-                                ? item.getDataLancamento().toString()
-                                : item.getDataUltimoPagamento().toString(),
-                        item.getValorOriginal()))
+                        item.descricao() + " - " + item.status(), item.data().toString(),
+                        item.registroPagamento() ? item.valorPago()
+                                : item.status().equals("PAGO") ? item.valorPago() : item.saldoPendente()))
                 .toList();
         return ResponseEntity.ok()
                 .header("Content-Disposition", "attachment; filename=historico-" + clienteId + ".pdf")
