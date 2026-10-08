@@ -10,6 +10,7 @@ import br.com.adminpool.dto.LinhaHistoricoCobranca;
 import br.com.adminpool.model.CobrancaMensal;
 import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.repository.ClienteRepository;
+import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.service.CobrancaService;
 import br.com.adminpool.service.RelatorioPdfService;
 import org.springframework.http.ResponseEntity;
@@ -26,12 +27,14 @@ public class CobrancaController {
     private final CobrancaService cobrancaService;
     private final RelatorioPdfService relatorios;
     private final ClienteRepository clientes;
+    private final PedidoProdutoRepository pedidos;
 
     public CobrancaController(CobrancaService cobrancaService, RelatorioPdfService relatorios,
-                              ClienteRepository clientes) {
+                              ClienteRepository clientes, PedidoProdutoRepository pedidos) {
         this.cobrancaService = cobrancaService;
         this.relatorios = relatorios;
         this.clientes = clientes;
+        this.pedidos = pedidos;
     }
 
     @GetMapping
@@ -100,7 +103,7 @@ public class CobrancaController {
         var cliente = clientes.findById(clienteId).orElseThrow();
         var linhas = cobrancaService.listarHistoricoCliente(clienteId, pendentes, pagos).stream()
                 .map(item -> new LinhaRelatorioPdf(cliente.getNome(),
-                        item.descricao() + " - " + item.status(), item.data().toString(),
+                        descricaoDoHistorico(item), item.data().toString(),
                         item.registroPagamento() ? item.valorPago()
                                 : item.status().equals("PAGO") ? item.valorPago() : item.saldoPendente()))
                 .toList();
@@ -108,6 +111,22 @@ public class CobrancaController {
                 .header("Content-Disposition", "attachment; filename=historico-" + clienteId + ".pdf")
                 .body(relatorios.gerar("Histórico de cobranças - " + cliente.getNome(),
                         descricaoFiltrosHistorico(pendentes, pagos), linhas));
+    }
+
+    /** Identifica no PDF se o pedido cobrado era uma capa ou um produto comum. */
+    private String descricaoDoHistorico(LinhaHistoricoCobranca item) {
+        String descricao = item.descricao();
+        if (descricao == null || !descricao.startsWith("Pedido #")) return descricao;
+        try {
+            String codigoTexto = descricao.substring("Pedido #".length()).trim().split("\\s+")[0];
+            Long codigo = Long.valueOf(codigoTexto);
+            return pedidos.findByCodigoPedidoOrderByIdAsc(codigo).stream().findFirst()
+                    .map(pedido -> "Pedido #" + codigo + " - "
+                            + ("CAPA".equals(pedido.getTipoPedido()) ? "Capa" : "Produto"))
+                    .orElse(descricao);
+        } catch (NumberFormatException excecao) {
+            return descricao;
+        }
     }
 
     private String descricaoFiltrosHistorico(boolean pendentes, boolean pagos) {
