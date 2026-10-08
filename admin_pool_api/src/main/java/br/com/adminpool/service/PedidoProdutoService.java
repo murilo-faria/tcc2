@@ -206,9 +206,7 @@ public class PedidoProdutoService {
         // Um pedido concluído pode ter gerado uma cobrança. Remova primeiro o
         // lançamento pendente para que ele não continue aparecendo em Cobranças.
         // O serviço preserva qualquer lançamento que já tenha recebido pagamento.
-        if (itensCobranca.existsByTipoAndOrigemId(TipoLancamentoCobranca.PEDIDO, codigo)) {
-            cobrancas.removerLancamento(TipoLancamentoCobranca.PEDIDO, codigo);
-        }
+        cobrancas.removerLancamentoSeExistir(TipoLancamentoCobranca.PEDIDO, codigo);
         pedidos.deleteAll(itens);
     }
 

@@ -14,6 +14,7 @@ import br.com.adminpool.repository.BaixaItemCobrancaRepository;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.CobrancaRepository;
 import br.com.adminpool.repository.ItemCobrancaRepository;
+import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.repository.PiscinaRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,15 +44,17 @@ public class CobrancaService {
     private final ItemCobrancaRepository itens;
     private final BaixaItemCobrancaRepository baixas;
     private final PiscinaRepository piscinas;
+    private final PedidoProdutoRepository pedidos;
 
     public CobrancaService(CobrancaRepository cobrancas, ClienteRepository clientes,
                            ItemCobrancaRepository itens, BaixaItemCobrancaRepository baixas,
-                           PiscinaRepository piscinas) {
+                           PiscinaRepository piscinas, PedidoProdutoRepository pedidos) {
         this.cobrancas = cobrancas;
         this.clientes = clientes;
         this.itens = itens;
         this.baixas = baixas;
         this.piscinas = piscinas;
+        this.pedidos = pedidos;
     }
 
     public List<CobrancaMensal> listarPorVencimento() {
@@ -82,10 +85,26 @@ public class CobrancaService {
                 .toList();
     }
 
+    @Transactional
     public List<ItemCobranca> listarItensCliente(Long clienteId) {
+        limparLancamentosDePedidosExcluidos();
         gerarMes(YearMonth.now());
         atualizarAtrasos();
         return itens.findByCobrancaClienteIdOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(clienteId);
+    }
+
+    /**
+     * Garante que uma cobrança de pedido nunca fique visível quando o pedido de
+     * origem já foi apagado. Também corrige lançamentos pendentes criados antes
+     * de a exclusão do pedido passar a removê-los imediatamente.
+     */
+    private void limparLancamentosDePedidosExcluidos() {
+        itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
+                .filter(item -> item.getOrigemId() != null)
+                .filter(item -> pedidos.findByCodigoPedidoOrderByIdAsc(item.getOrigemId()).isEmpty())
+                .filter(item -> item.getValorPago() == null || item.getValorPago().compareTo(BigDecimal.ZERO) == 0)
+                .toList()
+                .forEach(this::removerLancamento);
     }
 
     public List<ItemCobranca> listarItensCliente(Long clienteId, boolean pendentes, boolean pagos) {
