@@ -350,7 +350,12 @@ public class PedidoProdutoService {
         return new ResultadoProdutos(mes.toString(), compras, vendas, lucro, margem, receber);
     }
 
-    /** Produtos só viram resultado de venda depois que a cobrança do pedido é quitada. */
+    /**
+     * Produtos entram no resultado após a baixa da cobrança. Capas sob medida
+     * também pertencem ao módulo de produtos; por isso, uma capa concluída como
+     * venda da empresa entra no resultado no mês da conclusão, mesmo que a
+     * cobrança dela ainda esteja pendente.
+     */
     public List<PedidoProduto> produtosRecebidos(YearMonth mes) {
         LocalDate inicio = mes.atDay(1);
         LocalDate fim = mes.atEndOfMonth();
@@ -361,9 +366,16 @@ public class PedidoProdutoService {
                 .map(ItemCobranca::getOrigemId)
                 .filter(codigo -> codigo != null)
                 .collect(java.util.stream.Collectors.toSet());
-        return codigosQuitados.stream()
+        List<PedidoProduto> produtosQuitados = codigosQuitados.stream()
                 .flatMap(codigo -> pedidos.findByCodigoPedidoOrderByIdAsc(codigo).stream())
                 .toList();
+        List<PedidoProduto> capasConcluidas = pedidos
+                .findByTipoPedidoAndPagadorAndDataConclusaoBetween("CAPA", ResponsavelPagamento.EMPRESA, inicio, fim)
+                .stream()
+                // Evita repetir uma capa que já entrou pela baixa da cobrança.
+                .filter(capa -> !codigosQuitados.contains(capa.getCodigoPedido()))
+                .toList();
+        return java.util.stream.Stream.concat(produtosQuitados.stream(), capasConcluidas.stream()).toList();
     }
 
     private Piscina validarPiscina(Long piscinaId, Cliente cliente, Authentication auth) {
