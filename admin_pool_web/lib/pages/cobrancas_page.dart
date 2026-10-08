@@ -665,7 +665,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
           controller: controlador,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Valor recebido',
             prefixText: 'R\$ ',
             helperText: 'Saldo atual: ${formatarMoeda(saldo)}',
