@@ -1304,7 +1304,18 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
                 final cliente = (o['cliente']['nome'] as String).toLowerCase();
                 final descricao = (o['descricao'] as String).toLowerCase();
                 return cliente.contains(filtro) || descricao.contains(filtro);
-              }).toList();
+              }).toList()
+                ..sort((primeira, segunda) {
+                  // Mantém as OS em aberto no topo e, em cada grupo, a mais
+                  // nova (maior número) antes das demais.
+                  final grupoPrimeira = primeira['status'] == 'ABERTA' ? 0 : 1;
+                  final grupoSegunda = segunda['status'] == 'ABERTA' ? 0 : 1;
+                  final porStatus = grupoPrimeira.compareTo(grupoSegunda);
+                  if (porStatus != 0) return porStatus;
+                  final numeroPrimeira = (primeira['id'] as num?)?.toInt() ?? 0;
+                  final numeroSegunda = (segunda['id'] as num?)?.toInt() ?? 0;
+                  return numeroSegunda.compareTo(numeroPrimeira);
+                });
               if (dados.isEmpty)
                 return const Center(child: Text('Nenhuma ordem de serviço.'));
               return Card(
