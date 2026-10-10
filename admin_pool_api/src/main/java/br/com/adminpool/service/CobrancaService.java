@@ -498,9 +498,14 @@ public class CobrancaService {
     }
 
     private LinhaHistoricoCobranca linhaDoItem(ItemCobranca item) {
+        // A mensalidade deve sempre aparecer com o dia de vencimento. A data de
+        // lançamento pode ser diferente quando a cobrança é gerada antes ou
+        // depois desse dia.
+        LocalDate dataExibicao = item.getTipo() == TipoLancamentoCobranca.MENSALIDADE
+                ? item.getVencimento()
+                : item.getDataUltimoPagamento() == null ? item.getDataLancamento() : item.getDataUltimoPagamento();
         return new LinhaHistoricoCobranca(item.getId(), descricaoSemSaldoAnterior(item.getDescricao()),
-                item.getReferencia(), item.getVencimento(),
-                item.getDataUltimoPagamento() == null ? item.getDataLancamento() : item.getDataUltimoPagamento(),
+                item.getReferencia(), item.getVencimento(), dataExibicao,
                 item.getSaldoPendente(), item.getValorPago(), item.getStatus().name(), item.isAtrasado(), false);
     }
 
