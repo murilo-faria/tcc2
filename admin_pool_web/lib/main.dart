@@ -3153,7 +3153,9 @@ class _ResumoVisaoGeralCardsState extends State<_ResumoVisaoGeralCards> {
 
   Future<Map<String, dynamic>> _carregar() async {
     final resposta = await apiService.get('/api/cobrancas/resumo-visao-geral');
-    if (resposta.statusCode != 200) return const {};
+    if (resposta.statusCode != 200) {
+      throw Exception('Não foi possível carregar os indicadores.');
+    }
     return (jsonDecode(resposta.body) as Map).cast<String, dynamic>();
   }
 
@@ -3167,19 +3169,22 @@ class _ResumoVisaoGeralCardsState extends State<_ResumoVisaoGeralCards> {
     builder: (_, dados) {
       final resumo = dados.data ?? const <String, dynamic>{};
       final aguardando = dados.connectionState == ConnectionState.waiting;
+      final falhou = dados.hasError;
       return Wrap(
         spacing: 16,
         runSpacing: 16,
         children: [
           _Indicador(
             'Clientes ativos',
-            aguardando ? '...' : '${resumo['clientesAtivos'] ?? 0}',
+            aguardando ? '...' : (falhou ? '—' : '${resumo['clientesAtivos'] ?? 0}'),
             Icons.people_outline,
             const Color(0xFF1565C0),
           ),
           _Indicador(
             'Cobranças pendentes',
-            aguardando ? '...' : '${resumo['cobrancasPendentes'] ?? 0}',
+            aguardando
+                ? '...'
+                : (falhou ? '—' : '${resumo['cobrancasPendentes'] ?? 0}'),
             Icons.warning_amber_rounded,
             const Color(0xFFE76F51),
           ),
@@ -3187,7 +3192,11 @@ class _ResumoVisaoGeralCardsState extends State<_ResumoVisaoGeralCards> {
             'Faturamento previsto',
             aguardando
                 ? 'Calculando...'
-                : formatarMoeda((resumo['faturamentoPrevisto'] as num?)?.toDouble() ?? 0),
+                : (falhou
+                      ? 'Indisponível'
+                      : formatarMoeda(
+                          (resumo['faturamentoPrevisto'] as num?)?.toDouble() ?? 0,
+                        )),
             Icons.payments_outlined,
             const Color(0xFF1976D2),
           ),
