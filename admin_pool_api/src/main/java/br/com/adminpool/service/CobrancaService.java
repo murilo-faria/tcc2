@@ -1,6 +1,7 @@
 package br.com.adminpool.service;
 
 import br.com.adminpool.dto.ResumoCobrancaCliente;
+import br.com.adminpool.dto.ResumoVisaoGeral;
 import br.com.adminpool.dto.FluxoCaixaEntrada;
 import br.com.adminpool.dto.LinhaHistoricoCobranca;
 import br.com.adminpool.model.BaixaItemCobranca;
@@ -71,6 +72,21 @@ public class CobrancaService {
         gerarMes(mesAtual);
         atualizarAtrasos();
         return cobrancas.findMesAtualComAtrasos(mesAtual.toString(), mesAtual.atDay(1));
+    }
+
+    /**
+     * Mantém a geração e os atrasos atualizados como a lista mensal, mas retorna
+     * apenas os três números necessários para a visão geral.
+     */
+    public ResumoVisaoGeral resumirVisaoGeral() {
+        YearMonth mesAtual = YearMonth.now();
+        gerarMes(mesAtual);
+        atualizarAtrasos();
+        Object[] resumo = cobrancas.resumirPendenciasDoMes(mesAtual.toString(), StatusCobranca.PAGO);
+        long quantidade = ((Number) resumo[0]).longValue();
+        BigDecimal faturamento = resumo[1] == null ? BigDecimal.ZERO
+                : new BigDecimal(resumo[1].toString());
+        return new ResumoVisaoGeral(clientes.countByAtivoTrue(), quantidade, faturamento);
     }
 
     public List<CobrancaMensal> listarPorReferencia(String referencia) {

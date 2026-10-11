@@ -187,6 +187,28 @@ class CobrancaServicePerformanceTest {
         verify(itens, never()).saveAll(any());
     }
 
+    @Test
+    void resumoDaVisaoGeralNaoCarregaListaCompletaDeCobrancas() {
+        CobrancaRepository cobrancas = mock(CobrancaRepository.class);
+        ClienteRepository clientes = mock(ClienteRepository.class);
+        CobrancaService service = service(cobrancas, clientes, mock(ItemCobrancaRepository.class),
+                mock(PiscinaRepository.class));
+        String referencia = YearMonth.now().toString();
+
+        when(clientes.findAll()).thenReturn(List.of());
+        when(clientes.countByAtivoTrue()).thenReturn(18L);
+        when(cobrancas.findComClienteEItensPorReferencia(referencia)).thenReturn(List.of());
+        when(cobrancas.resumirPendenciasDoMes(referencia, StatusCobranca.PAGO))
+                .thenReturn(new Object[]{7L, new BigDecimal("1250.50")});
+
+        var resumo = service.resumirVisaoGeral();
+
+        assertEquals(18L, resumo.clientesAtivos());
+        assertEquals(7L, resumo.cobrancasPendentes());
+        assertEquals(new BigDecimal("1250.50"), resumo.faturamentoPrevisto());
+        verify(cobrancas, never()).findMesAtualComAtrasos(any(), any());
+    }
+
     private CobrancaService service(CobrancaRepository cobrancas, ClienteRepository clientes,
                                     ItemCobrancaRepository itens, PiscinaRepository piscinas) {
         return service(cobrancas, clientes, itens, piscinas, mock(BaixaItemCobrancaRepository.class));

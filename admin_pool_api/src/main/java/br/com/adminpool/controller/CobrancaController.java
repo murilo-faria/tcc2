@@ -4,6 +4,7 @@ import br.com.adminpool.dto.BaixaCobrancaRequest;
 import br.com.adminpool.dto.BaixaClientesRequest;
 import br.com.adminpool.dto.BaixaItensRequest;
 import br.com.adminpool.dto.ResumoCobrancaCliente;
+import br.com.adminpool.dto.ResumoVisaoGeral;
 import br.com.adminpool.dto.FluxoCaixaEntrada;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
 import br.com.adminpool.dto.LinhaHistoricoCobranca;
@@ -61,6 +62,11 @@ public class CobrancaController {
     @GetMapping("/clientes")
     public List<ResumoCobrancaCliente> listarClientes() {
         return cobrancaService.listarResumoClientes();
+    }
+
+    @GetMapping("/resumo-visao-geral")
+    public ResumoVisaoGeral resumirVisaoGeral() {
+        return cobrancaService.resumirVisaoGeral();
     }
 
     @GetMapping(value = "/relatorio.pdf", produces = "application/pdf")

@@ -3093,25 +3093,23 @@ class _Dashboard extends StatelessWidget {
           ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 24),
-        Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: gestor
-              ? [
-                  const _ContagemResumoCard(tipo: _TipoContagem.clientes),
-                  const _ContagemResumoCard(tipo: _TipoContagem.cobrancas),
-                  const _FaturamentoCard(),
-                  const _FluxoCaixaCard(),
-                  const _ResultadoProdutosCard(),
-                  const _NotificacaoOperacionalCard(
-                    tipo: _TipoNotificacao.produto,
-                  ),
-                  const _NotificacaoOperacionalCard(
-                    tipo: _TipoNotificacao.ordemServico,
-                  ),
-                ]
-              : const [_ResumoFuncionario()],
-        ),
+        if (gestor) ...[
+          const _ResumoVisaoGeralCards(),
+          const SizedBox(height: 16),
+          const Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              _FluxoCaixaCard(),
+              _ResultadoProdutosCard(),
+              _NotificacaoOperacionalCard(tipo: _TipoNotificacao.produto),
+              _NotificacaoOperacionalCard(
+                tipo: _TipoNotificacao.ordemServico,
+              ),
+            ],
+          ),
+        ] else
+          const _ResumoFuncionario(),
         if (!gestor) ...[
           const SizedBox(height: 32),
           Text(
@@ -3128,18 +3126,74 @@ class _Dashboard extends StatelessWidget {
   }
 }
 
-class _FaturamentoCard extends StatelessWidget {
-  const _FaturamentoCard();
+class _ResumoVisaoGeralCards extends StatefulWidget {
+  const _ResumoVisaoGeralCards();
+
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<int>(
-    valueListenable: atualizacaoFinanceira,
-    builder: (_, __, ___) => _TotalFinanceiroCard(
-      titulo: 'Faturamento previsto',
-      incluir: (c) =>
-          c['referencia'] == referenciaAtual && c['status'] != 'PAGO',
-      icone: Icons.payments_outlined,
-      cor: const Color(0xFF1976D2),
-    ),
+  State<_ResumoVisaoGeralCards> createState() => _ResumoVisaoGeralCardsState();
+}
+
+class _ResumoVisaoGeralCardsState extends State<_ResumoVisaoGeralCards> {
+  late Future<Map<String, dynamic>> _resumo;
+
+  @override
+  void initState() {
+    super.initState();
+    _resumo = _carregar();
+    atualizacaoFinanceira.addListener(_atualizar);
+    atualizacaoClientes.addListener(_atualizar);
+  }
+
+  @override
+  void dispose() {
+    atualizacaoFinanceira.removeListener(_atualizar);
+    atualizacaoClientes.removeListener(_atualizar);
+    super.dispose();
+  }
+
+  Future<Map<String, dynamic>> _carregar() async {
+    final resposta = await apiService.get('/api/cobrancas/resumo-visao-geral');
+    if (resposta.statusCode != 200) return const {};
+    return (jsonDecode(resposta.body) as Map).cast<String, dynamic>();
+  }
+
+  void _atualizar() {
+    if (mounted) setState(() => _resumo = _carregar());
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<Map<String, dynamic>>(
+    future: _resumo,
+    builder: (_, dados) {
+      final resumo = dados.data ?? const <String, dynamic>{};
+      final aguardando = dados.connectionState == ConnectionState.waiting;
+      return Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        children: [
+          _Indicador(
+            'Clientes ativos',
+            aguardando ? '...' : '${resumo['clientesAtivos'] ?? 0}',
+            Icons.people_outline,
+            const Color(0xFF1565C0),
+          ),
+          _Indicador(
+            'Cobranças pendentes',
+            aguardando ? '...' : '${resumo['cobrancasPendentes'] ?? 0}',
+            Icons.warning_amber_rounded,
+            const Color(0xFFE76F51),
+          ),
+          _Indicador(
+            'Faturamento previsto',
+            aguardando
+                ? 'Calculando...'
+                : formatarMoeda((resumo['faturamentoPrevisto'] as num?)?.toDouble() ?? 0),
+            Icons.payments_outlined,
+            const Color(0xFF1976D2),
+          ),
+        ],
+      );
+    },
   );
 }
 
@@ -3338,94 +3392,6 @@ class _FluxoCaixaCard extends StatelessWidget {
       },
     ),
   );
-}
-
-class _TotalFinanceiroCard extends StatelessWidget {
-  const _TotalFinanceiroCard({
-    required this.titulo,
-    required this.incluir,
-    required this.icone,
-    required this.cor,
-  });
-  final String titulo;
-  final bool Function(Map<String, dynamic>) incluir;
-  final IconData icone;
-  final Color cor;
-  @override
-  Widget build(BuildContext context) => FutureBuilder<http.Response>(
-    future: apiService.get('/api/cobrancas'),
-    builder: (context, snapshot) {
-      var total = 0.0;
-      if (snapshot.hasData && snapshot.data!.statusCode == 200) {
-        final lista = jsonDecode(snapshot.data!.body) as List<dynamic>;
-        total = lista
-            .cast<Map<String, dynamic>>()
-            .where(incluir)
-            .fold<double>(
-              0,
-              (soma, c) => soma + (c['total'] as num).toDouble(),
-            );
-      }
-      return _Indicador(
-        titulo,
-        snapshot.connectionState == ConnectionState.waiting
-            ? 'Calculando...'
-            : formatarMoeda(total),
-        icone,
-        cor,
-      );
-    },
-  );
-}
-
-enum _TipoContagem { clientes, cobrancas }
-
-class _ContagemResumoCard extends StatelessWidget {
-  const _ContagemResumoCard({required this.tipo});
-  final _TipoContagem tipo;
-  Future<int> carregar() async {
-    final rota = tipo == _TipoContagem.clientes
-        ? '/api/clientes'
-        : '/api/cobrancas';
-    final r = await apiService.get(rota);
-    if (r.statusCode != 200) return 0;
-    final lista = jsonDecode(r.body) as List<dynamic>;
-    if (tipo == _TipoContagem.clientes) {
-      return lista.where((c) => c['ativo'] != false).length;
-    }
-    return lista
-        .where(
-          (c) => c['referencia'] == referenciaAtual && c['status'] != 'PAGO',
-        )
-        .length;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final atualizacao = tipo == _TipoContagem.clientes
-        ? atualizacaoClientes
-        : atualizacaoFinanceira;
-    return ValueListenableBuilder<int>(
-      valueListenable: atualizacao,
-      builder: (_, __, ___) => FutureBuilder<int>(
-        future: carregar(),
-        builder: (context, s) => _Indicador(
-          tipo == _TipoContagem.clientes
-              ? 'Clientes ativos'
-              : 'Cobranças pendentes',
-          s.connectionState == ConnectionState.waiting
-              ? '...'
-              : '${s.data ?? 0}',
-          tipo == _TipoContagem.clientes
-              ? Icons.people_outline
-              : Icons.warning_amber_rounded,
-          tipo == _TipoContagem.clientes
-              ? const Color(0xFF1565C0)
-              : const Color(0xFFE76F51),
-        ),
-      ),
-    );
-  }
 }
 
 enum _TipoNotificacao { produto, ordemServico }

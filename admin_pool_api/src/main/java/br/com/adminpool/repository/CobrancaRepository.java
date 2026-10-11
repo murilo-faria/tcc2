@@ -30,6 +30,12 @@ public interface CobrancaRepository extends JpaRepository<CobrancaMensal, Long> 
     @Query("select c from CobrancaMensal c where c.referencia = :referencia or (c.vencimento < :inicioMes and c.status <> br.com.adminpool.model.StatusCobranca.PAGO) order by c.vencimento asc")
     List<CobrancaMensal> findMesAtualComAtrasos(@Param("referencia") String referencia, @Param("inicioMes") LocalDate inicioMes);
 
+    /** Soma e contagem do mês atual para os cards, sem carregar cobranças e itens. */
+    @Query("select count(c), coalesce(sum(c.total), 0) from CobrancaMensal c "
+            + "where c.referencia = :referencia and c.status <> :pago")
+    Object[] resumirPendenciasDoMes(@Param("referencia") String referencia,
+                                    @Param("pago") StatusCobranca pago);
+
     /** Atualiza somente cobranças ainda pendentes, sem recalcular todo o histórico. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional

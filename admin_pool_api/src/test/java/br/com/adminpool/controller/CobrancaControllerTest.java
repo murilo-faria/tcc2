@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -64,6 +65,29 @@ class CobrancaControllerTest {
 
         assertTrue(List.of(graph.attributePaths()).containsAll(
                 List.of("cliente", "cliente.funcionario", "cliente.funcionario.usuario", "itens")));
+    }
+
+    @Test
+    void resumoDaVisaoGeralRetornaSomenteOsIndicadores() throws Exception {
+        CobrancaRepository repositorio = mock(CobrancaRepository.class);
+        ClienteRepository clientes = mock(ClienteRepository.class);
+        String referencia = YearMonth.now().toString();
+        when(clientes.findAll()).thenReturn(List.of());
+        when(clientes.countByAtivoTrue()).thenReturn(12L);
+        when(repositorio.findComClienteEItensPorReferencia(referencia)).thenReturn(List.of());
+        when(repositorio.resumirPendenciasDoMes(referencia, StatusCobranca.PAGO))
+                .thenReturn(new Object[]{4L, new BigDecimal("870.00")});
+        CobrancaService cobrancas = new CobrancaService(repositorio, clientes,
+                mock(ItemCobrancaRepository.class), mock(BaixaItemCobrancaRepository.class),
+                mock(PiscinaRepository.class), mock(PedidoProdutoRepository.class));
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new CobrancaController(cobrancas,
+                new RelatorioPdfService(), clientes, mock(PedidoProdutoRepository.class))).build();
+
+        mvc.perform(get("/api/cobrancas/resumo-visao-geral"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clientesAtivos").value(12))
+                .andExpect(jsonPath("$.cobrancasPendentes").value(4))
+                .andExpect(jsonPath("$.faturamentoPrevisto").value(870));
     }
 
     private CobrancaMensal cobranca(String referencia, String nomeCliente) {
