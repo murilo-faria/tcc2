@@ -23,7 +23,7 @@ public interface CobrancaRepository extends JpaRepository<CobrancaMensal, Long> 
     List<CobrancaMensal> findAllByOrderByReferenciaDescVencimentoAsc();
     List<CobrancaMensal> findByClienteIdOrderByReferenciaAsc(Long clienteId);
 
-    @EntityGraph(attributePaths = {"cliente", "itens"})
+    @EntityGraph(attributePaths = {"cliente", "cliente.funcionario", "cliente.funcionario.usuario", "itens"})
     @Query("select distinct c from CobrancaMensal c where c.referencia = :referencia order by c.vencimento asc")
     List<CobrancaMensal> findComClienteEItensPorReferencia(@Param("referencia") String referencia);
 
