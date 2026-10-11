@@ -341,6 +341,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       funcionarioFixo: colaboradorAtual?['id'] as int?,
       usoInternoInicial: widget.gestor ? null : true,
       permitirAlternarUsoInterno: !widget.gestor,
+      ocultarValoresInternos: !widget.gestor,
       permitirCapa: widget.gestor,
       titulo: 'Novo pedido de produtos',
     );

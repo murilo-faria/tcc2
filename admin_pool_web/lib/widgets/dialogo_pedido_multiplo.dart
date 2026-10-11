@@ -14,6 +14,7 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
   int? funcionarioFixo,
   bool? usoInternoInicial,
   bool permitirAlternarUsoInterno = false,
+  bool ocultarValoresInternos = false,
   bool permitirCapa = false,
   bool capaInicial = false,
   num? custoMetroQuadradoInicial,
@@ -48,7 +49,7 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
           final produto = produtos.firstWhere((p) => p['id'] == item['produtoId']);
           total += ((usoInterno ? produto['precoCompra'] : produto['precoVenda']) as num? ?? 0) * item['quantidade']!;
         }
-        final ocultarValoresUsoInterno = usoInterno && funcionarioFixo != null && usoInternoInicial == true;
+        final ocultarValoresUsoInterno = usoInterno && ocultarValoresInternos;
         final celular = MediaQuery.of(context).size.width < 600;
         final piscinaSelecionada = piscinaId == null ? null : piscinas.firstWhere(
           (p) => p['id'] == piscinaId,
