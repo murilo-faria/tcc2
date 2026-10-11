@@ -19,6 +19,8 @@ import br.com.adminpool.repository.PiscinaRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,6 +37,8 @@ import java.util.UUID;
 
 @Service
 public class CobrancaService {
+
+    private static final Logger log = LoggerFactory.getLogger(CobrancaService.class);
 
     private static final List<StatusItemCobranca> STATUS_EM_ABERTO =
             List.of(StatusItemCobranca.PENDENTE, StatusItemCobranca.PARCIAL);
@@ -70,12 +74,20 @@ public class CobrancaService {
     }
 
     public List<CobrancaMensal> listarPorReferencia(String referencia) {
+        long inicio = System.nanoTime();
         YearMonth mes = YearMonth.parse(referencia);
+        long inicioGeracao = System.nanoTime();
         if (mes.equals(YearMonth.now())) {
             gerarMes(mes);
         }
+        long aposGeracao = System.nanoTime();
         atualizarAtrasos();
-        return cobrancas.findByReferenciaOrderByVencimentoAsc(mes.toString());
+        long aposAtrasos = System.nanoTime();
+        List<CobrancaMensal> resultado = cobrancas.findComClienteEItensPorReferencia(mes.toString());
+        log.info("Desempenho cobranças [{}]: gerar={} ms, atrasos={} ms, busca={} ms, total={} ms, registros={}",
+                referencia, milissegundos(inicioGeracao, aposGeracao), milissegundos(aposGeracao, aposAtrasos),
+                milissegundos(aposAtrasos, System.nanoTime()), milissegundos(inicio, System.nanoTime()), resultado.size());
+        return resultado;
     }
 
     public List<String> listarReferencias() {
@@ -217,16 +229,16 @@ public class CobrancaService {
 
     @Transactional
     public List<CobrancaMensal> gerarMes(YearMonth mes) {
-        List<CobrancaMensal> resultado = new ArrayList<>();
-        for (Cliente cliente : clientes.findAll()) {
-            if (!deveGerarMensalidade(cliente, mes)) {
-                continue;
-            }
-            CobrancaMensal cobranca = gerar(cliente, mes);
-            garantirMensalidade(cobranca, cliente);
-            resultado.add(cobranca);
+        List<Cliente> clientesElegiveis = clientes.findAll().stream()
+                .filter(cliente -> deveGerarMensalidade(cliente, mes)).toList();
+        Map<Long, CobrancaMensal> cobrancasPorCliente = cobrancas.findComClienteEItensPorReferencia(mes.toString())
+                .stream().collect(java.util.stream.Collectors.toMap(c -> c.getCliente().getId(), c -> c));
+
+        for (Cliente cliente : clientesElegiveis) {
+            cobrancasPorCliente.computeIfAbsent(cliente.getId(), id -> criarCobranca(cliente, mes));
         }
-        return resultado;
+        sincronizarMensalidadesDoMes(clientesElegiveis, cobrancasPorCliente);
+        return new ArrayList<>(cobrancasPorCliente.values());
     }
 
     @Transactional
@@ -497,6 +509,59 @@ public class CobrancaService {
         recalcular(destino);
     }
 
+    /**
+     * Mantém a mensalidade ligada ao total das piscinas como antes, mas busca
+     * piscinas e itens em lote. Assim a leitura do mês não faz uma consulta por cliente.
+     */
+    private void sincronizarMensalidadesDoMes(List<Cliente> clientesElegiveis,
+                                              Map<Long, CobrancaMensal> cobrancasPorCliente) {
+        if (clientesElegiveis.isEmpty()) return;
+
+        List<Long> clienteIds = clientesElegiveis.stream().map(Cliente::getId).toList();
+        List<Long> cobrancaIds = cobrancasPorCliente.values().stream().map(CobrancaMensal::getId).toList();
+        Map<Long, BigDecimal> valorPorCliente = piscinas.findByClienteIdIn(clienteIds).stream()
+                .collect(java.util.stream.Collectors.groupingBy(piscina -> piscina.getCliente().getId(),
+                        java.util.stream.Collectors.mapping(piscina -> piscina.getValorMensalidade() == null
+                                        ? BigDecimal.ZERO : piscina.getValorMensalidade(),
+                                java.util.stream.Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))));
+        Map<Long, ItemCobranca> mensalidadePorCobranca = itens
+                .findByCobrancaIdInAndTipo(cobrancaIds, TipoLancamentoCobranca.MENSALIDADE).stream()
+                .collect(java.util.stream.Collectors.toMap(item -> item.getCobranca().getId(), item -> item));
+
+        List<ItemCobranca> novosOuAlterados = new ArrayList<>();
+        List<CobrancaMensal> cobrancasParaRecalcular = new ArrayList<>();
+        for (Cliente cliente : clientesElegiveis) {
+            CobrancaMensal cobranca = cobrancasPorCliente.get(cliente.getId());
+            BigDecimal valorAtual = valorPorCliente.getOrDefault(cliente.getId(), BigDecimal.ZERO);
+            ItemCobranca mensalidade = mensalidadePorCobranca.get(cobranca.getId());
+            if (mensalidade == null) {
+                mensalidade = novaMensalidade(cobranca, valorAtual);
+                novosOuAlterados.add(mensalidade);
+                cobrancasParaRecalcular.add(cobranca);
+            } else if (mensalidade.getValorPago().compareTo(BigDecimal.ZERO) == 0
+                    && STATUS_EM_ABERTO.contains(mensalidade.getStatus())
+                    && mensalidade.getValorOriginal().compareTo(valorAtual) != 0) {
+                mensalidade.setValorOriginal(valorAtual);
+                novosOuAlterados.add(mensalidade);
+                cobrancasParaRecalcular.add(cobranca);
+            }
+        }
+        if (!novosOuAlterados.isEmpty()) itens.saveAll(novosOuAlterados);
+        cobrancasParaRecalcular.forEach(this::recalcular);
+    }
+
+    private ItemCobranca novaMensalidade(CobrancaMensal cobranca, BigDecimal valor) {
+        ItemCobranca item = new ItemCobranca();
+        item.setCobranca(cobranca);
+        item.setTipo(TipoLancamentoCobranca.MENSALIDADE);
+        item.setDescricao("Mensalidade " + cobranca.getReferencia());
+        item.setDataLancamento(cobranca.getVencimento());
+        item.setValorOriginal(valor);
+        item.setValorPago(BigDecimal.ZERO);
+        item.setStatus(StatusItemCobranca.PENDENTE);
+        return item;
+    }
+
     private LinhaHistoricoCobranca linhaDoItem(ItemCobranca item) {
         // A mensalidade deve sempre aparecer com o dia de vencimento. A data de
         // lançamento pode ser diferente quando a cobrança é gerada antes ou
@@ -540,14 +605,11 @@ public class CobrancaService {
     }
 
     private void atualizarAtrasos() {
-        LocalDate hoje = LocalDate.now();
-        for (CobrancaMensal cobranca : cobrancas.findAll()) {
-            recalcular(cobranca);
-            if (cobranca.getStatus() == StatusCobranca.PENDENTE && cobranca.getVencimento().isBefore(hoje)) {
-                cobranca.setStatus(StatusCobranca.VENCIDO);
-                cobrancas.save(cobranca);
-            }
-        }
+        cobrancas.marcarPendentesComoVencidas(LocalDate.now(), StatusCobranca.PENDENTE, StatusCobranca.VENCIDO);
+    }
+
+    private long milissegundos(long inicio, long fim) {
+        return (fim - inicio) / 1_000_000;
     }
 
     private void recalcular(CobrancaMensal cobranca) {

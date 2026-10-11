@@ -19,10 +19,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.math.BigDecimal;
 import java.time.YearMonth;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/cobrancas")
 public class CobrancaController {
+
+    private static final Logger log = LoggerFactory.getLogger(CobrancaController.class);
 
     private final CobrancaService cobrancaService;
     private final RelatorioPdfService relatorios;
@@ -39,9 +43,13 @@ public class CobrancaController {
 
     @GetMapping
     public List<CobrancaMensal> listar(@RequestParam(required = false) String referencia) {
-        return referencia == null || referencia.isBlank()
+        long inicio = System.nanoTime();
+        List<CobrancaMensal> resultado = referencia == null || referencia.isBlank()
                 ? cobrancaService.listarMesAtual()
                 : cobrancaService.listarPorReferencia(referencia);
+        log.info("GET /api/cobrancas referencia={} concluído em {} ms", referencia,
+                (System.nanoTime() - inicio) / 1_000_000);
+        return resultado;
     }
 
     @GetMapping("/meses")
