@@ -510,6 +510,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       final titulo = cliente['clienteNome'] ?? '';
                       final quantidade =
                           (cliente['quantidadePendente'] as num?)?.toInt() ?? 0;
+                      final celular = MediaQuery.of(context).size.width < 600;
                       return ListTile(
                         onTap: () => _abrirCliente(cliente),
                         leading: Row(
@@ -539,28 +540,40 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                             ),
                           ],
                         ),
-                        title: Text(
-                          diaVencimento is num
-                              ? '$titulo — Dia ${diaVencimento.toInt()}'
-                              : titulo,
-                        ),
+                        title: Text(titulo),
                         subtitle: Text(
                           total == 0
                               ? 'Em dia'
                               : '$quantidade ${quantidade == 1 ? 'item' : 'itens'} ${atrasado ? '• Atrasado' : '• A vencer'}',
                         ),
-                        trailing: Row(
+                        trailing: Column(
                           mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              formatarMoeda(total),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            if (diaVencimento is num)
+                              Text(
+                                'Dia ${diaVencimento.toInt()}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  formatarMoeda(total),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                if (!celular) ...[
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.chevron_right),
+                                ],
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.chevron_right),
                           ],
                         ),
                       );

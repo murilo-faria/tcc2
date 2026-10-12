@@ -111,7 +111,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           (_statusSelecionado == null ||
               primeiro['status']?.toString() == _statusSelecionado) &&
           _noPeriodo(primeiro['dataPedido']) &&
-          (cliente.toLowerCase().contains(_filtro) || produtos.contains(_filtro));
+          (cliente.toLowerCase().contains(_filtro) ||
+              produtos.contains(_filtro));
     }).toList();
     grupos.sort((primeiro, segundo) {
       final concluidoPrimeiro = primeiro.value.first['status'] == 'CONCLUIDO';
@@ -326,7 +327,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       } catch (_) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não foi possível identificar seu cadastro de colaborador.')),
+            const SnackBar(
+              content: Text(
+                'Não foi possível identificar seu cadastro de colaborador.',
+              ),
+            ),
           );
         }
         return;
@@ -362,12 +367,13 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     final primeiro = itensAtuais.first;
     if (primeiro['status'] == 'CONCLUIDO') return;
     final capa = primeiro['tipoPedido'] == 'CAPA';
-    final resultados = await Future.wait([
+    final requisicoes = <Future<List<dynamic>>>[
       _lista('/api/clientes'),
       _lista('/api/produtos'),
       _lista('/api/piscinas'),
-      _lista('/api/funcionarios'),
-    ]);
+      if (widget.gestor) _lista('/api/funcionarios'),
+    ];
+    final resultados = await Future.wait(requisicoes);
     if (!mounted || resultados[1].isEmpty) return;
     final usoInterno = primeiro['funcionario'] != null;
     final pedido = await mostrarDialogPedidoMultiplo(
@@ -375,7 +381,11 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       clientes: resultados[0],
       produtos: resultados[1],
       piscinas: resultados[2],
-      funcionarios: resultados[3],
+      // Colaborador não pode listar todos os funcionários. Para editar seu
+      // pedido, basta manter o responsável que já está vinculado ao pedido.
+      funcionarios: widget.gestor
+          ? resultados[3]
+          : (usoInterno ? [primeiro['funcionario']] : const <dynamic>[]),
       clienteFixo: usoInterno
           ? null
           : (primeiro['cliente'] ?? {})['id'] as int?,
@@ -395,16 +405,18 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           ? primeiro['espessuraCapaMicras'] as int?
           : null,
       usoInternoInicial: usoInterno,
+      ocultarValoresInternos: !widget.gestor,
+      permitirCapa: widget.gestor,
       itensIniciais: capa
           ? null
           : itensAtuais
-          .map(
-            (item) => <String, int>{
-              'produtoId': (item['produto'] ?? {})['id'] as int,
-              'quantidade': item['quantidade'] as int,
-            },
-          )
-              .toList(),
+                .map(
+                  (item) => <String, int>{
+                    'produtoId': (item['produto'] ?? {})['id'] as int,
+                    'quantidade': item['quantidade'] as int,
+                  },
+                )
+                .toList(),
       titulo: 'Editar pedido #$codigo',
     );
     if (pedido == null) return;
@@ -644,7 +656,10 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
   Future<void> _detalhar(int codigo) async {
     final itens = await _lista('/api/pedidos-produto/codigo/$codigo');
     if (!mounted) return;
-    final ocultarValoresUsoInterno = !widget.gestor && itens.isNotEmpty && itens.first['funcionario'] != null;
+    final ocultarValoresUsoInterno =
+        !widget.gestor &&
+        itens.isNotEmpty &&
+        itens.first['funcionario'] != null;
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -663,18 +678,22 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                 return ListTile(
                   leading: const Icon(Icons.shopping_bag_outlined),
                   title: Text(linha['descricaoCapa'] ?? produto['nome'] ?? ''),
-                  subtitle: Text(ocultarValoresUsoInterno
-                      ? '${linha['quantidade']} unidade(s)'
-                      : linha['tipoPedido'] == 'CAPA'
-                      ? 'Metragem: ${piscina['comprimento'] ?? 0} m × ${piscina['largura'] ?? 0} m = ${linha['areaCapa'] ?? 0} m²\nValor da capa: ${formatarMoeda(valorDaCapa)} • Frete: ${formatarMoeda((linha['freteCapa'] as num?) ?? 0)}'
-                      : '${linha['quantidade']} unidade(s) • venda ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}${((linha['desconto'] as num?) ?? 0) > 0 ? ' • desconto ${formatarMoeda(linha['desconto'] as num)}' : ''}'),
-                  trailing: ocultarValoresUsoInterno ? null : Text(
-                    formatarMoeda(
-                      (linha['totalLiquido'] as num?) ??
-                          (linha['totalVenda'] as num?) ??
-                          0,
-                      ),
+                  subtitle: Text(
+                    ocultarValoresUsoInterno
+                        ? '${linha['quantidade']} unidade(s)'
+                        : linha['tipoPedido'] == 'CAPA'
+                        ? 'Metragem: ${piscina['comprimento'] ?? 0} m × ${piscina['largura'] ?? 0} m = ${linha['areaCapa'] ?? 0} m²\nValor da capa: ${formatarMoeda(valorDaCapa)} • Frete: ${formatarMoeda((linha['freteCapa'] as num?) ?? 0)}'
+                        : '${linha['quantidade']} unidade(s) • venda ${formatarMoeda((linha['valorUnitario'] as num?) ?? 0)}${((linha['desconto'] as num?) ?? 0) > 0 ? ' • desconto ${formatarMoeda(linha['desconto'] as num)}' : ''}',
                   ),
+                  trailing: ocultarValoresUsoInterno
+                      ? null
+                      : Text(
+                          formatarMoeda(
+                            (linha['totalLiquido'] as num?) ??
+                                (linha['totalVenda'] as num?) ??
+                                0,
+                          ),
+                        ),
                 );
               }).toList(),
             ),
@@ -860,7 +879,10 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                     value: 'USO_INTERNO',
                     child: Text('Uso interno'),
                   ),
-                  DropdownMenuItem(value: 'CAPA', child: Text('Capa sob medida')),
+                  DropdownMenuItem(
+                    value: 'CAPA',
+                    child: Text('Capa sob medida'),
+                  ),
                 ],
                 onChanged: (valor) => setState(() => _tipoSelecionado = valor),
               ),
@@ -887,7 +909,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                       final primeiro = grupo.value.first;
                       final concluido = primeiro['status'] == 'CONCLUIDO';
                       final capa = primeiro['tipoPedido'] == 'CAPA';
-                      final ocultarValoresUsoInterno = !widget.gestor && primeiro['funcionario'] != null;
+                      final ocultarValoresUsoInterno =
+                          !widget.gestor && primeiro['funcionario'] != null;
                       final total = grupo.value.fold<double>(
                         0,
                         (soma, item) =>
@@ -960,12 +983,13 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                             : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (!ocultarValoresUsoInterno) Text(
-                                    formatarMoeda(total),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  if (!ocultarValoresUsoInterno)
+                                    Text(
+                                      formatarMoeda(total),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  ),
                                   IconButton(
                                     tooltip:
                                         'PDF para compartilhar no WhatsApp',
@@ -1056,7 +1080,11 @@ class _ResultadoProdutosCard extends StatelessWidget {
                         ((pedido['totalCompra'] as num?) ?? 0);
                     return ListTile(
                       leading: const Icon(Icons.shopping_bag_outlined),
-                      title: Text(pedido['descricaoCapa'] ?? (pedido['produto'] ?? {})['nome'] ?? ''),
+                      title: Text(
+                        pedido['descricaoCapa'] ??
+                            (pedido['produto'] ?? {})['nome'] ??
+                            '',
+                      ),
                       subtitle: Text(
                         'Pedido #${pedido['codigoPedido']} • ${(pedido['cliente'] ?? {})['nome']}',
                       ),

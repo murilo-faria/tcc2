@@ -83,15 +83,22 @@ public class OrdemServicoService {
         if (pagador == null) {
             throw new IllegalArgumentException("Informe quem pagou a ordem de serviço.");
         }
-        if (pagador == ResponsavelPagamento.FUNCIONARIO && ordem.getCriadoPor() == null) {
-            throw new IllegalArgumentException("A OS não possui um colaborador criador para receber o reembolso.");
+        Funcionario funcionarioQuePagou = null;
+        if (pagador == ResponsavelPagamento.FUNCIONARIO) {
+            funcionarioQuePagou = requisicao.funcionarioId() == null
+                    ? ordem.getCriadoPor()
+                    : funcionarios.findById(requisicao.funcionarioId()).orElseThrow(
+                            () -> new IllegalArgumentException("Colaborador informado não encontrado."));
+            if (funcionarioQuePagou == null) {
+                throw new IllegalArgumentException("Selecione o colaborador que pagou a OS.");
+            }
         }
         if (pagador != ResponsavelPagamento.CLIENTE && cobrado.compareTo(BigDecimal.ZERO) > 0) {
             cobrancas.adicionarLancamento(ordem.getCliente().getId(), TipoLancamentoCobranca.ORDEM_SERVICO,
                     ordem.getId(), "OS #" + ordem.getId() + " - " + ordem.getDescricao(), cobrado);
         }
         if (pagador == ResponsavelPagamento.FUNCIONARIO && custo.compareTo(BigDecimal.ZERO) > 0) {
-            criarReembolso(ordem, custo);
+            criarReembolso(ordem, funcionarioQuePagou, custo);
         }
         ordem.setValorCusto(custo);
         ordem.setValorCobrado(cobrado);
@@ -173,8 +180,7 @@ public class OrdemServicoService {
         ordens.delete(ordem);
     }
 
-    private void criarReembolso(OrdemServico ordem, BigDecimal custo) {
-        Funcionario funcionario = ordem.getCriadoPor();
+    private void criarReembolso(OrdemServico ordem, Funcionario funcionario, BigDecimal custo) {
         ReembolsoColaborador reembolso = new ReembolsoColaborador();
         reembolso.setFuncionario(funcionario);
         reembolso.setOrdemServico(ordem);

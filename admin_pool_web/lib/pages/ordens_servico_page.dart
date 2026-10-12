@@ -427,6 +427,10 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
   }
 
   Future<void> _concluir(Map<String, dynamic> ordem) async {
+    final respostaFuncionarios = await apiService.get('/api/funcionarios');
+    final funcionarios = respostaFuncionarios.statusCode == 200
+        ? jsonDecode(respostaFuncionarios.body) as List<dynamic>
+        : <dynamic>[];
     final custo = TextEditingController(
       text: (ordem['valorCusto'] ?? 0).toString(),
     );
@@ -434,7 +438,8 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
       text: (ordem['valorCobrado'] ?? ordem['valorAdicional'] ?? 0).toString(),
     );
     String pagador = 'EMPRESA';
-    final temCriador = ordem['criadoPor'] != null;
+    int? funcionarioSelecionado;
+    bool mostrarErroFuncionario = false;
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -480,15 +485,46 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                     value: 'FUNCIONARIO',
                     groupValue: pagador,
                     title: const Text('Pago pelo funcionário'),
-                    subtitle: Text(
-                      temCriador
-                          ? 'Gera cobrança e reembolso para quem criou a OS.'
-                          : 'Indisponível: esta OS não possui funcionário criador.',
+                    subtitle: const Text(
+                      'Gera cobrança e reembolso para o colaborador selecionado.',
                     ),
-                    onChanged: temCriador
-                        ? (v) => setLocal(() => pagador = v!)
-                        : null,
+                    onChanged: funcionarios.isEmpty
+                        ? null
+                        : (v) => setLocal(() {
+                            pagador = v!;
+                            mostrarErroFuncionario = false;
+                          }),
                   ),
+                  if (pagador == 'FUNCIONARIO') ...[
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      value: funcionarioSelecionado,
+                      decoration: InputDecoration(
+                        labelText: 'Funcionário que pagou',
+                        helperText:
+                            'O reembolso será lançado para este colaborador.',
+                        errorText: mostrarErroFuncionario
+                            ? 'Selecione o funcionário.'
+                            : (funcionarios.isEmpty
+                                  ? 'Não há colaboradores disponíveis.'
+                                  : null),
+                        border: const OutlineInputBorder(),
+                      ),
+                      items: funcionarios.map<DropdownMenuItem<int>>((item) {
+                        final usuario = item['usuario'] ?? {};
+                        return DropdownMenuItem<int>(
+                          value: item['id'] as int,
+                          child: Text(usuario['nome']?.toString() ?? ''),
+                        );
+                      }).toList(),
+                      onChanged: funcionarios.isEmpty
+                          ? null
+                          : (valor) => setLocal(() {
+                              funcionarioSelecionado = valor;
+                              mostrarErroFuncionario = false;
+                            }),
+                    ),
+                  ],
                   RadioListTile<String>(
                     value: 'CLIENTE',
                     groupValue: pagador,
@@ -512,7 +548,14 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
               child: const Text('Cancelar'),
             ),
             FilledButton.icon(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                if (pagador == 'FUNCIONARIO' &&
+                    funcionarioSelecionado == null) {
+                  setLocal(() => mostrarErroFuncionario = true);
+                  return;
+                }
+                Navigator.pop(context, true);
+              },
               icon: const Icon(Icons.check_circle_outline),
               label: const Text('Confirmar conclusão'),
             ),
@@ -527,6 +570,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
         'valorCusto': double.tryParse(custo.text.replaceAll(',', '.')) ?? 0,
         'valorCobrado': double.tryParse(cobrado.text.replaceAll(',', '.')) ?? 0,
         'pagoPor': pagador,
+        if (pagador == 'FUNCIONARIO') 'funcionarioId': funcionarioSelecionado,
       },
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
