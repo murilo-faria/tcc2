@@ -1,5 +1,7 @@
 part of '../main.dart';
 
+enum _OrdenacaoCobrancas { alfabetica, maiorValor, menorValor }
+
 class _CobrancasPageNova extends StatefulWidget {
   const _CobrancasPageNova();
 
@@ -16,6 +18,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
   bool _mostrarFiltros = false;
   DateTime? _dataInicial;
   DateTime? _dataFinal;
+  _OrdenacaoCobrancas _ordenacao = _OrdenacaoCobrancas.alfabetica;
   final Set<int> _clientesSelecionados = {};
 
   @override
@@ -359,6 +362,35 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                   setState(() => _busca = valor.trim().toLowerCase()),
             ),
             const SizedBox(height: 12),
+            SizedBox(
+              width: MediaQuery.of(context).size.width < 600 ? 220 : 240,
+              child: DropdownButtonFormField<_OrdenacaoCobrancas>(
+                value: _ordenacao,
+                decoration: const InputDecoration(
+                  labelText: 'Ordenar lista',
+                  isDense: true,
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: _OrdenacaoCobrancas.alfabetica,
+                    child: Text('Nome: A a Z'),
+                  ),
+                  DropdownMenuItem(
+                    value: _OrdenacaoCobrancas.maiorValor,
+                    child: Text('Maior valor primeiro'),
+                  ),
+                  DropdownMenuItem(
+                    value: _OrdenacaoCobrancas.menorValor,
+                    child: Text('Menor valor primeiro'),
+                  ),
+                ],
+                onChanged: (valor) {
+                  if (valor != null) setState(() => _ordenacao = valor);
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
             FutureBuilder<Map<String, dynamic>>(
               future: _dados,
               builder: (_, estado) {
@@ -429,6 +461,25 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                               ));
                     })
                     .toList();
+                clientes.sort((primeiro, segundo) {
+                  final nomePrimeiro =
+                      (primeiro['clienteNome'] ?? '').toString();
+                  final nomeSegundo =
+                      (segundo['clienteNome'] ?? '').toString();
+                  if (_ordenacao != _OrdenacaoCobrancas.alfabetica) {
+                    final totalPrimeiro =
+                        (primeiro['totalPendente'] as num?) ?? 0;
+                    final totalSegundo =
+                        (segundo['totalPendente'] as num?) ?? 0;
+                    final porValor = _ordenacao == _OrdenacaoCobrancas.maiorValor
+                        ? totalSegundo.compareTo(totalPrimeiro)
+                        : totalPrimeiro.compareTo(totalSegundo);
+                    if (porValor != 0) return porValor;
+                  }
+                  return nomePrimeiro.toLowerCase().compareTo(
+                    nomeSegundo.toLowerCase(),
+                  );
+                });
                 if (clientes.isEmpty)
                   return const Center(
                     child: Text('Nenhum cliente encontrado.'),
