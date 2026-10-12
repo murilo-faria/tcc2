@@ -2,6 +2,8 @@ part of '../main.dart';
 
 enum _OrdenacaoCobrancas { alfabetica, maiorValor, menorValor }
 
+enum _SituacaoCobranca { todas, emDia, aVencer, atrasadas }
+
 class _CobrancasPageNova extends StatefulWidget {
   const _CobrancasPageNova();
 
@@ -19,6 +21,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
   DateTime? _dataInicial;
   DateTime? _dataFinal;
   _OrdenacaoCobrancas _ordenacao = _OrdenacaoCobrancas.alfabetica;
+  _SituacaoCobranca _situacao = _SituacaoCobranca.todas;
   final Set<int> _clientesSelecionados = {};
 
   @override
@@ -143,6 +146,17 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
             _diasVencimentoSelecionados.contains(data.day)) &&
         (_dataInicial == null || !dia.isBefore(_dataInicial!)) &&
         (_dataFinal == null || !dia.isAfter(_dataFinal!));
+  }
+
+  bool _naSituacao(Map<String, dynamic> cliente) {
+    final total = (cliente['totalPendente'] as num?) ?? 0;
+    final atrasado = cliente['possuiAtraso'] == true;
+    return switch (_situacao) {
+      _SituacaoCobranca.todas => true,
+      _SituacaoCobranca.emDia => total == 0,
+      _SituacaoCobranca.aVencer => total > 0 && !atrasado,
+      _SituacaoCobranca.atrasadas => atrasado,
+    };
   }
 
   Future<void> _gerarRelatorio() async {
@@ -355,6 +369,26 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Filtrar por situação',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        (_SituacaoCobranca.todas, 'Todos'),
+                        (_SituacaoCobranca.emDia, 'Em dia'),
+                        (_SituacaoCobranca.aVencer, 'A vencer'),
+                        (_SituacaoCobranca.atrasadas, 'Atrasados'),
+                      ].map((opcao) => ChoiceChip(
+                            label: Text(opcao.$2),
+                            selected: _situacao == opcao.$1,
+                            onSelected: (_) => setState(() => _situacao = opcao.$1),
+                          )).toList(),
+                    ),
                   ],
                 );
               },
@@ -431,6 +465,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                     _diasVencimentoSelecionados.clear();
                     _dataInicial = null;
                     _dataFinal = null;
+                    _situacao = _SituacaoCobranca.todas;
                   }),
                 );
               },
@@ -466,6 +501,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       return (_clienteSelecionado == null ||
                               nome == _clienteSelecionado) &&
                           nome.toLowerCase().contains(_busca) &&
+                          _naSituacao(item) &&
                           (!filtroPeriodoAtivo ||
                               cobrancas.any(
                                 (c) =>

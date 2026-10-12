@@ -348,19 +348,21 @@ public class CobrancaService {
     }
 
     private Long codigoDoPedido(ItemCobranca item) {
-        if (item.getOrigemId() != null) return item.getOrigemId();
         String descricao = item.getDescricao();
         String prefixo = "Pedido #";
-        if (descricao == null || !descricao.startsWith(prefixo)) return null;
-        String restante = descricao.substring(prefixo.length()).trim();
-        int fim = 0;
-        while (fim < restante.length() && Character.isDigit(restante.charAt(fim))) fim++;
-        if (fim == 0) return null;
-        try {
-            return Long.valueOf(restante.substring(0, fim));
-        } catch (NumberFormatException excecao) {
-            return null;
+        if (descricao != null && descricao.startsWith(prefixo)) {
+            String restante = descricao.substring(prefixo.length()).trim();
+            int fim = 0;
+            while (fim < restante.length() && Character.isDigit(restante.charAt(fim))) fim++;
+            if (fim > 0) {
+                try {
+                    return Long.valueOf(restante.substring(0, fim));
+                } catch (NumberFormatException excecao) {
+                    // Usa o vínculo interno abaixo quando o texto for inválido.
+                }
+            }
         }
+        return item.getOrigemId();
     }
 
     private void removerLancamentos(List<ItemCobranca> lancamentos) {

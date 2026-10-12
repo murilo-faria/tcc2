@@ -172,6 +172,7 @@ class CobrancaServicePerformanceTest {
         ItemCobranca pedidoAntigo = mensalidade(cobranca, "420.00", "0.00", StatusItemCobranca.PENDENTE);
         pedidoAntigo.setTipo(TipoLancamentoCobranca.PEDIDO);
         pedidoAntigo.setDescricao("Pedido #65");
+        pedidoAntigo.setOrigemId(999L);
         ItemCobrancaRepository itens = mock(ItemCobrancaRepository.class);
         when(itens.findByTipo(TipoLancamentoCobranca.PEDIDO)).thenReturn(List.of(pedidoAntigo));
         when(itens.findByCobrancaIdOrderByDataLancamentoAscIdAsc(10L)).thenReturn(List.of());
