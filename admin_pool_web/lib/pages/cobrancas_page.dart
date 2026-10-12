@@ -629,6 +629,25 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
   bool _aberto(Map<String, dynamic> item) =>
       item['status'] == 'PENDENTE' || item['status'] == 'PARCIAL';
 
+  String _referenciaLegivel(dynamic valor) {
+    final partes = valor?.toString().split('-') ?? const [];
+    if (partes.length != 2) return valor?.toString() ?? '-';
+    const meses = [
+      'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+      'jul', 'ago', 'set', 'out', 'nov', 'dez',
+    ];
+    final mes = int.tryParse(partes[1]);
+    return mes == null || mes < 1 || mes > 12
+        ? valor.toString()
+        : '${meses[mes - 1]}/${partes[0]}';
+  }
+
+  String _dataLegivel(dynamic valor) {
+    final data = DateTime.tryParse(valor?.toString() ?? '');
+    if (data == null) return valor?.toString() ?? '-';
+    return '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
+  }
+
   void _recarregar() {
     _selecionados.clear();
     widget.aoAtualizar();
@@ -958,7 +977,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                         ),
                         subtitle: Text(
                           registroPagamento
-                              ? '${item['referencia']} • pago ${item['data']}'
+                              ? 'Referente a: ${_referenciaLegivel(item['referencia'])} • Pago em: ${_dataLegivel(item['data'])}'
                               : celular
                               ? '${item['referencia']} • vence ${item['vencimento']}\n$valor • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}'
                               : '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',

@@ -91,8 +91,9 @@ class CobrancaServicePerformanceTest {
         BaixaItemCobrancaRepository baixas = mock(BaixaItemCobrancaRepository.class);
         CobrancaService service = service(cobrancas, mock(ClienteRepository.class), itens,
                 mock(PiscinaRepository.class), baixas);
-        Cliente cliente = cliente(1L, YearMonth.now());
-        CobrancaMensal cobranca = cobranca(10L, cliente, YearMonth.now().plusMonths(1));
+        YearMonth mesOriginal = YearMonth.now().minusMonths(1);
+        Cliente cliente = cliente(1L, mesOriginal);
+        CobrancaMensal cobranca = cobranca(10L, cliente, mesOriginal);
         ItemCobranca item = mensalidade(cobranca, "100.00", "0.00", StatusItemCobranca.PENDENTE);
         item.setId(50L);
 
@@ -103,6 +104,7 @@ class CobrancaServicePerformanceTest {
 
         assertEquals(new BigDecimal("40.00"), item.getValorPago());
         assertEquals(StatusItemCobranca.PARCIAL, item.getStatus());
+        assertEquals(mesOriginal.atDay(10), cobranca.getVencimento());
         ArgumentCaptor<BaixaItemCobranca> baixa = ArgumentCaptor.forClass(BaixaItemCobranca.class);
         verify(baixas).save(baixa.capture());
         assertEquals(new BigDecimal("40.00"), baixa.getValue().getValor());

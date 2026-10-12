@@ -317,9 +317,6 @@ public class CobrancaService {
                 ? "PARCIAL:" + UUID.randomUUID()
                 : UUID.randomUUID().toString();
         registrarBaixa(item, valorBaixa, formaPagamento, grupo);
-        if (valorBaixa.compareTo(saldo) < 0) {
-            transferirSaldo(item);
-        }
         return item;
     }
 
@@ -394,9 +391,6 @@ public class CobrancaService {
             registrarBaixa(item, aplicado, formaPagamento, grupo);
             restantePagamento = restantePagamento.subtract(aplicado);
         }
-        pendentes.stream()
-                .filter(item -> STATUS_EM_ABERTO.contains(item.getStatus()))
-                .forEach(this::transferirSaldo);
     }
 
     private CobrancaMensal criarCobranca(Cliente cliente, YearMonth mes) {
@@ -494,35 +488,6 @@ public class CobrancaService {
         baixa.setDataPagamento(LocalDateTime.now());
         baixas.save(baixa);
         recalcular(item.getCobranca());
-    }
-
-    private void transferirSaldo(ItemCobranca item) {
-        BigDecimal saldo = item.getSaldoPendente();
-        if (saldo.compareTo(BigDecimal.ZERO) <= 0) {
-            return;
-        }
-        YearMonth proximoMes = YearMonth.now().plusMonths(1);
-        YearMonth referenciaItem = YearMonth.parse(item.getCobranca().getReferencia());
-        if (referenciaItem.isAfter(proximoMes) || referenciaItem.equals(proximoMes)) {
-            return;
-        }
-
-        CobrancaMensal destino = gerar(item.getCobranca().getCliente(), proximoMes);
-        ItemCobranca saldoAnterior = new ItemCobranca();
-        saldoAnterior.setCobranca(destino);
-        saldoAnterior.setTipo(TipoLancamentoCobranca.SALDO_ANTERIOR);
-        saldoAnterior.setOrigemId(item.getId());
-        saldoAnterior.setDescricao(descricaoSemSaldoAnterior(item.getDescricao()));
-        saldoAnterior.setDataLancamento(LocalDate.now());
-        saldoAnterior.setValorOriginal(saldo);
-        saldoAnterior.setValorPago(BigDecimal.ZERO);
-        saldoAnterior.setStatus(StatusItemCobranca.PENDENTE);
-        itens.save(saldoAnterior);
-
-        item.setStatus(StatusItemCobranca.TRANSFERIDO);
-        itens.save(item);
-        recalcular(item.getCobranca());
-        recalcular(destino);
     }
 
     /**
