@@ -1420,6 +1420,7 @@ class _ListaClientes extends StatefulWidget {
 
 class _ListaClientesState extends State<_ListaClientes> {
   late Future<List<dynamic>> clientes;
+  final ScrollController _rolagemTabelaClientes = ScrollController();
   String filtro = '';
   int? clienteSelecionado;
   bool mostrarFiltrosClientes = false;
@@ -1430,6 +1431,12 @@ class _ListaClientesState extends State<_ListaClientes> {
   void initState() {
     super.initState();
     clientes = carregar();
+  }
+
+  @override
+  void dispose() {
+    _rolagemTabelaClientes.dispose();
+    super.dispose();
   }
 
   Future<List<dynamic>> carregar() async {
@@ -2722,7 +2729,12 @@ class _ListaClientesState extends State<_ListaClientes> {
     surfaceTintColor: Colors.white,
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     child: Scrollbar(
+      controller: _rolagemTabelaClientes,
+      thumbVisibility: true,
+      interactive: true,
       child: SingleChildScrollView(
+        controller: _rolagemTabelaClientes,
+        primary: false,
         child: MediaQuery.of(context).size.width >= 700
             ? SizedBox(
                 width: double.infinity,
