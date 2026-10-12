@@ -2,6 +2,7 @@ package br.com.adminpool.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 public record NovoClienteRequest(
         String nome, String cpfCnpj, String telefone, String endereco,
@@ -9,4 +10,5 @@ public record NovoClienteRequest(
         String piscinaNome, String piscinaTipo, BigDecimal piscinaComprimento,
         BigDecimal piscinaLargura, BigDecimal piscinaProfundidade,
         BigDecimal piscinaDescontoEscada, Integer piscinaVolumeLitros,
-        String piscinaEndereco, BigDecimal piscinaValorMensalidade, Long responsavelId, String diaAtendimento) {}
+        String piscinaEndereco, BigDecimal piscinaValorMensalidade, Long responsavelId, String diaAtendimento,
+        List<PiscinaCadastroRequest> piscinasAdicionais) {}

@@ -344,6 +344,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                           value: 'Alvenaria',
                           child: Text('Alvenaria'),
                         ),
+                        DropdownMenuItem(value: 'Vinil', child: Text('Vinil')),
                       ],
                       onChanged: (valor) => setL(() => tipoSelecionado = valor),
                     ),
@@ -537,7 +538,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
           text: (p['descontoEscada'] ?? 15).toString(),
         );
     int? responsavel = (p['responsavel'] ?? {})['id'];
-    String? tipoSelecionado = ['Fibra', 'Alvenaria'].contains(p['tipo'])
+    String? tipoSelecionado = ['Fibra', 'Alvenaria', 'Vinil'].contains(p['tipo'])
         ? p['tipo'] as String
         : null;
     final ok = await showDialog<bool>(
@@ -595,6 +596,10 @@ class _PiscinasPageState extends State<_PiscinasPage> {
                           DropdownMenuItem(
                             value: 'Alvenaria',
                             child: Text('Alvenaria'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Vinil',
+                            child: Text('Vinil'),
                           ),
                         ],
                         onChanged: (valor) =>
@@ -1175,7 +1180,19 @@ class _RoteiroSemanalState extends State<_RoteiroSemanal> {
       if (!s.hasData) return const Center(child: CircularProgressIndicator());
       final rotas = s.data![0];
       final clientes = s.data![1];
-      const dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+      const dias = [
+        'Segunda e Quinta',
+        'Terça e Sexta',
+        'Quarta e Sexta',
+        'Quarta e Sábado',
+        'Segunda',
+        'Terça',
+        'Quarta',
+        'Quinta',
+        'Sexta',
+        'Sábado',
+        'Seg a Sábado',
+      ];
       return Wrap(
         spacing: 12,
         runSpacing: 12,

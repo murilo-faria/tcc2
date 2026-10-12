@@ -1,6 +1,7 @@
 package br.com.adminpool.controller;
 
 import br.com.adminpool.dto.NovoClienteRequest;
+import br.com.adminpool.dto.PiscinaCadastroRequest;
 import br.com.adminpool.dto.AlterarStatusClienteRequest;
 import br.com.adminpool.model.Cliente;
 import br.com.adminpool.model.Piscina;
@@ -67,34 +68,47 @@ public class ClienteController {
         cliente.setAtivo(true);
         Cliente clienteSalvo = clientes.save(cliente);
 
+        criarPiscina(clienteSalvo, new PiscinaCadastroRequest(
+                requisicao.piscinaNome(), requisicao.piscinaTipo(), requisicao.piscinaComprimento(),
+                requisicao.piscinaLargura(), requisicao.piscinaProfundidade(), requisicao.piscinaDescontoEscada(),
+                requisicao.piscinaEndereco(), requisicao.piscinaValorMensalidade() == null
+                        ? requisicao.valorMensalidade() : requisicao.piscinaValorMensalidade(),
+                requisicao.responsavelId(), requisicao.diaAtendimento()));
+        for (PiscinaCadastroRequest piscinaAdicional :
+                requisicao.piscinasAdicionais() == null ? List.<PiscinaCadastroRequest>of() : requisicao.piscinasAdicionais()) {
+            criarPiscina(clienteSalvo, piscinaAdicional);
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(clienteSalvo);
+    }
+
+    private void criarPiscina(Cliente cliente, PiscinaCadastroRequest requisicao) {
         Piscina piscina = new Piscina();
-        piscina.setCliente(clienteSalvo);
-        piscina.setNome(requisicao.piscinaNome().trim());
-        piscina.setTipo(requisicao.piscinaTipo());
-        piscina.setComprimento(medidaDaPiscina(requisicao.piscinaComprimento(), "comprimento", BigDecimal.ZERO));
-        piscina.setLargura(medidaDaPiscina(requisicao.piscinaLargura(), "largura", BigDecimal.ZERO));
-        piscina.setProfundidade(medidaDaPiscina(requisicao.piscinaProfundidade(), "profundidade", new BigDecimal("1.40")));
-        piscina.setDescontoEscada(medidaDaPiscina(requisicao.piscinaDescontoEscada(), "perda da escada", new BigDecimal("15")));
+        piscina.setCliente(cliente);
+        piscina.setNome(requisicao.nome().trim());
+        piscina.setTipo(requisicao.tipo());
+        piscina.setComprimento(medidaDaPiscina(requisicao.comprimento(), "comprimento", BigDecimal.ZERO));
+        piscina.setLargura(medidaDaPiscina(requisicao.largura(), "largura", BigDecimal.ZERO));
+        piscina.setProfundidade(medidaDaPiscina(requisicao.profundidade(), "profundidade", new BigDecimal("1.40")));
+        piscina.setDescontoEscada(medidaDaPiscina(requisicao.descontoEscada(), "perda da escada", new BigDecimal("15")));
         if (piscina.getDescontoEscada().compareTo(new BigDecimal("100")) > 0) {
             throw new IllegalArgumentException("A perda da escada não pode ultrapassar 100%.");
         }
         piscina.setVolumeLitros(piscina.getLitragemCalculada().intValue());
-        piscina.setEndereco(requisicao.piscinaEndereco());
+        piscina.setEndereco(requisicao.endereco());
         piscina.setDiaAtendimento(requisicao.diaAtendimento());
-        piscina.setValorMensalidade(requisicao.piscinaValorMensalidade() == null
-                ? requisicao.valorMensalidade() : requisicao.piscinaValorMensalidade());
+        piscina.setValorMensalidade(requisicao.valorMensalidade());
         if (requisicao.responsavelId() != null) {
             piscina.setResponsavel(funcionarios.findById(requisicao.responsavelId()).orElseThrow());
         }
         piscinas.save(piscina);
-        if (requisicao.diaAtendimento() != null && !requisicao.diaAtendimento().isBlank()) {
+        if (requisicao.diaAtendimento() != null && !requisicao.diaAtendimento().isBlank()
+                && !roteiro.existsByClienteIdAndDiaAtendimento(cliente.getId(), requisicao.diaAtendimento())) {
             RoteiroAtendimento atendimento = new RoteiroAtendimento();
-            atendimento.setCliente(clienteSalvo);
+            atendimento.setCliente(cliente);
             atendimento.setDiaAtendimento(requisicao.diaAtendimento());
             roteiro.save(atendimento);
         }
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(clienteSalvo);
     }
 
     @PutMapping("/{id}")
@@ -196,6 +210,22 @@ public class ClienteController {
         }
         if (requisicao.primeiroVencimento() == null || requisicao.primeiroVencimento().isBefore(LocalDate.now())) {
             throw new IllegalArgumentException("O primeiro vencimento deve ser hoje ou uma data futura.");
+        }
+        for (PiscinaCadastroRequest piscina : requisicao.piscinasAdicionais() == null
+                ? List.<PiscinaCadastroRequest>of() : requisicao.piscinasAdicionais()) {
+            if (piscina.nome() == null || piscina.nome().isBlank()) {
+                throw new IllegalArgumentException("Informe o nome de cada piscina adicional.");
+            }
+            if (piscina.valorMensalidade() == null || piscina.valorMensalidade().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Informe a mensalidade de cada piscina adicional.");
+            }
+            BigDecimal desconto = medidaDaPiscina(piscina.descontoEscada(), "perda da escada", new BigDecimal("15"));
+            if (desconto.compareTo(new BigDecimal("100")) > 0) {
+                throw new IllegalArgumentException("A perda da escada não pode ultrapassar 100%.");
+            }
+            medidaDaPiscina(piscina.comprimento(), "comprimento", BigDecimal.ZERO);
+            medidaDaPiscina(piscina.largura(), "largura", BigDecimal.ZERO);
+            medidaDaPiscina(piscina.profundidade(), "profundidade", new BigDecimal("1.40"));
         }
     }
 

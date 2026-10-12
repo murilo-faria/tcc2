@@ -78,7 +78,7 @@ public class PiscinaController {
         Piscina piscina = piscinas.findById(id).orElseThrow();
         boolean responsavel = piscina.getResponsavel() != null && piscina.getResponsavel().getUsuario().getLogin().equalsIgnoreCase(auth.getName());
         if (!gestor(auth) && !responsavel) throw new org.springframework.security.access.AccessDeniedException("Você só pode ajustar a sua própria rota.");
-        if (requisicao.diaAtendimento() != null && !List.of("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado").contains(requisicao.diaAtendimento()))
+        if (requisicao.diaAtendimento() != null && !List.of("Segunda e Quinta", "Terça e Sexta", "Quarta e Sexta", "Quarta e Sábado", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Seg a Sábado").contains(requisicao.diaAtendimento()))
             throw new IllegalArgumentException("Escolha um dia de segunda a sábado.");
         piscina.setDiaAtendimento(requisicao.diaAtendimento());
         return piscinas.save(piscina);

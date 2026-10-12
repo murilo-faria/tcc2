@@ -1370,6 +1370,47 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
   );
 }
 
+class _RascunhoPiscinaAdicional {
+  _RascunhoPiscinaAdicional({
+    required String mensalidadePadrao,
+    required String enderecoPadrao,
+    required String comprimentoPadrao,
+    required String larguraPadrao,
+    required String profundidadePadrao,
+    required String descontoEscadaPadrao,
+    this.tipo,
+    this.responsavelId,
+    this.diaAtendimento,
+  })  : nome = TextEditingController(text: 'Piscina adicional'),
+        endereco = TextEditingController(text: enderecoPadrao),
+        mensalidade = TextEditingController(text: mensalidadePadrao),
+        comprimento = TextEditingController(text: comprimentoPadrao),
+        largura = TextEditingController(text: larguraPadrao),
+        profundidade = TextEditingController(text: profundidadePadrao),
+        descontoEscada = TextEditingController(text: descontoEscadaPadrao);
+
+  final TextEditingController nome;
+  final TextEditingController endereco;
+  final TextEditingController mensalidade;
+  final TextEditingController comprimento;
+  final TextEditingController largura;
+  final TextEditingController profundidade;
+  final TextEditingController descontoEscada;
+  String? tipo;
+  int? responsavelId;
+  String? diaAtendimento;
+
+  void dispose() {
+    nome.dispose();
+    endereco.dispose();
+    mensalidade.dispose();
+    comprimento.dispose();
+    largura.dispose();
+    profundidade.dispose();
+    descontoEscada.dispose();
+  }
+}
+
 class _ListaClientes extends StatefulWidget {
   const _ListaClientes({required this.gestor});
   final bool gestor;
@@ -1614,6 +1655,7 @@ class _ListaClientesState extends State<_ListaClientes> {
     final piscinaLargura = TextEditingController(text: '0');
     final piscinaProfundidade = TextEditingController(text: '1,4');
     final piscinaDescontoEscada = TextEditingController(text: '15');
+    final piscinasAdicionais = <_RascunhoPiscinaAdicional>[];
     final respostaFuncionarios = await apiService.get('/api/funcionarios');
     final funcionarios = respostaFuncionarios.statusCode == 200
         ? jsonDecode(respostaFuncionarios.body) as List<dynamic>
@@ -1734,6 +1776,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                           value: 'Alvenaria',
                           child: Text('Alvenaria'),
                         ),
+                        DropdownMenuItem(value: 'Vinil', child: Text('Vinil')),
                       ],
                       onChanged: (valor) =>
                           setDialogState(() => tipoPiscina = valor),
@@ -1836,6 +1879,22 @@ class _ListaClientesState extends State<_ListaClientes> {
                           child: Text('Definir depois'),
                         ),
                         DropdownMenuItem(
+                          value: 'Segunda e Quinta',
+                          child: Text('Segunda e quinta'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Terça e Sexta',
+                          child: Text('Terça e sexta'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Quarta e Sexta',
+                          child: Text('Quarta e sexta'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Quarta e Sábado',
+                          child: Text('Quarta e sábado'),
+                        ),
+                        DropdownMenuItem(
                           value: 'Segunda',
                           child: Text('Segunda'),
                         ),
@@ -1852,6 +1911,10 @@ class _ListaClientesState extends State<_ListaClientes> {
                         DropdownMenuItem(
                           value: 'Sábado',
                           child: Text('Sábado'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'Seg a Sábado',
+                          child: Text('Seg a sábado (natação)'),
                         ),
                       ],
                       onChanged: (v) =>
@@ -1943,6 +2006,272 @@ class _ListaClientesState extends State<_ListaClientes> {
                           'Primeiro vencimento: ${dataApi(vencimentoCalculado())}',
                         ),
                       ),
+                    const SizedBox(height: 18),
+                    OutlinedButton.icon(
+                      onPressed: () => setDialogState(() {
+                        piscinasAdicionais.add(
+                          _RascunhoPiscinaAdicional(
+                            mensalidadePadrao: valor.text,
+                            enderecoPadrao: piscinaEndereco.text.isEmpty
+                                ? endereco.text
+                                : piscinaEndereco.text,
+                            comprimentoPadrao: piscinaComprimento.text,
+                            larguraPadrao: piscinaLargura.text,
+                            profundidadePadrao: piscinaProfundidade.text,
+                            descontoEscadaPadrao: piscinaDescontoEscada.text,
+                            tipo: tipoPiscina,
+                            responsavelId: responsavelId,
+                            diaAtendimento: diaAtendimento,
+                          ),
+                        );
+                      }),
+                      icon: const Icon(Icons.add_circle_outline),
+                      label: const Text('Cadastrar + piscina'),
+                    ),
+                    ...piscinasAdicionais.asMap().entries.map((entrada) {
+                      final indice = entrada.key;
+                      final piscina = entrada.value;
+                      final metragem =
+                          medida(piscina.comprimento.text) *
+                          medida(piscina.largura.text);
+                      final litragem =
+                          metragem *
+                          medida(piscina.profundidade.text) *
+                          1000 *
+                          (1 - medida(piscina.descontoEscada.text) / 100);
+                      return Card(
+                        margin: const EdgeInsets.only(top: 12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Piscina adicional ${indice + 2}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Remover piscina',
+                                    onPressed: () => setDialogState(() {
+                                      piscinasAdicionais.removeAt(indice)
+                                          .dispose();
+                                    }),
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                                ],
+                              ),
+                              TextField(
+                                controller: piscina.nome,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nome ou identificação da piscina *',
+                                ),
+                              ),
+                              TextField(
+                                controller: piscina.endereco,
+                                maxLines: 2,
+                                decoration: const InputDecoration(
+                                  labelText: 'Endereço da piscina',
+                                ),
+                              ),
+                              DropdownButtonFormField<String>(
+                                value: piscina.tipo,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tipo da piscina',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'Fibra',
+                                    child: Text('Fibra'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Alvenaria',
+                                    child: Text('Alvenaria'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Vinil',
+                                    child: Text('Vinil'),
+                                  ),
+                                ],
+                                onChanged: (valor) => setDialogState(
+                                  () => piscina.tipo = valor,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: piscina.comprimento,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      onChanged: (_) => setDialogState(() {}),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Comprimento (m)',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: piscina.largura,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      onChanged: (_) => setDialogState(() {}),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Largura (m)',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: piscina.profundidade,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      onChanged: (_) => setDialogState(() {}),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Profundidade (m)',
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: piscina.descontoEscada,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      onChanged: (_) => setDialogState(() {}),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Perda da escada (%)',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  'Metragem: ${metragem.toStringAsFixed(2)} m²\n'
+                                  'Litragem: ${(litragem / 1000).toStringAsFixed(1).replaceAll('.', ',')} m³',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              DropdownButtonFormField<int?>(
+                                value: piscina.responsavelId,
+                                decoration: const InputDecoration(
+                                  labelText: 'Colaborador responsável',
+                                ),
+                                items: [
+                                  const DropdownMenuItem<int?>(
+                                    value: null,
+                                    child: Text('Definir depois'),
+                                  ),
+                                  ...funcionarios.map(
+                                    (f) => DropdownMenuItem<int?>(
+                                      value: f['id'] as int,
+                                      child: Text(
+                                        (f['usuario'] ?? {})['nome'] ?? '',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (valor) => setDialogState(
+                                  () => piscina.responsavelId = valor,
+                                ),
+                              ),
+                              DropdownButtonFormField<String?>(
+                                value: piscina.diaAtendimento,
+                                decoration: const InputDecoration(
+                                  labelText: 'Dia de atendimento',
+                                ),
+                                items: const [
+                                  DropdownMenuItem<String?>(
+                                    value: null,
+                                    child: Text('Definir depois'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Segunda e Quinta',
+                                    child: Text('Segunda e quinta'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Terça e Sexta',
+                                    child: Text('Terça e sexta'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Quarta e Sexta',
+                                    child: Text('Quarta e sexta'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Quarta e Sábado',
+                                    child: Text('Quarta e sábado'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Segunda',
+                                    child: Text('Segunda'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Terça',
+                                    child: Text('Terça'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Quarta',
+                                    child: Text('Quarta'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Quinta',
+                                    child: Text('Quinta'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Sexta',
+                                    child: Text('Sexta'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Sábado',
+                                    child: Text('Sábado'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'Seg a Sábado',
+                                    child: Text('Seg a sábado (natação)'),
+                                  ),
+                                ],
+                                onChanged: (valor) => setDialogState(
+                                  () => piscina.diaAtendimento = valor,
+                                ),
+                              ),
+                              TextField(
+                                controller: piscina.mensalidade,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Mensalidade desta piscina *',
+                                  prefixText: 'R\$ ',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -1979,7 +2308,19 @@ class _ListaClientesState extends State<_ListaClientes> {
     } else if (inicioCobranca == 'PERSONALIZADO' && dataPersonalizada == null) {
       erro = 'Escolha o primeiro vencimento.';
     }
+    for (final piscina in piscinasAdicionais) {
+      final mensalidadePiscina = valorMonetario(piscina.mensalidade.text);
+      if (erro == null && piscina.nome.text.trim().isEmpty) {
+        erro = 'Informe o nome de cada piscina adicional.';
+      } else if (erro == null &&
+          (mensalidadePiscina == null || mensalidadePiscina < 0)) {
+        erro = 'Informe uma mensalidade válida para cada piscina adicional.';
+      }
+    }
     if (erro != null) {
+      for (final piscina in piscinasAdicionais) {
+        piscina.dispose();
+      }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(erro)));
       return;
     }
@@ -2005,6 +2346,24 @@ class _ListaClientesState extends State<_ListaClientes> {
               : piscinaEndereco.text.trim(),
           'responsavelId': responsavelId,
           'diaAtendimento': diaAtendimento,
+          'piscinasAdicionais': piscinasAdicionais
+              .map(
+                (piscina) => {
+                  'nome': piscina.nome.text.trim(),
+                  'tipo': piscina.tipo ?? '',
+                  'comprimento': medida(piscina.comprimento.text),
+                  'largura': medida(piscina.largura.text),
+                  'profundidade': medida(piscina.profundidade.text),
+                  'descontoEscada': medida(piscina.descontoEscada.text),
+                  'endereco': piscina.endereco.text.trim().isEmpty
+                      ? endereco.text.trim()
+                      : piscina.endereco.text.trim(),
+                  'valorMensalidade': valorMonetario(piscina.mensalidade.text),
+                  'responsavelId': piscina.responsavelId,
+                  'diaAtendimento': piscina.diaAtendimento,
+                },
+              )
+              .toList(),
         },
       );
       if (resposta.statusCode < 200 || resposta.statusCode >= 300) {
@@ -2026,6 +2385,10 @@ class _ListaClientesState extends State<_ListaClientes> {
           ),
         ),
       );
+    } finally {
+      for (final piscina in piscinasAdicionais) {
+        piscina.dispose();
+      }
     }
   }
 

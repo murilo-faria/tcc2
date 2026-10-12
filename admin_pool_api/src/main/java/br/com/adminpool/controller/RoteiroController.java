@@ -18,7 +18,7 @@ public class RoteiroController {
     private final RoteiroAtendimentoRepository atendimentos;
     private final ClienteRepository clientes;
     private final PiscinaRepository piscinas;
-    private static final List<String> DIAS = List.of("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado");
+    private static final List<String> DIAS = List.of("Segunda e Quinta", "Terça e Sexta", "Quarta e Sexta", "Quarta e Sábado", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Seg a Sábado");
     public RoteiroController(RoteiroAtendimentoRepository atendimentos, ClienteRepository clientes, PiscinaRepository piscinas) { this.atendimentos=atendimentos; this.clientes=clientes; this.piscinas=piscinas; }
     @GetMapping public List<RoteiroResponse> listar(Authentication auth) {
         return atendimentos.findAllByOrderByIdAsc().stream()
