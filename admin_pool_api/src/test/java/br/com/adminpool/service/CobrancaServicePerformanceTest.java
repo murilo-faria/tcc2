@@ -165,6 +165,25 @@ class CobrancaServicePerformanceTest {
     }
 
     @Test
+    void excluirPedidoAntigoRemoveLancamentoIdentificadoPeloNumeroDaDescricao() {
+        CobrancaRepository cobrancas = mock(CobrancaRepository.class);
+        Cliente cliente = cliente(1L, YearMonth.now());
+        CobrancaMensal cobranca = cobranca(10L, cliente, YearMonth.now());
+        ItemCobranca pedidoAntigo = mensalidade(cobranca, "420.00", "0.00", StatusItemCobranca.PENDENTE);
+        pedidoAntigo.setTipo(TipoLancamentoCobranca.PEDIDO);
+        pedidoAntigo.setDescricao("Pedido #65");
+        ItemCobrancaRepository itens = mock(ItemCobrancaRepository.class);
+        when(itens.findByTipo(TipoLancamentoCobranca.PEDIDO)).thenReturn(List.of(pedidoAntigo));
+        when(itens.findByCobrancaIdOrderByDataLancamentoAscIdAsc(10L)).thenReturn(List.of());
+        CobrancaService service = service(cobrancas, mock(ClienteRepository.class), itens,
+                mock(PiscinaRepository.class));
+
+        service.removerLancamentosDePedidoSeExistirem(65L);
+
+        verify(itens).delete(pedidoAntigo);
+    }
+
+    @Test
     void consultaDeCobrancaAtrasadaNaoAlteraCobrancaParcialJaPaga() {
         CobrancaRepository cobrancas = mock(CobrancaRepository.class);
         CobrancaService service = service(cobrancas, mock(ClienteRepository.class),

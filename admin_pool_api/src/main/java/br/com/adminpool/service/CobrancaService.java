@@ -128,8 +128,8 @@ public class CobrancaService {
      */
     private void limparLancamentosDePedidosExcluidos() {
         itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
-                .filter(item -> item.getOrigemId() != null)
-                .filter(item -> pedidos.findByCodigoPedidoOrderByIdAsc(item.getOrigemId()).isEmpty())
+                .filter(item -> codigoDoPedido(item) != null)
+                .filter(item -> pedidos.findByCodigoPedidoOrderByIdAsc(codigoDoPedido(item)).isEmpty())
                 .filter(item -> item.getValorPago() == null || item.getValorPago().compareTo(BigDecimal.ZERO) == 0)
                 .toList()
                 .forEach(this::removerLancamento);
@@ -333,6 +333,34 @@ public class CobrancaService {
     @Transactional
     public void removerLancamentoSeExistir(TipoLancamentoCobranca tipo, Long origemId) {
         removerLancamentos(itens.findAllByTipoAndOrigemId(tipo, origemId));
+    }
+
+    /**
+     * Remove os lançamentos pendentes de um pedido. Para pedidos antigos, que
+     * foram gravados antes do vínculo de origem existir, o número no texto do
+     * lançamento também é usado para localizar o pedido correto.
+     */
+    @Transactional
+    public void removerLancamentosDePedidoSeExistirem(Long codigoPedido) {
+        removerLancamentos(itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
+                .filter(item -> codigoPedido.equals(codigoDoPedido(item)))
+                .toList());
+    }
+
+    private Long codigoDoPedido(ItemCobranca item) {
+        if (item.getOrigemId() != null) return item.getOrigemId();
+        String descricao = item.getDescricao();
+        String prefixo = "Pedido #";
+        if (descricao == null || !descricao.startsWith(prefixo)) return null;
+        String restante = descricao.substring(prefixo.length()).trim();
+        int fim = 0;
+        while (fim < restante.length() && Character.isDigit(restante.charAt(fim))) fim++;
+        if (fim == 0) return null;
+        try {
+            return Long.valueOf(restante.substring(0, fim));
+        } catch (NumberFormatException excecao) {
+            return null;
+        }
     }
 
     private void removerLancamentos(List<ItemCobranca> lancamentos) {
