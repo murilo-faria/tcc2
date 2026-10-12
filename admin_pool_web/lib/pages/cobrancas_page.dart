@@ -544,6 +544,8 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                         subtitle: Text(
                           total == 0
                               ? 'Em dia'
+                              : celular && !atrasado
+                              ? '$quantidade ${quantidade == 1 ? 'item' : 'itens'} •\nA vencer'
                               : '$quantidade ${quantidade == 1 ? 'item' : 'itens'} ${atrasado ? '• Atrasado' : '• A vencer'}',
                         ),
                         trailing: Column(
