@@ -14,7 +14,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
   String _busca = '';
   String? _clienteSelecionado;
   String? _mesSelecionado;
-  int? _diaVencimentoSelecionado;
+  final Set<int> _diasVencimentoSelecionados = {};
   bool _mostrarFiltros = false;
   DateTime? _dataInicial;
   DateTime? _dataFinal;
@@ -139,8 +139,8 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
     final dia = DateTime(data.year, data.month, data.day);
     return (_mesSelecionado == null ||
             cobranca['referencia'] == _mesSelecionado) &&
-        (_diaVencimentoSelecionado == null ||
-            data.day == _diaVencimentoSelecionado) &&
+        (_diasVencimentoSelecionados.isEmpty ||
+            _diasVencimentoSelecionados.contains(data.day)) &&
         (_dataInicial == null || !dia.isBefore(_dataInicial!)) &&
         (_dataFinal == null || !dia.isAfter(_dataFinal!));
   }
@@ -229,7 +229,9 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
     final consulta = consultaPdf({
       'clienteId': cliente,
       'referencia': _mesSelecionado,
-      'diaVencimento': _diaVencimentoSelecionado?.toString(),
+      'diaVencimento': _diasVencimentoSelecionados.isEmpty
+          ? null
+          : (_diasVencimentoSelecionados.toList()..sort()).join(','),
       'inicio': _dataInicial?.toIso8601String().substring(0, 10),
       'fim': _dataFinal?.toIso8601String().substring(0, 10),
     });
@@ -333,16 +335,22 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       children: [
                         ChoiceChip(
                           label: const Text('Todos'),
-                          selected: _diaVencimentoSelecionado == null,
-                          onSelected: (_) =>
-                              setState(() => _diaVencimentoSelecionado = null),
+                          selected: _diasVencimentoSelecionados.isEmpty,
+                          onSelected: (_) => setState(
+                            () => _diasVencimentoSelecionados.clear(),
+                          ),
                         ),
                         ...dias.map(
                           (dia) => ChoiceChip(
                             label: Text('Dia $dia'),
-                            selected: _diaVencimentoSelecionado == dia,
-                            onSelected: (_) =>
-                                setState(() => _diaVencimentoSelecionado = dia),
+                            selected: _diasVencimentoSelecionados.contains(dia),
+                            onSelected: (selecionado) => setState(() {
+                              if (selecionado) {
+                                _diasVencimentoSelecionados.add(dia);
+                              } else {
+                                _diasVencimentoSelecionados.remove(dia);
+                              }
+                            }),
                           ),
                         ),
                       ],
@@ -420,7 +428,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                   aoLimpar: () => setState(() {
                     _clienteSelecionado = null;
                     _mesSelecionado = null;
-                    _diaVencimentoSelecionado = null;
+                    _diasVencimentoSelecionados.clear();
                     _dataInicial = null;
                     _dataFinal = null;
                   }),
@@ -440,9 +448,14 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                   return Center(child: Text('${estado.error}'));
                 final cobrancas = (estado.data!['cobrancas'] as List<dynamic>)
                     .cast<Map<String, dynamic>>();
+                final vencimentosPorCliente = {
+                  for (final cliente
+                      in estado.data!['clientesCadastrados'] as List<dynamic>)
+                    cliente['id']: cliente['diaVencimento'],
+                };
                 final filtroPeriodoAtivo =
                     _mesSelecionado != null ||
-                    _diaVencimentoSelecionado != null ||
+                    _diasVencimentoSelecionados.isNotEmpty ||
                     _dataInicial != null ||
                     _dataFinal != null;
                 final clientes = (estado.data!['resumos'] as List<dynamic>)
@@ -493,6 +506,10 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       final clienteId = cliente['clienteId'] as int;
                       final total = (cliente['totalPendente'] as num?) ?? 0;
                       final atrasado = cliente['possuiAtraso'] == true;
+                      final diaVencimento = vencimentosPorCliente[clienteId];
+                      final titulo = cliente['clienteNome'] ?? '';
+                      final quantidade =
+                          (cliente['quantidadePendente'] as num?)?.toInt() ?? 0;
                       return ListTile(
                         onTap: () => _abrirCliente(cliente),
                         leading: Row(
@@ -522,11 +539,15 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                             ),
                           ],
                         ),
-                        title: Text(cliente['clienteNome'] ?? ''),
+                        title: Text(
+                          diaVencimento is num
+                              ? '$titulo — Dia ${diaVencimento.toInt()}'
+                              : titulo,
+                        ),
                         subtitle: Text(
                           total == 0
                               ? 'Em dia'
-                              : '${cliente['quantidadePendente']} item(ns) ${atrasado ? '• possui atraso' : '• pendente'}',
+                              : '$quantidade ${quantidade == 1 ? 'item' : 'itens'} ${atrasado ? '• Atrasado' : '• A vencer'}',
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,

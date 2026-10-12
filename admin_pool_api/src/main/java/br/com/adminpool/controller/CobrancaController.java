@@ -72,14 +72,15 @@ public class CobrancaController {
     @GetMapping(value = "/relatorio.pdf", produces = "application/pdf")
     public ResponseEntity<byte[]> relatorio(@RequestParam(required = false) Long clienteId,
                                              @RequestParam(required = false) String referencia,
-                                             @RequestParam(required = false) Integer diaVencimento,
+                                             @RequestParam(required = false) List<Integer> diaVencimento,
                                              @RequestParam(required = false) java.time.LocalDate inicio,
                                              @RequestParam(required = false) java.time.LocalDate fim) {
         var linhas = cobrancaService.listarReferencias().stream()
                 .flatMap(ref -> cobrancaService.listarPorReferencia(ref).stream())
                 .filter(c -> clienteId == null || c.getCliente().getId().equals(clienteId))
                 .filter(c -> referencia == null || referencia.isBlank() || c.getReferencia().equals(referencia))
-                .filter(c -> diaVencimento == null || c.getVencimento().getDayOfMonth() == diaVencimento)
+                .filter(c -> diaVencimento == null || diaVencimento.isEmpty()
+                        || diaVencimento.contains(c.getVencimento().getDayOfMonth()))
                 .filter(c -> inicio == null || !c.getVencimento().isBefore(inicio))
                 .filter(c -> fim == null || !c.getVencimento().isAfter(fim))
                 .map(c -> new LinhaRelatorioPdf(c.getCliente().getNome(), "Cobrança " + c.getReferencia(), c.getVencimento().toString(), c.getTotal())).toList();
