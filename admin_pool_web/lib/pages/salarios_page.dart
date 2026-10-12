@@ -323,6 +323,16 @@ class _CartaoCaixaMensal extends StatelessWidget {
           final comissao = (item['salario'] as num?) ?? 0;
           return soma + total - comissao;
         });
+    final limpezas = salarios.fold<num>(
+      0,
+      (soma, item) => soma + ((item['baseMensal'] as num?) ?? 0),
+    );
+    final comissaoColaboradores = salarios
+        .where((item) => !_ehGestor(item))
+        .fold<num>(
+          0,
+          (soma, item) => soma + ((item['salario'] as num?) ?? 0),
+        );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
@@ -330,7 +340,8 @@ class _CartaoCaixaMensal extends StatelessWidget {
           future: produtos,
           builder: (_, estado) {
             final lucroProdutos = (estado.data?['lucroBruto'] as num?) ?? 0;
-            final total = limpezasMurilo + comissaoEmpresa + lucroProdutos;
+            final faturamentoBruto = limpezas + lucroProdutos;
+            final lucroEmpresa = faturamentoBruto - comissaoColaboradores;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -351,14 +362,19 @@ class _CartaoCaixaMensal extends StatelessWidget {
                 const Divider(),
                 Text('Limpezas Murilo: ${formatarMoeda(limpezasMurilo)}'),
                 Text('Comissão empresa: ${formatarMoeda(comissaoEmpresa)}'),
-                const Text(
-                  'Parte restante das limpezas dos colaboradores.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54),
+                Text(
+                  'Comissão colaboradores: ${formatarMoeda(comissaoColaboradores)}',
                 ),
                 Text('Lucro produtos: ${formatarMoeda(lucroProdutos)}'),
+                Text('Limpezas: ${formatarMoeda(limpezas)}'),
                 const SizedBox(height: 6),
                 Text(
-                  'Total: ${formatarMoeda(total)}',
+                  'Faturamento bruto: ${formatarMoeda(faturamentoBruto)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Lucro da empresa: ${formatarMoeda(lucroEmpresa)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.blue,
