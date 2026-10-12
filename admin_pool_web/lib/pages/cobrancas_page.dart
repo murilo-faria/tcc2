@@ -755,6 +755,27 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     }
   }
 
+  Future<void> _excluirCobrancaDePedido(Map<String, dynamic> item) async {
+    final confirmar = await _confirmar(
+      'Excluir cobrança?',
+      'Deseja excluir a cobrança de ${item['descricao']}? Esta ação só é permitida para pedido já excluído e sem pagamento recebido.',
+      'Excluir cobrança',
+    );
+    if (!confirmar) return;
+    final resposta = await apiService.delete(
+      '/api/cobrancas/itens/${item['id']}/pedido-excluido',
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível excluir esta cobrança.'),
+        ),
+      );
+    }
+  }
+
   Future<void> _baixarSelecionados() async {
     if (_selecionados.isEmpty) return;
     final ok = await _confirmar(
@@ -983,6 +1004,8 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                       final item = estado.data![indice] as Map<String, dynamic>;
                       final aberto = _aberto(item);
                       final registroPagamento = item['registroPagamento'] == true;
+                      final podeExcluirPedido = aberto &&
+                          !registroPagamento && item['tipo'] == 'PEDIDO';
                       final id = item['id'] as int;
                       final valor = formatarMoeda(
                         ((aberto ? item['saldoPendente'] : item['valorPago'])
@@ -1043,6 +1066,8 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                     _baixarItem(item);
                                   } else if (opcao == 'estornar') {
                                     _estornarBaixa(item);
+                                  } else if (opcao == 'excluirPedido') {
+                                    _excluirCobrancaDePedido(item);
                                   }
                                 },
                                 itemBuilder: (_) => [
@@ -1054,6 +1079,11 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                           : 'Desfazer baixa',
                                     ),
                                   ),
+                                  if (podeExcluirPedido)
+                                    const PopupMenuItem(
+                                      value: 'excluirPedido',
+                                      child: Text('Excluir cobrança do pedido'),
+                                    ),
                                 ],
                               )
                             : Row(
@@ -1086,6 +1116,15 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                           : Colors.orange,
                                     ),
                                   ),
+                                  if (podeExcluirPedido)
+                                    IconButton(
+                                      tooltip: 'Excluir cobrança do pedido',
+                                      onPressed: () => _excluirCobrancaDePedido(item),
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.red,
+                                      ),
+                                    ),
                                 ],
                               ),
                       );

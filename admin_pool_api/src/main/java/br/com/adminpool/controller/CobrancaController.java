@@ -162,6 +162,12 @@ public class CobrancaController {
         return cobrancaService.detalharItem(itemId);
     }
 
+    @DeleteMapping("/itens/{itemId}/pedido-excluido")
+    public ResponseEntity<Void> excluirCobrancaDePedidoExcluido(@PathVariable Long itemId) {
+        cobrancaService.excluirCobrancaDePedidoExcluido(itemId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/gerar-mes-atual")
     public List<CobrancaMensal> gerarMesAtual() {
         return cobrancaService.gerarMesAtual();

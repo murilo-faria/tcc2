@@ -347,6 +347,22 @@ public class CobrancaService {
                 .toList());
     }
 
+    /** Permite ao gestor remover a cobrança pendente de um pedido já excluído. */
+    @Transactional
+    public void excluirCobrancaDePedidoExcluido(Long itemId) {
+        ItemCobranca item = itens.findById(itemId).orElseThrow();
+        if (item.getTipo() != TipoLancamentoCobranca.PEDIDO) {
+            throw new IllegalArgumentException("Somente cobranças de pedido podem ser excluídas aqui.");
+        }
+        Long codigoPedido = codigoDoPedido(item);
+        if (codigoPedido == null || !pedidos.findByCodigoPedidoOrderByIdAsc(codigoPedido).isEmpty()) {
+            throw new IllegalStateException("Exclua o pedido antes de remover a cobrança.");
+        }
+        removerLancamentos(itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
+                .filter(lancamento -> codigoPedido.equals(codigoDoPedido(lancamento)))
+                .toList());
+    }
+
     private Long codigoDoPedido(ItemCobranca item) {
         String descricao = item.getDescricao();
         String prefixo = "Pedido #";

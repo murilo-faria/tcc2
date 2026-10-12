@@ -185,6 +185,29 @@ class CobrancaServicePerformanceTest {
     }
 
     @Test
+    void gestorPodeExcluirCobrancaPendenteDePedidoQueJaFoiExcluido() {
+        CobrancaRepository cobrancas = mock(CobrancaRepository.class);
+        Cliente cliente = cliente(1L, YearMonth.now());
+        CobrancaMensal cobranca = cobranca(10L, cliente, YearMonth.now());
+        ItemCobranca pedido = mensalidade(cobranca, "290.00", "0.00", StatusItemCobranca.PENDENTE);
+        pedido.setId(65L);
+        pedido.setTipo(TipoLancamentoCobranca.PEDIDO);
+        pedido.setDescricao("Pedido #65");
+        ItemCobrancaRepository itens = mock(ItemCobrancaRepository.class);
+        PedidoProdutoRepository pedidos = mock(PedidoProdutoRepository.class);
+        when(itens.findById(65L)).thenReturn(Optional.of(pedido));
+        when(itens.findByTipo(TipoLancamentoCobranca.PEDIDO)).thenReturn(List.of(pedido));
+        when(itens.findByCobrancaIdOrderByDataLancamentoAscIdAsc(10L)).thenReturn(List.of());
+        when(pedidos.findByCodigoPedidoOrderByIdAsc(65L)).thenReturn(List.of());
+        CobrancaService service = service(cobrancas, mock(ClienteRepository.class), itens,
+                mock(PiscinaRepository.class), mock(BaixaItemCobrancaRepository.class), pedidos);
+
+        service.excluirCobrancaDePedidoExcluido(65L);
+
+        verify(itens).delete(pedido);
+    }
+
+    @Test
     void consultaDeCobrancaAtrasadaNaoAlteraCobrancaParcialJaPaga() {
         CobrancaRepository cobrancas = mock(CobrancaRepository.class);
         CobrancaService service = service(cobrancas, mock(ClienteRepository.class),
@@ -268,8 +291,14 @@ class CobrancaServicePerformanceTest {
     private CobrancaService service(CobrancaRepository cobrancas, ClienteRepository clientes,
                                     ItemCobrancaRepository itens, PiscinaRepository piscinas,
                                     BaixaItemCobrancaRepository baixas) {
+        return service(cobrancas, clientes, itens, piscinas, baixas, mock(PedidoProdutoRepository.class));
+    }
+
+    private CobrancaService service(CobrancaRepository cobrancas, ClienteRepository clientes,
+                                    ItemCobrancaRepository itens, PiscinaRepository piscinas,
+                                    BaixaItemCobrancaRepository baixas, PedidoProdutoRepository pedidos) {
         return new CobrancaService(cobrancas, clientes, itens, baixas, piscinas,
-                mock(PedidoProdutoRepository.class));
+                pedidos);
     }
 
     private Cliente cliente(Long id, YearMonth mes) {
