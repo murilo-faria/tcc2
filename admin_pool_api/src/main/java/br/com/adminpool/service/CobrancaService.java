@@ -587,7 +587,8 @@ public class CobrancaService {
                 : item.getDataUltimoPagamento() == null ? item.getDataLancamento() : item.getDataUltimoPagamento();
         return new LinhaHistoricoCobranca(item.getId(), descricaoSemSaldoAnterior(item.getDescricao()),
                 item.getReferencia(), item.getVencimento(), dataExibicao,
-                item.getSaldoPendente(), item.getValorPago(), item.getStatus().name(), item.isAtrasado(), false);
+                item.getSaldoPendente(), item.getValorPago(), item.getStatus().name(), item.isAtrasado(), false,
+                item.getTipo(), item.getOrigemId(), item.getDataLancamento());
     }
 
     private LinhaHistoricoCobranca linhaDoPagamento(Map.Entry<String, List<BaixaItemCobranca>> grupo,
@@ -604,7 +605,8 @@ public class CobrancaService {
         String descricao = (abateParcial ? "Abate parcial" : "Pagamento") + " — " + descricaoBase;
         return new LinhaHistoricoCobranca(primeira.getId(), descricao, primeira.getItem().getReferencia(),
                 primeira.getItem().getVencimento(), data, BigDecimal.ZERO, valor,
-                StatusItemCobranca.PAGO.name(), false, true);
+                StatusItemCobranca.PAGO.name(), false, true, primeira.getItem().getTipo(),
+                primeira.getItem().getOrigemId(), primeira.getItem().getDataLancamento());
     }
 
     private String descricaoSemSaldoAnterior(String descricao) {

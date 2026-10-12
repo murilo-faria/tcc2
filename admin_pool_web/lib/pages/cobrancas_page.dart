@@ -938,7 +938,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                         contentPadding: EdgeInsets.symmetric(
                           horizontal: celular ? 2 : 16,
                         ),
-                        onTap: registroPagamento ? null : () => _abrirDetalhes(item),
+                        onTap: () => _abrirDetalhes(item),
                         leading: registroPagamento
                             ? const Icon(Icons.payments_outlined, color: Colors.green)
                             : Checkbox(
@@ -966,9 +966,19 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         trailing: registroPagamento
-                            ? Text(
-                                valor,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    valor,
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Ver detalhes do pedido',
+                                    onPressed: () => _abrirDetalhes(item),
+                                    icon: const Icon(Icons.visibility_outlined),
+                                  ),
+                                ],
                               )
                             : celular
                             ? PopupMenuButton<String>(
@@ -1090,8 +1100,7 @@ class _ConteudoDetalheCobranca extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Tipo: ${item['tipo']}'),
-        Text('Lançamento: ${item['dataLancamento']}'),
+        if (item['vencimento'] != null) Text('Vencimento: ${item['vencimento']}'),
         Text(
           'Valor original: ${formatarMoeda((item['valorOriginal'] as num?) ?? 0)}',
         ),
