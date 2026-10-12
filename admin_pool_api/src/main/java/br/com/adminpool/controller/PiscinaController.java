@@ -2,6 +2,7 @@ package br.com.adminpool.controller;
 
 import br.com.adminpool.dto.NovaPiscinaRequest;
 import br.com.adminpool.dto.AtualizarRotaRequest;
+import br.com.adminpool.dto.AtualizarMedidasPiscinaRequest;
 import br.com.adminpool.model.Piscina;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.PiscinaRepository;
@@ -73,6 +74,21 @@ public class PiscinaController {
         piscina.setValorMensalidade(requisicao.valorMensalidade() == null ? piscina.getValorMensalidade() : requisicao.valorMensalidade());
         return piscinas.save(piscina);
     }
+    @PutMapping("/{id}/medidas")
+    public Piscina cadastrarMedidasParaCapa(@PathVariable Long id, @RequestBody AtualizarMedidasPiscinaRequest requisicao, Authentication auth) {
+        if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem cadastrar medidas da piscina.");
+        BigDecimal comprimento = medidaObrigatoria(requisicao.comprimento(), "comprimento");
+        BigDecimal largura = medidaObrigatoria(requisicao.largura(), "largura");
+        Piscina piscina = piscinas.findById(id).orElseThrow();
+        if (piscina.getComprimento() != null && piscina.getComprimento().compareTo(BigDecimal.ZERO) > 0
+                && piscina.getLargura() != null && piscina.getLargura().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("As medidas desta piscina já foram cadastradas. Para alterá-las, use a tela de Piscinas.");
+        }
+        piscina.setComprimento(comprimento);
+        piscina.setLargura(largura);
+        piscina.setVolumeLitros(piscina.getLitragemCalculada().intValue());
+        return piscinas.save(piscina);
+    }
     @PutMapping("/{id}/rota")
     public Piscina atualizarRota(@PathVariable Long id, @RequestBody AtualizarRotaRequest requisicao, Authentication auth) {
         Piscina piscina = piscinas.findById(id).orElseThrow();
@@ -89,6 +105,11 @@ public class PiscinaController {
     private BigDecimal medida(BigDecimal valor, String campo) {
         if (valor == null) return null;
         if (valor.compareTo(BigDecimal.ZERO) < 0) throw new IllegalArgumentException("A " + campo + " não pode ser negativa.");
+        return valor;
+    }
+    private BigDecimal medidaObrigatoria(BigDecimal valor, String campo) {
+        if (valor == null || valor.compareTo(BigDecimal.ZERO) <= 0)
+            throw new IllegalArgumentException("Informe um " + campo + " maior que zero.");
         return valor;
     }
     private void aplicarMedidas(Piscina piscina, NovaPiscinaRequest requisicao, boolean nova) {

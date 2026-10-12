@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../core/formatadores.dart';
+import '../services/api_service.dart';
 
 /// Formulário reutilizado para pedidos de cliente ou material de uso interno.
 Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
@@ -38,9 +41,24 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
   final custoMetroQuadrado = TextEditingController(text: custoMetroQuadradoInicial?.toString() ?? '');
   final frete = TextEditingController(text: freteInicial?.toString() ?? '');
   final lucro = TextEditingController(text: lucroInicial?.toString() ?? '');
+  final comprimentoPiscina = TextEditingController();
+  final larguraPiscina = TextEditingController();
   int espessuraMicras = espessuraMicrasInicial ?? 300;
+  bool salvandoMedidas = false;
+  String? erroMedidas;
 
-  return showDialog<Map<String, dynamic>>(
+  void preencherMedidas(dynamic piscina) {
+    final comprimento = (piscina?['comprimento'] as num?) ?? 0;
+    final largura = (piscina?['largura'] as num?) ?? 0;
+    comprimentoPiscina.text = comprimento > 0 ? comprimento.toString().replaceAll('.', ',') : '';
+    larguraPiscina.text = largura > 0 ? largura.toString().replaceAll('.', ',') : '';
+  }
+
+  if (piscinaId != null) {
+    preencherMedidas(piscinas.firstWhere((p) => p['id'] == piscinaId, orElse: () => null));
+  }
+
+  final resultado = await showDialog<Map<String, dynamic>>(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setLocal) {
@@ -116,6 +134,8 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                         clienteId = v!;
                         final disponiveis = piscinas.where((p) => p['cliente']['id'] == clienteId).toList();
                         piscinaId = disponiveis.length == 1 ? disponiveis.first['id'] as int : null;
+                        preencherMedidas(piscinaId == null ? null : disponiveis.first);
+                        erroMedidas = null;
                       }),
                     ),
                   DropdownButtonFormField<int>(
@@ -124,7 +144,11 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                     items: piscinas.where((p) => p['cliente']['id'] == clienteId).map<DropdownMenuItem<int>>(
                       (p) => DropdownMenuItem(value: p['id'] as int, child: Text('${p['nome']} — ${p['endereco'] ?? ''}')),
                     ).toList(),
-                    onChanged: (v) => setLocal(() => piscinaId = v),
+                    onChanged: (v) => setLocal(() {
+                      piscinaId = v;
+                      preencherMedidas(piscinas.firstWhere((p) => p['id'] == v, orElse: () => null));
+                      erroMedidas = null;
+                    }),
                   ),
                   if (piscinaId != null) Align(
                     alignment: Alignment.centerLeft,
@@ -136,9 +160,69 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
                 const SizedBox(height: 8),
                 if (capaSobMedida) ...[
                   if (piscinaId != null && area <= 0)
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 8),
-                      child: Text('Informe comprimento e largura na piscina antes de gerar a capa.', style: TextStyle(color: Colors.red)),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text('Informe as medidas para calcular a capa. Depois, alterações são feitas na tela de Piscinas.', style: TextStyle(color: Colors.red)),
+                          const SizedBox(height: 8),
+                          celular
+                              ? Column(children: [
+                                  TextField(controller: comprimentoPiscina, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Comprimento (m)')),
+                                  const SizedBox(height: 8),
+                                  TextField(controller: larguraPiscina, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Largura (m)')),
+                                ])
+                              : Row(children: [
+                                  Expanded(child: TextField(controller: comprimentoPiscina, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Comprimento (m)'))),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: TextField(controller: larguraPiscina, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Largura (m)'))),
+                                ]),
+                          if (erroMedidas != null) Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(erroMedidas!, style: const TextStyle(color: Colors.red)),
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton.icon(
+                              onPressed: salvandoMedidas ? null : () async {
+                                final novoComprimento = double.tryParse(comprimentoPiscina.text.replaceAll(',', '.'));
+                                final novaLargura = double.tryParse(larguraPiscina.text.replaceAll(',', '.'));
+                                if (novoComprimento == null || novoComprimento <= 0 || novaLargura == null || novaLargura <= 0) {
+                                  setLocal(() => erroMedidas = 'Informe comprimento e largura maiores que zero.');
+                                  return;
+                                }
+                                setLocal(() { salvandoMedidas = true; erroMedidas = null; });
+                                try {
+                                  final resposta = await apiService.put(
+                                    '/api/piscinas/$piscinaId/medidas',
+                                    body: {'comprimento': novoComprimento, 'largura': novaLargura},
+                                  );
+                                  if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+                                    final atualizada = jsonDecode(resposta.body) as Map<String, dynamic>;
+                                    final indice = piscinas.indexWhere((p) => p['id'] == piscinaId);
+                                    if (indice != -1) piscinas[indice] = atualizada;
+                                    setLocal(() => salvandoMedidas = false);
+                                  } else {
+                                    setLocal(() {
+                                      salvandoMedidas = false;
+                                      erroMedidas = 'Não foi possível salvar as medidas. Tente novamente.';
+                                    });
+                                  }
+                                } catch (_) {
+                                  setLocal(() {
+                                    salvandoMedidas = false;
+                                    erroMedidas = 'Não foi possível salvar as medidas. Tente novamente.';
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.save_outlined),
+                              label: Text(salvandoMedidas ? 'Salvando...' : 'Salvar medidas'),
+                            ),
+                          ),
+                        ],
+                      ),
                     )
                   else if (piscinaId != null) ...[
                     Align(alignment: Alignment.centerLeft, child: Text('Área da piscina: ${area.toStringAsFixed(2).replaceAll('.', ',')} m²', style: const TextStyle(fontWeight: FontWeight.w600))),
@@ -217,6 +301,12 @@ Future<Map<String, dynamic>?> mostrarDialogPedidoMultiplo({
       },
     ),
   );
+  custoMetroQuadrado.dispose();
+  frete.dispose();
+  lucro.dispose();
+  comprimentoPiscina.dispose();
+  larguraPiscina.dispose();
+  return resultado;
 }
 
 class _ResumoCapa extends StatelessWidget {

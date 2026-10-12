@@ -20,4 +20,14 @@ class RelatorioPdfServiceTest {
         assertTrue(pdf.length > 100);
         assertTrue(new String(pdf, 0, 4, StandardCharsets.US_ASCII).startsWith("%PDF"));
     }
+
+    @Test
+    void geraPedidoDeCapaNoMesmoFormatoBasicoDoRelatorio() {
+        byte[] pdf = new RelatorioPdfService().gerarCapa(
+                "Pedido #75", "Endereço não informado.",
+                List.of(new LinhaRelatorioPdf("Allison", "Capa 300 micras", "2026-10-12", new BigDecimal("360.00"))));
+
+        assertTrue(pdf.length > 100);
+        assertTrue(new String(pdf, 0, 4, StandardCharsets.US_ASCII).startsWith("%PDF"));
+    }
 }

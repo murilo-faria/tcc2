@@ -98,7 +98,7 @@ public class RelatorioPdfService {
         }
     }
 
-    /** Layout da capa no mesmo padrão de pedido, com total destacado na tabela. */
+    /** Layout da capa no mesmo padrão dos relatórios de cobranças. */
     public byte[] gerarCapa(String titulo, String endereco, List<LinhaRelatorioPdf> linhas) {
         try (ByteArrayOutputStream arquivo = new ByteArrayOutputStream()) {
             Document documento = new Document(PageSize.A4, 40, 40, 35, 35);
@@ -121,18 +121,11 @@ public class RelatorioPdfService {
                 adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
                 adicionarCelula(tabela, linha.getValor().signum() == 0 ? "" : formatarValor(linha.getValor()), Element.ALIGN_RIGHT);
             }
-            PdfPCell descricaoTotal = new PdfPCell(new Phrase("TOTAL", fonte(10, Font.BOLD, Color.WHITE)));
-            descricaoTotal.setColspan(3);
-            descricaoTotal.setBackgroundColor(AZUL);
-            descricaoTotal.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            descricaoTotal.setPadding(7);
-            tabela.addCell(descricaoTotal);
-            PdfPCell valorTotal = new PdfPCell(new Phrase(formatarValor(total(linhas)), fonte(10, Font.BOLD, Color.WHITE)));
-            valorTotal.setBackgroundColor(AZUL);
-            valorTotal.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            valorTotal.setPadding(7);
-            tabela.addCell(valorTotal);
             documento.add(tabela);
+            Paragraph total = new Paragraph("Total: " + formatarValor(total(linhas)), fonte(12, Font.BOLD, AZUL));
+            total.setAlignment(Element.ALIGN_RIGHT);
+            total.setSpacingBefore(12);
+            documento.add(total);
             documento.close();
             return arquivo.toByteArray();
         } catch (Exception e) {
