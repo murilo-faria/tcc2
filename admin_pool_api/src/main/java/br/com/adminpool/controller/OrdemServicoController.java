@@ -32,7 +32,7 @@ public class OrdemServicoController {
 
     @GetMapping
     public List<OrdemServico> listarTodas(Authentication auth) {
-        return gestor(auth) ? ordens.findAllByOrderByDataServicoDesc()
+        return gestor(auth) ? ordens.findTodasOrdenadasParaListagem()
                 : ordens.findVisiveisPorColaborador(auth.getName());
     }
 

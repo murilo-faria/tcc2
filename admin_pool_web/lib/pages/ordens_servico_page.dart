@@ -68,13 +68,27 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
         (_dataFinal == null || !dia.isAfter(_dataFinal!));
   }
 
-  List<dynamic> _filtrarOrdens(List<dynamic> itens) => itens.where((item) {
-    final cliente = (item['cliente'] ?? {})['nome'].toString();
-    return (_clienteSelecionado == null || cliente == _clienteSelecionado) &&
-        _noPeriodo(item['dataServico']) &&
-        (cliente.toLowerCase().contains(_filtro) ||
-            item['descricao'].toString().toLowerCase().contains(_filtro));
-  }).toList();
+  List<dynamic> _filtrarOrdens(List<dynamic> itens) {
+    final ordens = itens.where((item) {
+      final cliente = (item['cliente'] ?? {})['nome'].toString();
+      return (_clienteSelecionado == null || cliente == _clienteSelecionado) &&
+          _noPeriodo(item['dataServico']) &&
+          (cliente.toLowerCase().contains(_filtro) ||
+              item['descricao'].toString().toLowerCase().contains(_filtro));
+    }).toList();
+
+    // A tela conserva a mesma ordem mesmo depois de pesquisar ou aplicar filtro:
+    // abertas primeiro; concluídas no fim; número decrescente em cada grupo.
+    ordens.sort((a, b) {
+      final aConcluida = a['status'] == 'CONCLUIDA';
+      final bConcluida = b['status'] == 'CONCLUIDA';
+      if (aConcluida != bConcluida) return aConcluida ? 1 : -1;
+      final aId = (a['id'] as num?)?.toInt() ?? 0;
+      final bId = (b['id'] as num?)?.toInt() ?? 0;
+      return bId.compareTo(aId);
+    });
+    return ordens;
+  }
 
   Future<void> _gerarRelatorio() async {
     final ordens = _filtrarOrdens(await _ordens);
