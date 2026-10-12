@@ -159,7 +159,7 @@ public class PedidoProdutoService {
     }
 
     @Transactional
-    public List<PedidoProduto> concluir(Long codigo, ResponsavelPagamento pagoPor, BigDecimal desconto) {
+    public List<PedidoProduto> concluir(Long codigo, ResponsavelPagamento pagoPor, BigDecimal desconto, Integer parcelas) {
         List<PedidoProduto> itens = pedidos.findByCodigoPedidoOrderByIdAsc(codigo);
         if (itens.isEmpty()) {
             throw new IllegalArgumentException("Pedido não encontrado.");
@@ -174,6 +174,13 @@ public class PedidoProdutoService {
         if (!usoInterno && pagoPor != ResponsavelPagamento.EMPRESA && pagoPor != ResponsavelPagamento.CLIENTE) {
             throw new IllegalArgumentException("Produto só pode ser pago pela empresa ou pelo cliente.");
         }
+        int quantidadeParcelas = parcelas == null ? 1 : parcelas;
+        if (quantidadeParcelas < 1 || quantidadeParcelas > 2) {
+            throw new IllegalArgumentException("Escolha uma ou duas parcelas.");
+        }
+        if (pagoPor != ResponsavelPagamento.EMPRESA && quantidadeParcelas != 1) {
+            throw new IllegalArgumentException("Somente pedidos cobrados do cliente podem ser parcelados.");
+        }
         BigDecimal totalVenda = itens.stream().map(PedidoProduto::getTotalVenda)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal descontoAplicado = desconto == null ? BigDecimal.ZERO : desconto;
@@ -185,8 +192,8 @@ public class PedidoProdutoService {
             BigDecimal totalLiquido = itens.stream().map(PedidoProduto::getTotalLiquido)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             PedidoProduto primeiro = itens.get(0);
-            cobrancas.adicionarLancamento(primeiro.getCliente().getId(), TipoLancamentoCobranca.PEDIDO,
-                    codigo, "Pedido #" + codigo, totalLiquido);
+            cobrancas.adicionarLancamentosParcelados(primeiro.getCliente().getId(), TipoLancamentoCobranca.PEDIDO,
+                    codigo, "Pedido #" + codigo, totalLiquido, quantidadeParcelas);
         }
         for (PedidoProduto item : itens) {
             item.setPagador(pagoPor);

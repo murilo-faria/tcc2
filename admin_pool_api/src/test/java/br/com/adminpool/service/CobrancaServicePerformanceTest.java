@@ -136,6 +136,35 @@ class CobrancaServicePerformanceTest {
     }
 
     @Test
+    void lancamentoParceladoGeraDuasCobrancasComValoresQueSomamOTotal() {
+        CobrancaRepository cobrancas = mock(CobrancaRepository.class);
+        ClienteRepository clientes = mock(ClienteRepository.class);
+        ItemCobrancaRepository itens = mock(ItemCobrancaRepository.class);
+        CobrancaService service = service(cobrancas, clientes, itens, mock(PiscinaRepository.class));
+        YearMonth primeiroMes = YearMonth.now();
+        Cliente cliente = cliente(1L, primeiroMes);
+        CobrancaMensal primeiraCobranca = cobranca(10L, cliente, primeiroMes);
+        primeiraCobranca.setStatus(StatusCobranca.PENDENTE);
+        CobrancaMensal segundaCobranca = cobranca(11L, cliente, primeiroMes.plusMonths(1));
+        when(clientes.findById(1L)).thenReturn(Optional.of(cliente));
+        when(cobrancas.findByClienteIdAndReferencia(1L, primeiroMes.toString()))
+                .thenReturn(Optional.of(primeiraCobranca));
+        when(cobrancas.findByClienteIdAndReferencia(1L, primeiroMes.plusMonths(1).toString()))
+                .thenReturn(Optional.of(segundaCobranca));
+        when(itens.save(any(ItemCobranca.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(itens.findByCobrancaIdOrderByDataLancamentoAscIdAsc(any())).thenReturn(List.of());
+
+        List<ItemCobranca> parcelas = service.adicionarLancamentosParcelados(1L,
+                TipoLancamentoCobranca.PEDIDO, 76L, "Pedido #76", new BigDecimal("401.01"), 2);
+
+        assertEquals(2, parcelas.size());
+        assertEquals(new BigDecimal("200.51"), parcelas.get(0).getValorOriginal());
+        assertEquals(new BigDecimal("200.50"), parcelas.get(1).getValorOriginal());
+        assertEquals(primeiroMes.atDay(10), parcelas.get(0).getVencimento());
+        assertEquals(primeiroMes.plusMonths(1).atDay(10), parcelas.get(1).getVencimento());
+    }
+
+    @Test
     void consultaDeCobrancaAtrasadaNaoAlteraCobrancaParcialJaPaga() {
         CobrancaRepository cobrancas = mock(CobrancaRepository.class);
         CobrancaService service = service(cobrancas, mock(ClienteRepository.class),

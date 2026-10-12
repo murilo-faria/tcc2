@@ -223,7 +223,7 @@ public class PedidoProdutoController {
         if (!gestor(auth)) {
             throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem concluir pedidos.");
         }
-        return servico.concluir(codigo, requisicao.pagoPor(), requisicao.desconto());
+        return servico.concluir(codigo, requisicao.pagoPor(), requisicao.desconto(), requisicao.parcelas());
     }
 
     @DeleteMapping("/codigo/{codigo}")

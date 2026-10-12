@@ -501,13 +501,19 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
   }
 
-  Future<void> _concluir(int codigo, {required bool usoInterno}) async {
+  Future<void> _concluir(int codigo, {required bool usoInterno, required num valorPedido}) async {
     String pagador = usoInterno ? 'FUNCIONARIO' : 'EMPRESA';
     final desconto = TextEditingController();
+    int parcelas = 1;
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (_, setLocal) => AlertDialog(
+        builder: (_, setLocal) {
+          final descontoInformado = double.tryParse(desconto.text.replaceAll(',', '.')) ?? 0;
+          final totalLiquido = (valorPedido - descontoInformado).clamp(0, double.infinity);
+          final primeiraParcela = totalLiquido / 2;
+          final segundaParcela = totalLiquido - primeiraParcela;
+          return AlertDialog(
           title: Text('Concluir Pedido #$codigo'),
           content: SizedBox(
             width: 470,
@@ -539,8 +545,25 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                     subtitle: const Text(
                       'Conclui sem cobrança e sem lucro para a empresa.',
                     ),
-                    onChanged: (v) => setLocal(() => pagador = v!),
+                    onChanged: (v) => setLocal(() { pagador = v!; parcelas = 1; }),
                   ),
+                  if (pagador == 'EMPRESA') ...[
+                    const SizedBox(height: 4),
+                    const Align(alignment: Alignment.centerLeft, child: Text('Parcelamento', style: TextStyle(fontWeight: FontWeight.w600))),
+                    RadioListTile<int>(
+                      value: 1,
+                      groupValue: parcelas,
+                      title: Text('À vista — 1x de ${formatarMoeda(totalLiquido)}'),
+                      onChanged: (v) => setLocal(() => parcelas = v!),
+                    ),
+                    RadioListTile<int>(
+                      value: 2,
+                      groupValue: parcelas,
+                      title: Text('Parcelado — 2x de ${formatarMoeda(primeiraParcela)}'),
+                      subtitle: Text('1ª parcela: ${formatarMoeda(primeiraParcela)} • 2ª parcela: ${formatarMoeda(segundaParcela)}'),
+                      onChanged: (v) => setLocal(() => parcelas = v!),
+                    ),
+                  ],
                 ],
                 TextField(
                   controller: desconto,
@@ -554,6 +577,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                         ? 'Opcional. Material interno não entra em cobrança.'
                         : 'Opcional. Será abatido antes de gerar a cobrança.',
                   ),
+                  onChanged: (_) => setLocal(() {}),
                 ),
                 const Divider(),
                 const Text(
@@ -573,7 +597,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
               label: const Text('Confirmar conclusão'),
             ),
           ],
-        ),
+        );
+        },
       ),
     );
     if (confirmar != true) return;
@@ -582,6 +607,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       body: {
         'pagoPor': pagador,
         'desconto': double.tryParse(desconto.text.replaceAll(',', '.')) ?? 0,
+        'parcelas': parcelas,
       },
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
@@ -953,6 +979,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                       grupo.key,
                                       usoInterno:
                                           primeiro['funcionario'] != null,
+                                      valorPedido: total,
                                     );
                                   if (acao == 'excluir') _excluir(grupo.key);
                                 },
@@ -1013,6 +1040,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
                                         grupo.key,
                                         usoInterno:
                                             primeiro['funcionario'] != null,
+                                        valorPedido: total,
                                       ),
                                       icon: const Icon(
                                         Icons.check_circle_outline,

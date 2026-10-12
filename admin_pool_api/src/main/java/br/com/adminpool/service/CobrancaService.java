@@ -285,16 +285,62 @@ public class CobrancaService {
     }
 
     @Transactional
+    public List<ItemCobranca> adicionarLancamentosParcelados(Long clienteId, TipoLancamentoCobranca tipo,
+                                                               Long origemId, String descricao, BigDecimal valor,
+                                                               int parcelas) {
+        if (parcelas == 1) {
+            return List.of(adicionarLancamento(clienteId, tipo, origemId, descricao, valor));
+        }
+        if (parcelas != 2) {
+            throw new IllegalArgumentException("O pedido pode ser dividido em uma ou duas parcelas.");
+        }
+        if (valor == null || valor.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("O valor do lançamento deve ser maior que zero.");
+        }
+        if (origemId != null && itens.existsByTipoAndOrigemId(tipo, origemId)) {
+            throw new IllegalStateException("Este lançamento já foi incluído na cobrança.");
+        }
+        Cliente cliente = clientes.findById(clienteId).orElseThrow();
+        YearMonth primeiraReferencia = referenciaParaNovoLancamento(cliente);
+        BigDecimal primeiraParcela = valor.divide(BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal segundaParcela = valor.subtract(primeiraParcela);
+        List<ItemCobranca> resultado = new ArrayList<>();
+        for (int numero = 1; numero <= 2; numero++) {
+            CobrancaMensal cobranca = gerar(cliente, primeiraReferencia.plusMonths(numero - 1));
+            ItemCobranca item = new ItemCobranca();
+            item.setCobranca(cobranca);
+            item.setTipo(tipo);
+            item.setOrigemId(origemId);
+            item.setDescricao(descricao + " — Parcela " + numero + "/2");
+            item.setDataLancamento(LocalDate.now());
+            item.setValorOriginal(numero == 1 ? primeiraParcela : segundaParcela);
+            item.setValorPago(BigDecimal.ZERO);
+            item.setStatus(StatusItemCobranca.PENDENTE);
+            resultado.add(itens.save(item));
+            recalcular(cobranca);
+        }
+        return resultado;
+    }
+
+    @Transactional
     public void removerLancamento(TipoLancamentoCobranca tipo, Long origemId) {
-        ItemCobranca item = itens.findByTipoAndOrigemId(tipo, origemId)
-                .orElseThrow(() -> new IllegalArgumentException("Lançamento de cobrança não encontrado."));
-        removerLancamento(item);
+        List<ItemCobranca> lancamentos = itens.findAllByTipoAndOrigemId(tipo, origemId);
+        if (lancamentos.isEmpty()) throw new IllegalArgumentException("Lançamento de cobrança não encontrado.");
+        removerLancamentos(lancamentos);
     }
 
     /** Remove o lançamento quando ele existir; usada ao apagar uma origem ainda aberta. */
     @Transactional
     public void removerLancamentoSeExistir(TipoLancamentoCobranca tipo, Long origemId) {
-        itens.findByTipoAndOrigemId(tipo, origemId).ifPresent(this::removerLancamento);
+        removerLancamentos(itens.findAllByTipoAndOrigemId(tipo, origemId));
+    }
+
+    private void removerLancamentos(List<ItemCobranca> lancamentos) {
+        if (lancamentos.stream().anyMatch(item -> item.getValorPago() != null
+                && item.getValorPago().compareTo(BigDecimal.ZERO) > 0)) {
+            throw new IllegalStateException("Não é possível desfazer um lançamento que já possui pagamento recebido.");
+        }
+        lancamentos.forEach(this::removerLancamento);
     }
 
     private void removerLancamento(ItemCobranca item) {
