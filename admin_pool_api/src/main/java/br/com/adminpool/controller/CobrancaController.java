@@ -162,7 +162,9 @@ public class CobrancaController {
         return cobrancaService.detalharItem(itemId);
     }
 
-    @DeleteMapping("/itens/{itemId}/pedido")
+    // Mantém o endereço anterior durante a atualização do navegador para que
+    // a lixeira funcione mesmo quando o frontend ainda estiver em cache.
+    @DeleteMapping({"/itens/{itemId}/pedido", "/itens/{itemId}/pedido-excluido"})
     public ResponseEntity<Void> excluirCobrancaDePedido(@PathVariable Long itemId) {
         cobrancaService.excluirCobrancaDePedidoExcluido(itemId);
         return ResponseEntity.noContent().build();
