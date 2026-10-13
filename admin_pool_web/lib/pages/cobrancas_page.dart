@@ -755,10 +755,10 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     }
   }
 
-  Future<void> _excluirCobrancaDePedido(Map<String, dynamic> item) async {
+  Future<void> _excluirCobrancaDeOrigem(Map<String, dynamic> item) async {
     final confirmar = await _confirmar(
       'Excluir cobrança?',
-      'Deseja excluir a cobrança de ${item['descricao']}? O pedido não será apagado. Esta ação não é permitida se houver pagamento recebido.',
+      'Deseja excluir a cobrança de ${item['descricao']}? O pedido ou a OS não será apagado. Esta ação não é permitida se houver pagamento recebido.',
       'Excluir cobrança',
     );
     if (!confirmar) return;
@@ -1004,8 +1004,10 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                       final item = estado.data![indice] as Map<String, dynamic>;
                       final aberto = _aberto(item);
                       final registroPagamento = item['registroPagamento'] == true;
-                      final podeExcluirPedido = aberto &&
-                          !registroPagamento && item['tipo'] == 'PEDIDO';
+                      final podeExcluirOrigem = aberto &&
+                          !registroPagamento &&
+                          (item['tipo'] == 'PEDIDO' ||
+                              item['tipo'] == 'ORDEM_SERVICO');
                       final id = item['id'] as int;
                       final valor = formatarMoeda(
                         ((aberto ? item['saldoPendente'] : item['valorPago'])
@@ -1067,7 +1069,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                   } else if (opcao == 'estornar') {
                                     _estornarBaixa(item);
                                   } else if (opcao == 'excluirPedido') {
-                                    _excluirCobrancaDePedido(item);
+                                    _excluirCobrancaDeOrigem(item);
                                   }
                                 },
                                 itemBuilder: (_) => [
@@ -1079,10 +1081,10 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                           : 'Desfazer baixa',
                                     ),
                                   ),
-                                  if (podeExcluirPedido)
+                                  if (podeExcluirOrigem)
                                     const PopupMenuItem(
                                       value: 'excluirPedido',
-                                      child: Text('Excluir cobrança do pedido'),
+                                      child: Text('Excluir cobrança'),
                                     ),
                                 ],
                               )
@@ -1116,10 +1118,10 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                           : Colors.orange,
                                     ),
                                   ),
-                                  if (podeExcluirPedido)
+                                  if (podeExcluirOrigem)
                                     IconButton(
-                                      tooltip: 'Excluir cobrança do pedido',
-                                      onPressed: () => _excluirCobrancaDePedido(item),
+                                      tooltip: 'Excluir cobrança',
+                                      onPressed: () => _excluirCobrancaDeOrigem(item),
                                       icon: const Icon(
                                         Icons.delete_outline,
                                         color: Colors.red,

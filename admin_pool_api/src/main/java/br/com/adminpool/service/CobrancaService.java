@@ -347,18 +347,28 @@ public class CobrancaService {
                 .toList());
     }
 
-    /** Permite ao gestor remover a cobrança pendente de um pedido, sem apagar o pedido. */
+    /** Permite ao gestor remover uma cobrança pendente de pedido ou OS. */
     @Transactional
-    public void excluirCobrancaDePedidoExcluido(Long itemId) {
+    public void excluirCobrancaDeOrigem(Long itemId) {
         ItemCobranca item = itens.findById(itemId).orElseThrow();
-        if (item.getTipo() != TipoLancamentoCobranca.PEDIDO) {
-            throw new IllegalArgumentException("Somente cobranças de pedido podem ser excluídas aqui.");
+        if (item.getTipo() != TipoLancamentoCobranca.PEDIDO
+                && item.getTipo() != TipoLancamentoCobranca.ORDEM_SERVICO) {
+            throw new IllegalArgumentException("Somente cobranças de pedido ou OS podem ser excluídas aqui.");
         }
-        Long codigoPedido = codigoDoPedido(item);
-        if (codigoPedido == null) throw new IllegalArgumentException("Cobrança de pedido sem identificação.");
-        removerLancamentos(itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
-                .filter(lancamento -> codigoPedido.equals(codigoDoPedido(lancamento)))
-                .toList());
+        if (item.getTipo() == TipoLancamentoCobranca.PEDIDO) {
+            Long codigoPedido = codigoDoPedido(item);
+            if (codigoPedido == null) throw new IllegalArgumentException("Cobrança de pedido sem identificação.");
+            removerLancamentos(itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
+                    .filter(lancamento -> codigoPedido.equals(codigoDoPedido(lancamento)))
+                    .toList());
+            return;
+        }
+        if (item.getOrigemId() == null) {
+            removerLancamentos(List.of(item));
+            return;
+        }
+        removerLancamentos(itens.findAllByTipoAndOrigemId(TipoLancamentoCobranca.ORDEM_SERVICO,
+                item.getOrigemId()));
     }
 
     private Long codigoDoPedido(ItemCobranca item) {

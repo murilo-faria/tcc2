@@ -165,8 +165,8 @@ public class CobrancaController {
     // Mantém o endereço anterior durante a atualização do navegador para que
     // a lixeira funcione mesmo quando o frontend ainda estiver em cache.
     @DeleteMapping({"/itens/{itemId}/pedido", "/itens/{itemId}/pedido-excluido"})
-    public ResponseEntity<Void> excluirCobrancaDePedido(@PathVariable Long itemId) {
-        cobrancaService.excluirCobrancaDePedidoExcluido(itemId);
+    public ResponseEntity<Void> excluirCobrancaDeOrigem(@PathVariable Long itemId) {
+        cobrancaService.excluirCobrancaDeOrigem(itemId);
         return ResponseEntity.noContent().build();
     }
 

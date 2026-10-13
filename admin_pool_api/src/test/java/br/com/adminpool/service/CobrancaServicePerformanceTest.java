@@ -200,7 +200,7 @@ class CobrancaServicePerformanceTest {
         CobrancaService service = service(cobrancas, mock(ClienteRepository.class), itens,
                 mock(PiscinaRepository.class));
 
-        service.excluirCobrancaDePedidoExcluido(65L);
+        service.excluirCobrancaDeOrigem(65L);
 
         verify(itens).delete(pedido);
     }
