@@ -11,6 +11,7 @@ import br.com.adminpool.dto.ResultadoProdutos;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
 import br.com.adminpool.dto.LinhaRelatorioPedidoCompleto;
 import br.com.adminpool.model.PedidoProduto;
+import br.com.adminpool.model.ResponsavelPagamento;
 import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.service.PedidoProdutoService;
 import br.com.adminpool.service.RelatorioPdfService;
@@ -157,6 +158,11 @@ public class PedidoProdutoController {
                             linhasCompletas(lista)));
         }
         boolean compras = "COMPRAS".equals(relatorio);
+        if (compras) {
+            lista = lista.stream()
+                    .filter(pedido -> pedido.getPagador() != ResponsavelPagamento.CLIENTE)
+                    .toList();
+        }
         var linhas = lista.stream().map(p -> new LinhaRelatorioPdf(destinatario(p),
                 descricaoItem(p), p.getDataPedido().toString(),
                 compras ? p.getTotalCompra() : (p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido()))).toList();

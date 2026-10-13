@@ -375,6 +375,9 @@ public class PedidoProdutoService {
                 .collect(java.util.stream.Collectors.toSet());
         List<PedidoProduto> produtosQuitados = codigosQuitados.stream()
                 .flatMap(codigo -> pedidos.findByCodigoPedidoOrderByIdAsc(codigo).stream())
+                // Compra paga diretamente pelo cliente não é receita nem
+                // custo da empresa, portanto não entra no resultado financeiro.
+                .filter(pedido -> pedido.getPagador() != ResponsavelPagamento.CLIENTE)
                 .toList();
         List<PedidoProduto> capasConcluidas = pedidos
                 .findByTipoPedidoAndPagadorAndDataConclusaoBetween("CAPA", ResponsavelPagamento.EMPRESA, inicio, fim)

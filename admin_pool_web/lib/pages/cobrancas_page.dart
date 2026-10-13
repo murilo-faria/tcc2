@@ -758,12 +758,12 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
   Future<void> _excluirCobrancaDePedido(Map<String, dynamic> item) async {
     final confirmar = await _confirmar(
       'Excluir cobrança?',
-      'Deseja excluir a cobrança de ${item['descricao']}? Esta ação só é permitida para pedido já excluído e sem pagamento recebido.',
+      'Deseja excluir a cobrança de ${item['descricao']}? O pedido não será apagado. Esta ação não é permitida se houver pagamento recebido.',
       'Excluir cobrança',
     );
     if (!confirmar) return;
     final resposta = await apiService.delete(
-      '/api/cobrancas/itens/${item['id']}/pedido-excluido',
+      '/api/cobrancas/itens/${item['id']}/pedido',
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();

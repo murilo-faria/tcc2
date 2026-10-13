@@ -234,8 +234,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
             onPressed: () => Navigator.pop(context, 'COMPRAS'),
             child: const ListTile(
               leading: Icon(Icons.shopping_bag_outlined),
-              title: Text('Somente compras'),
-              subtitle: Text('Mostra o custo de compra de cada item.'),
+              title: Text('Compras da empresa'),
+              subtitle: Text('Não inclui pedidos pagos diretamente pelo cliente.'),
             ),
           ),
           SimpleDialogOption(

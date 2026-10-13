@@ -162,8 +162,8 @@ public class CobrancaController {
         return cobrancaService.detalharItem(itemId);
     }
 
-    @DeleteMapping("/itens/{itemId}/pedido-excluido")
-    public ResponseEntity<Void> excluirCobrancaDePedidoExcluido(@PathVariable Long itemId) {
+    @DeleteMapping("/itens/{itemId}/pedido")
+    public ResponseEntity<Void> excluirCobrancaDePedido(@PathVariable Long itemId) {
         cobrancaService.excluirCobrancaDePedidoExcluido(itemId);
         return ResponseEntity.noContent().build();
     }
