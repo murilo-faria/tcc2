@@ -756,21 +756,22 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
   }
 
   Future<void> _excluirCobrancaDeOrigem(Map<String, dynamic> item) async {
+    final origem = item['tipo'] == 'ORDEM_SERVICO' ? 'a OS' : 'o pedido';
     final confirmar = await _confirmar(
-      'Excluir cobrança?',
-      'Deseja excluir a cobrança de ${item['descricao']}? O pedido ou a OS não será apagado. Esta ação não é permitida se houver pagamento recebido.',
-      'Excluir cobrança',
+      'Excluir $origem e cobrança?',
+      'Deseja excluir $origem ${item['descricao']} e a cobrança correspondente? Esta ação só é permitida se não houver pagamento recebido.',
+      'Excluir',
     );
     if (!confirmar) return;
     final resposta = await apiService.delete(
-      '/api/cobrancas/itens/${item['id']}/pedido',
+      '/api/cobrancas/itens/${item['id']}/origem',
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível excluir esta cobrança.'),
+          content: Text('Não foi possível excluir: existe pagamento ou o registro não está disponível.'),
         ),
       );
     }
@@ -1004,7 +1005,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                       final item = estado.data![indice] as Map<String, dynamic>;
                       final aberto = _aberto(item);
                       final registroPagamento = item['registroPagamento'] == true;
-                      final podeExcluirOrigem = aberto &&
+                      final podeExcluirOrigem = item['status'] == 'PENDENTE' &&
                           !registroPagamento &&
                           (item['tipo'] == 'PEDIDO' ||
                               item['tipo'] == 'ORDEM_SERVICO');
@@ -1084,7 +1085,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                   if (podeExcluirOrigem)
                                     const PopupMenuItem(
                                       value: 'excluirPedido',
-                                      child: Text('Excluir cobrança'),
+                                      child: Text('Excluir pedido/OS e cobrança'),
                                     ),
                                 ],
                               )
@@ -1120,7 +1121,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                   ),
                                   if (podeExcluirOrigem)
                                     IconButton(
-                                      tooltip: 'Excluir cobrança',
+                                      tooltip: 'Excluir pedido/OS e cobrança',
                                       onPressed: () => _excluirCobrancaDeOrigem(item),
                                       icon: const Icon(
                                         Icons.delete_outline,

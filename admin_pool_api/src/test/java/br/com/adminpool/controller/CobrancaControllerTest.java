@@ -45,7 +45,7 @@ class CobrancaControllerTest {
                 mock(PiscinaRepository.class), mock(PedidoProdutoRepository.class));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new CobrancaController(cobrancas,
                 new RelatorioPdfService(), mock(ClienteRepository.class),
-                mock(PedidoProdutoRepository.class))).build();
+                mock(PedidoProdutoRepository.class), null, null, null)).build();
 
         mvc.perform(get("/api/cobrancas").param("referencia", "2026-09"))
                 .andExpect(status().isOk())
@@ -81,7 +81,8 @@ class CobrancaControllerTest {
                 mock(ItemCobrancaRepository.class), mock(BaixaItemCobrancaRepository.class),
                 mock(PiscinaRepository.class), mock(PedidoProdutoRepository.class));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new CobrancaController(cobrancas,
-                new RelatorioPdfService(), clientes, mock(PedidoProdutoRepository.class))).build();
+                new RelatorioPdfService(), clientes, mock(PedidoProdutoRepository.class),
+                null, null, null)).build();
 
         mvc.perform(get("/api/cobrancas/resumo-visao-geral"))
                 .andExpect(status().isOk())

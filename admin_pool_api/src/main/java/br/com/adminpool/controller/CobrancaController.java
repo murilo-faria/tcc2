@@ -11,8 +11,11 @@ import br.com.adminpool.dto.LinhaHistoricoCobranca;
 import br.com.adminpool.model.CobrancaMensal;
 import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.repository.ClienteRepository;
+import br.com.adminpool.repository.OrdemServicoRepository;
 import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.service.CobrancaService;
+import br.com.adminpool.service.OrdemServicoService;
+import br.com.adminpool.service.PedidoProdutoService;
 import br.com.adminpool.service.RelatorioPdfService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,13 +36,21 @@ public class CobrancaController {
     private final RelatorioPdfService relatorios;
     private final ClienteRepository clientes;
     private final PedidoProdutoRepository pedidos;
+    private final OrdemServicoRepository ordens;
+    private final PedidoProdutoService pedidosService;
+    private final OrdemServicoService ordensService;
 
     public CobrancaController(CobrancaService cobrancaService, RelatorioPdfService relatorios,
-                              ClienteRepository clientes, PedidoProdutoRepository pedidos) {
+                              ClienteRepository clientes, PedidoProdutoRepository pedidos,
+                              OrdemServicoRepository ordens, PedidoProdutoService pedidosService,
+                              OrdemServicoService ordensService) {
         this.cobrancaService = cobrancaService;
         this.relatorios = relatorios;
         this.clientes = clientes;
         this.pedidos = pedidos;
+        this.ordens = ordens;
+        this.pedidosService = pedidosService;
+        this.ordensService = ordensService;
     }
 
     @GetMapping
@@ -162,11 +173,30 @@ public class CobrancaController {
         return cobrancaService.detalharItem(itemId);
     }
 
-    // Mantém o endereço anterior durante a atualização do navegador para que
-    // a lixeira funcione mesmo quando o frontend ainda estiver em cache.
-    @DeleteMapping({"/itens/{itemId}/pedido", "/itens/{itemId}/pedido-excluido"})
-    public ResponseEntity<Void> excluirCobrancaDeOrigem(@PathVariable Long itemId) {
-        cobrancaService.excluirCobrancaDeOrigem(itemId);
+    /**
+     * Pedido e OS não devem deixar cobranças órfãs. Assim, excluir pela tela de
+     * cobranças remove a origem e todos os lançamentos pendentes dela juntos.
+     */
+    @DeleteMapping({"/itens/{itemId}/origem", "/itens/{itemId}/pedido", "/itens/{itemId}/pedido-excluido"})
+    public ResponseEntity<Void> excluirOrigemECobranca(@PathVariable Long itemId) {
+        ItemCobranca item = cobrancaService.detalharItem(itemId);
+        if (item.getTipo() == br.com.adminpool.model.TipoLancamentoCobranca.PEDIDO) {
+            Long codigoPedido = cobrancaService.codigoPedidoDaCobranca(itemId);
+            if (codigoPedido == null || pedidos.findByCodigoPedidoOrderByIdAsc(codigoPedido).isEmpty()) {
+                // Mantém a limpeza possível para cobranças antigas cuja origem já foi apagada.
+                cobrancaService.excluirCobrancaDeOrigem(itemId);
+            } else {
+                pedidosService.excluir(codigoPedido);
+            }
+        } else if (item.getTipo() == br.com.adminpool.model.TipoLancamentoCobranca.ORDEM_SERVICO) {
+            if (item.getOrigemId() == null || !ordens.existsById(item.getOrigemId())) {
+                cobrancaService.excluirCobrancaDeOrigem(itemId);
+            } else {
+                ordensService.excluir(item.getOrigemId());
+            }
+        } else {
+            throw new IllegalArgumentException("Somente cobranças de pedido ou OS podem ser excluídas aqui.");
+        }
         return ResponseEntity.noContent().build();
     }
 

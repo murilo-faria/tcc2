@@ -371,6 +371,15 @@ public class CobrancaService {
                 item.getOrigemId()));
     }
 
+    /** Retorna o código do pedido inclusive para lançamentos antigos sem vínculo preenchido. */
+    public Long codigoPedidoDaCobranca(Long itemId) {
+        ItemCobranca item = itens.findById(itemId).orElseThrow();
+        if (item.getTipo() != TipoLancamentoCobranca.PEDIDO) {
+            throw new IllegalArgumentException("Esta cobrança não pertence a um pedido.");
+        }
+        return codigoDoPedido(item);
+    }
+
     private Long codigoDoPedido(ItemCobranca item) {
         String descricao = item.getDescricao();
         String prefixo = "Pedido #";
