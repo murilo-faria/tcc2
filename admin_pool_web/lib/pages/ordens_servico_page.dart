@@ -554,6 +554,18 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                   setLocal(() => mostrarErroFuncionario = true);
                   return;
                 }
+                final valorCusto =
+                    double.tryParse(custo.text.replaceAll(',', '.')) ?? 0;
+                if (pagador == 'FUNCIONARIO' && valorCusto <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Informe o valor pago pelo funcionário para gerar o reembolso.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
                 Navigator.pop(context, true);
               },
               icon: const Icon(Icons.check_circle_outline),

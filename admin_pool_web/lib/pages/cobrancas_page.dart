@@ -636,7 +636,6 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                 );
               },
             ),
-            ),
           ),
         ],
       ),

@@ -92,6 +92,10 @@ public class OrdemServicoService {
             if (funcionarioQuePagou == null) {
                 throw new IllegalArgumentException("Selecione o colaborador que pagou a OS.");
             }
+            if (custo.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException(
+                        "Informe o valor pago pelo funcionário para gerar o reembolso.");
+            }
         }
         if (pagador != ResponsavelPagamento.CLIENTE && cobrado.compareTo(BigDecimal.ZERO) > 0) {
             cobrancas.adicionarLancamento(ordem.getCliente().getId(), TipoLancamentoCobranca.ORDEM_SERVICO,
