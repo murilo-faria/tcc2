@@ -332,7 +332,7 @@ public class CobrancaService {
     /** Remove o lançamento quando ele existir; usada ao apagar uma origem ainda aberta. */
     @Transactional
     public void removerLancamentoSeExistir(TipoLancamentoCobranca tipo, Long origemId) {
-        removerLancamentos(itens.findAllByTipoAndOrigemId(tipo, origemId));
+        removerLancamentosEmCascata(itens.findAllByTipoAndOrigemId(tipo, origemId));
     }
 
     /**
@@ -342,7 +342,7 @@ public class CobrancaService {
      */
     @Transactional
     public void removerLancamentosDePedidoSeExistirem(Long codigoPedido) {
-        removerLancamentos(itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
+        removerLancamentosEmCascata(itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
                 .filter(item -> codigoPedido.equals(codigoDoPedido(item)))
                 .toList());
     }
@@ -358,17 +358,51 @@ public class CobrancaService {
         if (item.getTipo() == TipoLancamentoCobranca.PEDIDO) {
             Long codigoPedido = codigoDoPedido(item);
             if (codigoPedido == null) throw new IllegalArgumentException("Cobrança de pedido sem identificação.");
-            removerLancamentos(itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
+            removerLancamentosEmCascata(itens.findByTipo(TipoLancamentoCobranca.PEDIDO).stream()
                     .filter(lancamento -> codigoPedido.equals(codigoDoPedido(lancamento)))
                     .toList());
             return;
         }
         if (item.getOrigemId() == null) {
-            removerLancamentos(List.of(item));
+            removerLancamentosEmCascata(List.of(item));
             return;
         }
-        removerLancamentos(itens.findAllByTipoAndOrigemId(TipoLancamentoCobranca.ORDEM_SERVICO,
+        removerLancamentosEmCascata(itens.findAllByTipoAndOrigemId(TipoLancamentoCobranca.ORDEM_SERVICO,
                 item.getOrigemId()));
+    }
+
+    /** Altera somente uma mensalidade ainda pendente; não muda as mensalidades futuras. */
+    @Transactional
+    public ItemCobranca editarValorMensalidade(Long itemId, BigDecimal valor, String observacao) {
+        if (valor == null || valor.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Informe um valor maior que zero.");
+        }
+        ItemCobranca item = itens.findById(itemId).orElseThrow();
+        if (item.getTipo() != TipoLancamentoCobranca.MENSALIDADE) {
+            throw new IllegalArgumentException("Somente mensalidades podem ter o valor alterado aqui.");
+        }
+        if (item.getValorPago() != null && item.getValorPago().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Não é possível alterar uma mensalidade que já recebeu pagamento.");
+        }
+        item.setValorOriginal(valor);
+        item.setStatus(StatusItemCobranca.PENDENTE);
+        item.setObservacao(observacao == null || observacao.isBlank() ? null : observacao.trim());
+        ItemCobranca salvo = itens.save(item);
+        recalcular(item.getCobranca());
+        return salvo;
+    }
+
+    /** Exclui somente a mensalidade pendente deste mês; as próximas continuam automáticas. */
+    @Transactional
+    public void excluirMensalidadePendente(Long itemId) {
+        ItemCobranca item = itens.findById(itemId).orElseThrow();
+        if (item.getTipo() != TipoLancamentoCobranca.MENSALIDADE) {
+            throw new IllegalArgumentException("Somente mensalidades podem ser excluídas aqui.");
+        }
+        if (item.getValorPago() != null && item.getValorPago().compareTo(BigDecimal.ZERO) > 0) {
+            throw new IllegalStateException("Desfaça a baixa antes de excluir uma mensalidade já paga.");
+        }
+        removerLancamentoEmCascata(item);
     }
 
     /** Retorna o código do pedido inclusive para lançamentos antigos sem vínculo preenchido. */
@@ -404,6 +438,22 @@ public class CobrancaService {
             throw new IllegalStateException("Não é possível desfazer um lançamento que já possui pagamento recebido.");
         }
         lancamentos.forEach(this::removerLancamento);
+    }
+
+    /**
+     * Exclusão da origem (Pedido ou OS): apaga também as baixas, pois o
+     * lançamento inteiro foi criado por uma origem que não existe mais.
+     */
+    private void removerLancamentosEmCascata(List<ItemCobranca> lancamentos) {
+        lancamentos.forEach(this::removerLancamentoEmCascata);
+    }
+
+    private void removerLancamentoEmCascata(ItemCobranca item) {
+        CobrancaMensal cobranca = item.getCobranca();
+        baixas.deleteByItemId(item.getId());
+        itens.delete(item);
+        itens.flush();
+        recalcular(cobranca);
     }
 
     private void removerLancamento(ItemCobranca item) {
@@ -662,7 +712,7 @@ public class CobrancaService {
         return new LinhaHistoricoCobranca(item.getId(), descricaoSemSaldoAnterior(item.getDescricao()),
                 item.getReferencia(), item.getVencimento(), dataExibicao,
                 item.getSaldoPendente(), item.getValorPago(), item.getStatus().name(), item.isAtrasado(), false,
-                item.getTipo(), item.getOrigemId(), item.getDataLancamento());
+                item.getTipo(), item.getOrigemId(), item.getDataLancamento(), item.getObservacao());
     }
 
     private LinhaHistoricoCobranca linhaDoPagamento(Map.Entry<String, List<BaixaItemCobranca>> grupo,
@@ -677,10 +727,13 @@ public class CobrancaService {
                 .map(baixa -> descricaoSemSaldoAnterior(baixa.getItem().getDescricao()))
                 .distinct().collect(java.util.stream.Collectors.joining(", "));
         String descricao = (abateParcial ? "Abate parcial" : "Pagamento") + " — " + descricaoBase;
+        String observacao = baixasDoGrupo.stream().map(baixa -> baixa.getItem().getObservacao())
+                .filter(texto -> texto != null && !texto.isBlank()).distinct()
+                .collect(java.util.stream.Collectors.joining(" • "));
         return new LinhaHistoricoCobranca(primeira.getId(), descricao, primeira.getItem().getReferencia(),
                 primeira.getItem().getVencimento(), data, BigDecimal.ZERO, valor,
                 StatusItemCobranca.PAGO.name(), false, true, primeira.getItem().getTipo(),
-                primeira.getItem().getOrigemId(), primeira.getItem().getDataLancamento());
+                primeira.getItem().getOrigemId(), primeira.getItem().getDataLancamento(), observacao);
     }
 
     private String descricaoSemSaldoAnterior(String descricao) {

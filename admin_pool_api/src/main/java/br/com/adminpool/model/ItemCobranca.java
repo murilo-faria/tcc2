@@ -16,6 +16,7 @@ public class ItemCobranca {
     @Column(nullable = false) private LocalDate dataLancamento = LocalDate.now();
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal valorOriginal;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal valorPago = BigDecimal.ZERO;
+    @Column(columnDefinition = "TEXT") private String observacao;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private StatusItemCobranca status = StatusItemCobranca.PENDENTE;
     private LocalDate dataUltimoPagamento;
 
@@ -35,6 +36,7 @@ public class ItemCobranca {
     public LocalDate getDataLancamento(){return dataLancamento;} public void setDataLancamento(LocalDate v){dataLancamento=v;}
     public BigDecimal getValorOriginal(){return valorOriginal;} public void setValorOriginal(BigDecimal v){valorOriginal=v;}
     public BigDecimal getValorPago(){return valorPago;} public void setValorPago(BigDecimal v){valorPago=v;}
+    public String getObservacao(){return observacao;} public void setObservacao(String v){observacao=v;}
     public StatusItemCobranca getStatus(){return status;} public void setStatus(StatusItemCobranca v){status=v;}
     public LocalDate getDataUltimoPagamento(){return dataUltimoPagamento;} public void setDataUltimoPagamento(LocalDate v){dataUltimoPagamento=v;}
 }

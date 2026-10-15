@@ -1,6 +1,7 @@
 package br.com.adminpool.controller;
 
 import br.com.adminpool.dto.BaixaCobrancaRequest;
+import br.com.adminpool.dto.EditarValorCobrancaRequest;
 import br.com.adminpool.dto.BaixaClientesRequest;
 import br.com.adminpool.dto.BaixaItensRequest;
 import br.com.adminpool.dto.ResumoCobrancaCliente;
@@ -171,6 +172,18 @@ public class CobrancaController {
     @GetMapping("/itens/{itemId}")
     public ItemCobranca detalharItem(@PathVariable Long itemId) {
         return cobrancaService.detalharItem(itemId);
+    }
+
+    @PutMapping("/itens/{itemId}/valor")
+    public ItemCobranca editarValorMensalidade(@PathVariable Long itemId,
+                                               @RequestBody EditarValorCobrancaRequest requisicao) {
+        return cobrancaService.editarValorMensalidade(itemId, requisicao.valor(), requisicao.observacao());
+    }
+
+    @DeleteMapping("/itens/{itemId}/mensalidade")
+    public ResponseEntity<Void> excluirMensalidade(@PathVariable Long itemId) {
+        cobrancaService.excluirMensalidadePendente(itemId);
+        return ResponseEntity.noContent().build();
     }
 
     /**

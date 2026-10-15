@@ -321,7 +321,19 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
               ),
             ),
           ),
-          if (_mostrarFiltros) ...[
+          if (_mostrarFiltros)
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.width < 600
+                    ? MediaQuery.of(context).size.height * .56
+                    : double.infinity,
+              ),
+              child: Scrollbar(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
             const SizedBox(height: 12),
             FutureBuilder<Map<String, dynamic>>(
               future: _dados,
@@ -470,7 +482,11 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                 );
               },
             ),
-          ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
           const SizedBox(height: 12),
           Expanded(
             child: FutureBuilder<Map<String, dynamic>>(
@@ -620,6 +636,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                 );
               },
             ),
+            ),
           ),
         ],
       ),
@@ -759,7 +776,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     final origem = item['tipo'] == 'ORDEM_SERVICO' ? 'a OS' : 'o pedido';
     final confirmar = await _confirmar(
       'Excluir $origem e cobrança?',
-      'Deseja excluir $origem ${item['descricao']} e a cobrança correspondente? Esta ação só é permitida se não houver pagamento recebido.',
+      'Deseja excluir $origem ${item['descricao']}? A cobrança e qualquer pagamento vinculado serão apagados do histórico e do fluxo de caixa.',
       'Excluir',
     );
     if (!confirmar) return;
@@ -771,8 +788,95 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível excluir: existe pagamento ou o registro não está disponível.'),
+          content: Text('Não foi possível excluir este registro.'),
         ),
+      );
+    }
+  }
+
+  Future<void> _editarValorMensalidade(Map<String, dynamic> item) async {
+    final valorAtual = (item['saldoPendente'] as num?) ?? 0;
+    final controlador = TextEditingController(
+      text: valorAtual.toStringAsFixed(2).replaceAll('.', ','),
+    );
+    final observacao = TextEditingController(text: item['observacao']?.toString() ?? '');
+    final resultado = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Alterar mensalidade'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controlador,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Novo valor a cobrar neste mês',
+                prefixText: 'R\$ ',
+                helperText: 'Não altera o valor das próximas mensalidades.',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: observacao,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Observação do ajuste',
+                hintText: 'Ex.: Bomba ficou sem funcionar por 15 dias',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              context,
+              {
+                'valor': double.tryParse(controlador.text.replaceAll(',', '.')),
+                'observacao': observacao.text.trim(),
+              },
+            ),
+            child: const Text('Salvar valor'),
+          ),
+        ],
+      ),
+    );
+    final valor = resultado?['valor'] as double?;
+    if (valor == null || valor <= 0) return;
+    final resposta = await apiService.put(
+      '/api/cobrancas/itens/${item['id']}/valor',
+      body: {'valor': valor, 'observacao': resultado?['observacao']},
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível alterar a mensalidade.')),
+      );
+    }
+  }
+
+  Future<void> _excluirMensalidade(Map<String, dynamic> item) async {
+    final confirmar = await _confirmar(
+      'Excluir mensalidade deste mês?',
+      'A mensalidade de ${item['descricao']} será removida somente deste mês. As próximas mensalidades continuarão sendo geradas normalmente.',
+      'Excluir mensalidade',
+    );
+    if (!confirmar) return;
+    final resposta = await apiService.delete(
+      '/api/cobrancas/itens/${item['id']}/mensalidade',
+    );
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível excluir a mensalidade.')),
       );
     }
   }
@@ -1009,6 +1113,10 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                           !registroPagamento &&
                           (item['tipo'] == 'PEDIDO' ||
                               item['tipo'] == 'ORDEM_SERVICO');
+                      final podeEditarMensalidade = item['status'] == 'PENDENTE' &&
+                          !registroPagamento && item['tipo'] == 'MENSALIDADE';
+                      final podeExcluirMensalidade = podeEditarMensalidade;
+                      final observacao = (item['observacao'] ?? '').toString().trim();
                       final id = item['id'] as int;
                       final valor = formatarMoeda(
                         ((aberto ? item['saldoPendente'] : item['valorPago'])
@@ -1037,14 +1145,30 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        subtitle: Text(
-                          registroPagamento
-                              ? 'Referente a: ${_referenciaLegivel(item['referencia'])} • Pago em: ${_dataLegivel(item['data'])}'
-                              : celular
-                              ? '${item['referencia']} • vence ${item['vencimento']}\n$valor • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}'
-                              : '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              registroPagamento
+                                  ? 'Referente a: ${_referenciaLegivel(item['referencia'])} • Pago em: ${_dataLegivel(item['data'])}'
+                                  : celular
+                                  ? '${item['referencia']} • vence ${item['vencimento']}\n$valor • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}'
+                                  : '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (observacao.isNotEmpty)
+                              Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(top: 6),
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text('Observação: $observacao'),
+                              ),
+                          ],
                         ),
                         trailing: registroPagamento
                             ? Row(
@@ -1071,6 +1195,10 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                     _estornarBaixa(item);
                                   } else if (opcao == 'excluirPedido') {
                                     _excluirCobrancaDeOrigem(item);
+                                  } else if (opcao == 'editarMensalidade') {
+                                    _editarValorMensalidade(item);
+                                  } else if (opcao == 'excluirMensalidade') {
+                                    _excluirMensalidade(item);
                                   }
                                 },
                                 itemBuilder: (_) => [
@@ -1086,6 +1214,16 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                     const PopupMenuItem(
                                       value: 'excluirPedido',
                                       child: Text('Excluir pedido/OS e cobrança'),
+                                    ),
+                                  if (podeEditarMensalidade)
+                                    const PopupMenuItem(
+                                      value: 'editarMensalidade',
+                                      child: Text('Alterar valor da mensalidade'),
+                                    ),
+                                  if (podeExcluirMensalidade)
+                                    const PopupMenuItem(
+                                      value: 'excluirMensalidade',
+                                      child: Text('Excluir mensalidade deste mês'),
                                     ),
                                 ],
                               )
@@ -1123,6 +1261,21 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                     IconButton(
                                       tooltip: 'Excluir pedido/OS e cobrança',
                                       onPressed: () => _excluirCobrancaDeOrigem(item),
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  if (podeEditarMensalidade)
+                                    IconButton(
+                                      tooltip: 'Alterar valor da mensalidade',
+                                      onPressed: () => _editarValorMensalidade(item),
+                                      icon: const Icon(Icons.edit_outlined),
+                                    ),
+                                  if (podeExcluirMensalidade)
+                                    IconButton(
+                                      tooltip: 'Excluir mensalidade deste mês',
+                                      onPressed: () => _excluirMensalidade(item),
                                       icon: const Icon(
                                         Icons.delete_outline,
                                         color: Colors.red,

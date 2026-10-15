@@ -18,5 +18,6 @@ public record LinhaHistoricoCobranca(
         boolean registroPagamento,
         TipoLancamentoCobranca tipo,
         Long origemId,
-        LocalDate dataLancamento) {
+        LocalDate dataLancamento,
+        String observacao) {
 }
