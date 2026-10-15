@@ -336,6 +336,19 @@ public class CobrancaService {
     }
 
     /**
+     * Remove a cobrança criada por uma OS. Além do vínculo atual por origemId,
+     * reconhece lançamentos antigos pelo número exibido na descrição. Assim uma
+     * OS excluída nunca deixa uma cobrança órfã no cliente.
+     */
+    @Transactional
+    public void removerLancamentosDeOrdemServicoSeExistirem(Long idOrdemServico) {
+        removerLancamentosEmCascata(itens.findByTipo(TipoLancamentoCobranca.ORDEM_SERVICO).stream()
+                .filter(item -> idOrdemServico.equals(item.getOrigemId())
+                        || idOrdemServico.equals(codigoDaOrdemServico(item)))
+                .toList());
+    }
+
+    /**
      * Remove os lançamentos pendentes de um pedido. Para pedidos antigos, que
      * foram gravados antes do vínculo de origem existir, o número no texto do
      * lançamento também é usado para localizar o pedido correto.
@@ -430,6 +443,21 @@ public class CobrancaService {
             }
         }
         return item.getOrigemId();
+    }
+
+    private Long codigoDaOrdemServico(ItemCobranca item) {
+        String descricao = item.getDescricao();
+        String prefixo = "OS #";
+        if (descricao == null || !descricao.startsWith(prefixo)) return null;
+        String restante = descricao.substring(prefixo.length()).trim();
+        int fim = 0;
+        while (fim < restante.length() && Character.isDigit(restante.charAt(fim))) fim++;
+        if (fim == 0) return null;
+        try {
+            return Long.valueOf(restante.substring(0, fim));
+        } catch (NumberFormatException excecao) {
+            return null;
+        }
     }
 
     private void removerLancamentos(List<ItemCobranca> lancamentos) {

@@ -177,9 +177,9 @@ public class OrdemServicoService {
     @Transactional
     public void excluir(Long id) {
         OrdemServico ordem = ordens.findById(id).orElseThrow();
-        // Uma OS aberta ou cancelada ainda não tem cobrança. Se ela estiver
-        // concluída, a cobrança pendente correspondente é removida junto.
-        cobrancas.removerLancamentoSeExistir(TipoLancamentoCobranca.ORDEM_SERVICO, id);
+        // A exclusão da OS também remove a cobrança pendente ou paga que ela
+        // criou, inclusive registros antigos sem o vínculo interno preenchido.
+        cobrancas.removerLancamentosDeOrdemServicoSeExistirem(id);
         reembolsos.findByOrdemServicoId(id).ifPresent(reembolsos::delete);
         ordens.delete(ordem);
     }
