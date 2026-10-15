@@ -15,9 +15,11 @@ import br.com.adminpool.repository.BaixaItemCobrancaRepository;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.CobrancaRepository;
 import br.com.adminpool.repository.ItemCobrancaRepository;
+import br.com.adminpool.repository.OrdemServicoRepository;
 import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.repository.PiscinaRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
@@ -50,16 +52,27 @@ public class CobrancaService {
     private final BaixaItemCobrancaRepository baixas;
     private final PiscinaRepository piscinas;
     private final PedidoProdutoRepository pedidos;
+    private final OrdemServicoRepository ordensServico;
 
+    @Autowired
     public CobrancaService(CobrancaRepository cobrancas, ClienteRepository clientes,
                            ItemCobrancaRepository itens, BaixaItemCobrancaRepository baixas,
-                           PiscinaRepository piscinas, PedidoProdutoRepository pedidos) {
+                           PiscinaRepository piscinas, PedidoProdutoRepository pedidos,
+                           OrdemServicoRepository ordensServico) {
         this.cobrancas = cobrancas;
         this.clientes = clientes;
         this.itens = itens;
         this.baixas = baixas;
         this.piscinas = piscinas;
         this.pedidos = pedidos;
+        this.ordensServico = ordensServico;
+    }
+
+    /** Mantido para os testes unitários já existentes. */
+    public CobrancaService(CobrancaRepository cobrancas, ClienteRepository clientes,
+                    ItemCobrancaRepository itens, BaixaItemCobrancaRepository baixas,
+                    PiscinaRepository piscinas, PedidoProdutoRepository pedidos) {
+        this(cobrancas, clientes, itens, baixas, piscinas, pedidos, null);
     }
 
     public List<CobrancaMensal> listarPorVencimento() {
@@ -115,6 +128,7 @@ public class CobrancaService {
 
     @Transactional
     public List<ItemCobranca> listarItensCliente(Long clienteId) {
+        limparCobrancasOrfasDeOrdemServico();
         limparLancamentosDePedidosExcluidos();
         gerarMes(YearMonth.now());
         atualizarAtrasos();
@@ -187,7 +201,9 @@ public class CobrancaService {
                 clienteId, STATUS_EM_ABERTO);
     }
 
+    @Transactional
     public List<ResumoCobrancaCliente> listarResumoClientes() {
+        limparCobrancasOrfasDeOrdemServico();
         gerarMes(YearMonth.now());
         atualizarAtrasos();
         // Clientes inativos continuam aparecendo caso ainda tenham débitos antigos.
@@ -346,6 +362,19 @@ public class CobrancaService {
                 .filter(item -> idOrdemServico.equals(item.getOrigemId())
                         || idOrdemServico.equals(codigoDaOrdemServico(item)))
                 .toList());
+    }
+
+    /** Limpa cobranças legadas cuja OS já foi excluída do sistema. */
+    private void limparCobrancasOrfasDeOrdemServico() {
+        if (ordensServico == null) return;
+        List<ItemCobranca> orfas = itens.findByTipo(TipoLancamentoCobranca.ORDEM_SERVICO).stream()
+                .filter(item -> {
+                    Long idOrdem = item.getOrigemId() != null
+                            ? item.getOrigemId() : codigoDaOrdemServico(item);
+                    return idOrdem != null && !ordensServico.existsById(idOrdem);
+                })
+                .toList();
+        removerLancamentosEmCascata(orfas);
     }
 
     /**
