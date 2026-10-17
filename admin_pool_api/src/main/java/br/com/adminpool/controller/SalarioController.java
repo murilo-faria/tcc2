@@ -142,9 +142,9 @@ public class SalarioController {
                 .map(p -> p.getCliente())
                 .collect(Collectors.toMap(Cliente::getId, cliente -> cliente, (a, b) -> a))
                 .values();
-        BigDecimal baseMensal = piscinasVinculadas.stream()
-                .map(piscina -> valorDaPiscinaNoMes(piscina, mensalidadeDoMesPorCliente))
-                .filter(java.util.Objects::nonNull)
+        BigDecimal baseMensal = clientes.stream()
+                .map(cliente -> valorDoClienteNoMes(funcionario, cliente, piscinasVinculadas,
+                        mensalidadeDoMesPorCliente))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal salario = baseMensal.multiply(funcionario.getPercentualMensalidade())
                 .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
@@ -183,16 +183,22 @@ public class SalarioController {
                 .findFirst().orElse(BigDecimal.ZERO);
     }
 
-    private BigDecimal valorDaPiscinaNoMes(br.com.adminpool.model.Piscina piscina,
+    private BigDecimal valorDoClienteNoMes(Funcionario funcionario, Cliente cliente,
+                                           List<br.com.adminpool.model.Piscina> piscinasDoFuncionario,
                                            Map<Long, BigDecimal> mensalidadeDoMesPorCliente) {
-        // Em clientes com mais de uma piscina, mantém o valor individual até haver
-        // lançamento individual por piscina. No caso normal (uma piscina), usa a
-        // fotografia da mensalidade já criada para aquele mês.
-        if (piscinas.findByClienteIdOrderByNome(piscina.getCliente().getId()).size() == 1) {
-            return mensalidadeDoMesPorCliente.getOrDefault(piscina.getCliente().getId(),
-                    piscina.getValorMensalidade() == null ? BigDecimal.ZERO : piscina.getValorMensalidade());
+        List<br.com.adminpool.model.Piscina> todasDoCliente = piscinas.findByClienteIdOrderByNome(cliente.getId());
+        boolean clienteTodoDoFuncionario = !todasDoCliente.isEmpty() && todasDoCliente.stream()
+                .allMatch(piscina -> piscina.getResponsavel() != null
+                        && piscina.getResponsavel().getId().equals(funcionario.getId()));
+        if (clienteTodoDoFuncionario) {
+            return mensalidadeDoMesPorCliente.getOrDefault(cliente.getId(), BigDecimal.ZERO);
         }
-        return piscina.getValorMensalidade() == null ? BigDecimal.ZERO : piscina.getValorMensalidade();
+        // Caso raro de piscinas do mesmo cliente divididas entre colaboradores:
+        // mantém apenas a parcela das piscinas deste colaborador.
+        return piscinasDoFuncionario.stream()
+                .filter(piscina -> piscina.getCliente().getId().equals(cliente.getId()))
+                .map(piscina -> piscina.getValorMensalidade() == null ? BigDecimal.ZERO : piscina.getValorMensalidade())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private boolean gestor(Authentication auth) {
