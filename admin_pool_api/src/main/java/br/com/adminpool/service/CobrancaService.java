@@ -444,7 +444,14 @@ public class CobrancaService {
         if (item.getValorPago() != null && item.getValorPago().compareTo(BigDecimal.ZERO) > 0) {
             throw new IllegalStateException("Desfaça a baixa antes de excluir uma mensalidade já paga.");
         }
-        removerLancamentoEmCascata(item);
+        // Não removemos a linha física: ao abrir Cobranças a rotina automática
+        // enxergaria a ausência e criaria a mensalidade de novo. Cancelada, ela
+        // fica fora das pendências e bloqueia a recriação só nesta referência.
+        item.setStatus(StatusItemCobranca.CANCELADO);
+        item.setValorPago(BigDecimal.ZERO);
+        item.setObservacao("[MENSALIDADE_CANCELADA]");
+        itens.save(item);
+        recalcular(item.getCobranca());
     }
 
     /** Retorna o código do pedido inclusive para lançamentos antigos sem vínculo preenchido. */
