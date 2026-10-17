@@ -16,8 +16,6 @@ public class ItemCobranca {
     @Column(nullable = false) private LocalDate dataLancamento = LocalDate.now();
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal valorOriginal;
     @Column(nullable = false, precision = 12, scale = 2) private BigDecimal valorPago = BigDecimal.ZERO;
-    /** Impede que a geração automática substitua um ajuste feito nesta mensalidade. */
-    @Column(nullable = false) private boolean valorAjustado = false;
     @Column(columnDefinition = "TEXT") private String observacao;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private StatusItemCobranca status = StatusItemCobranca.PENDENTE;
     private LocalDate dataUltimoPagamento;
@@ -38,8 +36,19 @@ public class ItemCobranca {
     public LocalDate getDataLancamento(){return dataLancamento;} public void setDataLancamento(LocalDate v){dataLancamento=v;}
     public BigDecimal getValorOriginal(){return valorOriginal;} public void setValorOriginal(BigDecimal v){valorOriginal=v;}
     public BigDecimal getValorPago(){return valorPago;} public void setValorPago(BigDecimal v){valorPago=v;}
-    public boolean isValorAjustado(){return valorAjustado;} public void setValorAjustado(boolean v){valorAjustado=v;}
-    public String getObservacao(){return observacao;} public void setObservacao(String v){observacao=v;}
+    /**
+     * A marca fica na própria observação, evitando uma alteração de coluna em
+     * bancos já em produção. Ela não é exposta na API nem aparece na tela.
+     */
+    private static final String MARCADOR_AJUSTE_MANUAL = "[AJUSTE_MENSALIDADE]";
+    public boolean isValorAjustado(){return observacao != null && observacao.startsWith(MARCADOR_AJUSTE_MANUAL);}
+    public void marcarValorAjustado(String texto){
+        observacao = MARCADOR_AJUSTE_MANUAL + (texto == null || texto.isBlank() ? "" : texto.trim());
+    }
+    public String getObservacao(){
+        return isValorAjustado() ? observacao.substring(MARCADOR_AJUSTE_MANUAL.length()).trim() : observacao;
+    }
+    public void setObservacao(String v){observacao=v;}
     public StatusItemCobranca getStatus(){return status;} public void setStatus(StatusItemCobranca v){status=v;}
     public LocalDate getDataUltimoPagamento(){return dataUltimoPagamento;} public void setDataUltimoPagamento(LocalDate v){dataUltimoPagamento=v;}
 }

@@ -427,9 +427,8 @@ public class CobrancaService {
             throw new IllegalStateException("Não é possível alterar uma mensalidade que já recebeu pagamento.");
         }
         item.setValorOriginal(valor);
-        item.setValorAjustado(true);
         item.setStatus(StatusItemCobranca.PENDENTE);
-        item.setObservacao(observacao == null || observacao.isBlank() ? null : observacao.trim());
+        item.marcarValorAjustado(observacao);
         ItemCobranca salvo = itens.save(item);
         recalcular(item.getCobranca());
         return salvo;
