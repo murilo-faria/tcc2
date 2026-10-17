@@ -6,9 +6,13 @@ import br.com.adminpool.model.ReembolsoColaborador;
 import br.com.adminpool.model.StatusReembolso;
 import br.com.adminpool.repository.FuncionarioRepository;
 import br.com.adminpool.repository.PiscinaRepository;
+import br.com.adminpool.repository.CobrancaRepository;
 import br.com.adminpool.repository.ReembolsoColaboradorRepository;
 import br.com.adminpool.repository.ValeColaboradorRepository;
 import br.com.adminpool.model.ValeColaborador;
+import br.com.adminpool.model.CobrancaMensal;
+import br.com.adminpool.model.TipoLancamentoCobranca;
+import br.com.adminpool.service.CobrancaService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -36,13 +40,18 @@ public class SalarioController {
     private final PiscinaRepository piscinas;
     private final ReembolsoColaboradorRepository reembolsos;
     private final ValeColaboradorRepository vales;
+    private final CobrancaRepository cobrancas;
+    private final CobrancaService cobrancaService;
 
     public SalarioController(FuncionarioRepository funcionarios, PiscinaRepository piscinas,
-                             ReembolsoColaboradorRepository reembolsos, ValeColaboradorRepository vales) {
+                             ReembolsoColaboradorRepository reembolsos, ValeColaboradorRepository vales,
+                             CobrancaRepository cobrancas, CobrancaService cobrancaService) {
         this.funcionarios = funcionarios;
         this.piscinas = piscinas;
         this.reembolsos = reembolsos;
         this.vales = vales;
+        this.cobrancas = cobrancas;
+        this.cobrancaService = cobrancaService;
     }
 
     @GetMapping("/vales") public List<ValeColaborador> listarVales(@RequestParam(required = false) Long funcionarioId, @RequestParam(required = false) String referencia, Authentication auth) { YearMonth mes=referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia); return vales.findAll().stream().filter(v -> !v.getDataLancamento().isBefore(mes.atDay(1)) && !v.getDataLancamento().isAfter(mes.atEndOfMonth())).filter(v -> gestor(auth) ? funcionarioId == null || v.getFuncionario().getId().equals(funcionarioId) : v.getFuncionario().getUsuario().getLogin().equalsIgnoreCase(auth.getName())).toList(); }
@@ -55,9 +64,10 @@ public class SalarioController {
         boolean gestor = auth.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_GESTOR"));
         YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
+        Map<Long, BigDecimal> mensalidadeDoMesPorCliente = mensalidadesPorCliente(mes);
         return funcionarios.findAll().stream()
                 .filter(f -> gestor || f.getUsuario().getLogin().equalsIgnoreCase(auth.getName()))
-                .map(f -> resumo(f, mes))
+                .map(f -> resumo(f, mes, mensalidadeDoMesPorCliente))
                 .toList();
     }
 
@@ -116,7 +126,8 @@ public class SalarioController {
         return ResponseEntity.noContent().build();
     }
 
-    private Map<String, Object> resumo(Funcionario funcionario, YearMonth mes) {
+    private Map<String, Object> resumo(Funcionario funcionario, YearMonth mes,
+                                       Map<Long, BigDecimal> mensalidadeDoMesPorCliente) {
         var piscinasVinculadas = piscinas.findByResponsavelId(funcionario.getId()).stream()
                 .filter(piscina -> {
                     Cliente cliente = piscina.getCliente();
@@ -132,7 +143,7 @@ public class SalarioController {
                 .collect(Collectors.toMap(Cliente::getId, cliente -> cliente, (a, b) -> a))
                 .values();
         BigDecimal baseMensal = piscinasVinculadas.stream()
-                .map(br.com.adminpool.model.Piscina::getValorMensalidade)
+                .map(piscina -> valorDaPiscinaNoMes(piscina, mensalidadeDoMesPorCliente))
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal salario = baseMensal.multiply(funcionario.getPercentualMensalidade())
@@ -155,6 +166,33 @@ public class SalarioController {
         resultado.put("totalPagar", salario.add(totalReembolsos).subtract(totalVales).max(BigDecimal.ZERO));
         resultado.put("referencia", mes.toString());
         return resultado;
+    }
+
+    /** A comissão usa o lançamento do mês, e não o preço que foi alterado hoje no cadastro. */
+    private Map<Long, BigDecimal> mensalidadesPorCliente(YearMonth mes) {
+        cobrancaService.gerarMes(mes);
+        return cobrancas.findComClienteEItensPorReferencia(mes.toString()).stream()
+                .collect(Collectors.toMap(c -> c.getCliente().getId(), this::valorMensalidade,
+                        (primeiro, segundo) -> primeiro));
+    }
+
+    private BigDecimal valorMensalidade(CobrancaMensal cobranca) {
+        return cobranca.getItens().stream()
+                .filter(item -> item.getTipo() == TipoLancamentoCobranca.MENSALIDADE)
+                .map(item -> item.getValorOriginal() == null ? BigDecimal.ZERO : item.getValorOriginal())
+                .findFirst().orElse(BigDecimal.ZERO);
+    }
+
+    private BigDecimal valorDaPiscinaNoMes(br.com.adminpool.model.Piscina piscina,
+                                           Map<Long, BigDecimal> mensalidadeDoMesPorCliente) {
+        // Em clientes com mais de uma piscina, mantém o valor individual até haver
+        // lançamento individual por piscina. No caso normal (uma piscina), usa a
+        // fotografia da mensalidade já criada para aquele mês.
+        if (piscinas.findByClienteIdOrderByNome(piscina.getCliente().getId()).size() == 1) {
+            return mensalidadeDoMesPorCliente.getOrDefault(piscina.getCliente().getId(),
+                    piscina.getValorMensalidade() == null ? BigDecimal.ZERO : piscina.getValorMensalidade());
+        }
+        return piscina.getValorMensalidade() == null ? BigDecimal.ZERO : piscina.getValorMensalidade();
     }
 
     private boolean gestor(Authentication auth) {

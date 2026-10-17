@@ -269,7 +269,7 @@ public class CobrancaService {
         for (Cliente cliente : clientesElegiveis) {
             cobrancasPorCliente.computeIfAbsent(cliente.getId(), id -> criarCobranca(cliente, mes));
         }
-        sincronizarMensalidadesDoMes(clientesElegiveis, cobrancasPorCliente);
+        sincronizarMensalidadesDoMes(clientesElegiveis, cobrancasPorCliente, mes);
         return new ArrayList<>(cobrancasPorCliente.values());
     }
 
@@ -712,7 +712,8 @@ public class CobrancaService {
      * piscinas e itens em lote. Assim a leitura do mês não faz uma consulta por cliente.
      */
     private void sincronizarMensalidadesDoMes(List<Cliente> clientesElegiveis,
-                                              Map<Long, CobrancaMensal> cobrancasPorCliente) {
+                                              Map<Long, CobrancaMensal> cobrancasPorCliente,
+                                              YearMonth mes) {
         if (clientesElegiveis.isEmpty()) return;
 
         List<Long> clienteIds = clientesElegiveis.stream().map(Cliente::getId).toList();
@@ -736,7 +737,10 @@ public class CobrancaService {
                 mensalidade = novaMensalidade(cobranca, valorAtual);
                 novosOuAlterados.add(mensalidade);
                 cobrancasParaRecalcular.add(cobranca);
-            } else if (!mensalidade.isValorAjustado()
+            // Depois que o mês começou, o lançamento vira uma fotografia daquele
+            // mês. Alterações no cadastro da piscina passam a valer no próximo.
+            } else if (mes.isAfter(YearMonth.now())
+                    && !mensalidade.isValorAjustado()
                     && mensalidade.getValorPago().compareTo(BigDecimal.ZERO) == 0
                     && STATUS_EM_ABERTO.contains(mensalidade.getStatus())
                     && mensalidade.getValorOriginal().compareTo(valorAtual) != 0) {
