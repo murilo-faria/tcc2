@@ -427,6 +427,7 @@ public class CobrancaService {
             throw new IllegalStateException("Não é possível alterar uma mensalidade que já recebeu pagamento.");
         }
         item.setValorOriginal(valor);
+        item.setValorAjustado(true);
         item.setStatus(StatusItemCobranca.PENDENTE);
         item.setObservacao(observacao == null || observacao.isBlank() ? null : observacao.trim());
         ItemCobranca salvo = itens.save(item);
@@ -646,7 +647,8 @@ public class CobrancaService {
             ItemCobranca mensalidade = mensalidades.getFirst();
             // Enquanto estiver totalmente em aberto, a mensalidade acompanha as
             // piscinas atuais do cliente. Cobranças já recebidas não são alteradas.
-            if (mensalidade.getValorPago().compareTo(BigDecimal.ZERO) == 0
+            if (!mensalidade.isValorAjustado()
+                    && mensalidade.getValorPago().compareTo(BigDecimal.ZERO) == 0
                     && STATUS_EM_ABERTO.contains(mensalidade.getStatus())) {
                 mensalidade.setValorOriginal(valorMensalidadeDasPiscinas(cliente));
                 itens.save(mensalidade);
@@ -735,7 +737,8 @@ public class CobrancaService {
                 mensalidade = novaMensalidade(cobranca, valorAtual);
                 novosOuAlterados.add(mensalidade);
                 cobrancasParaRecalcular.add(cobranca);
-            } else if (mensalidade.getValorPago().compareTo(BigDecimal.ZERO) == 0
+            } else if (!mensalidade.isValorAjustado()
+                    && mensalidade.getValorPago().compareTo(BigDecimal.ZERO) == 0
                     && STATUS_EM_ABERTO.contains(mensalidade.getStatus())
                     && mensalidade.getValorOriginal().compareTo(valorAtual) != 0) {
                 mensalidade.setValorOriginal(valorAtual);

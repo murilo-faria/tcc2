@@ -847,16 +847,34 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
       ),
     );
     final valor = resultado?['valor'] as double?;
-    if (valor == null || valor <= 0) return;
+    if (valor == null || valor <= 0) {
+      if (mounted && resultado != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Informe um valor maior que R\$ 0,00.')),
+        );
+      }
+      return;
+    }
     final resposta = await apiService.put(
       '/api/cobrancas/itens/${item['id']}/valor',
       body: {'valor': valor, 'observacao': resultado?['observacao']},
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Mensalidade ajustada para este mês.')),
+        );
+      }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível alterar a mensalidade.')),
+        SnackBar(
+          content: Text(
+            resposta.statusCode == 403
+                ? 'Seu usuário não tem permissão para alterar a mensalidade.'
+                : 'Não foi possível salvar a mensalidade. Tente novamente.',
+          ),
+        ),
       );
     }
   }

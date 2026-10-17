@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -133,6 +134,27 @@ class CobrancaServicePerformanceTest {
         ArgumentCaptor<BaixaItemCobranca> baixa = ArgumentCaptor.forClass(BaixaItemCobranca.class);
         verify(baixas).save(baixa.capture());
         assertEquals(new BigDecimal("100.00"), baixa.getValue().getValor());
+    }
+
+    @Test
+    void ajusteDaMensalidadeFicaMarcadoComoManualParaNaoSerSobrescrito() {
+        CobrancaRepository cobrancas = mock(CobrancaRepository.class);
+        ItemCobrancaRepository itens = mock(ItemCobrancaRepository.class);
+        CobrancaService service = service(cobrancas, mock(ClienteRepository.class), itens,
+                mock(PiscinaRepository.class));
+        Cliente cliente = cliente(1L, YearMonth.now());
+        CobrancaMensal cobranca = cobranca(10L, cliente, YearMonth.now());
+        ItemCobranca item = mensalidade(cobranca, "400.00", "0.00", StatusItemCobranca.PENDENTE);
+        item.setId(52L);
+        when(itens.findById(52L)).thenReturn(Optional.of(item));
+        when(itens.save(any(ItemCobranca.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(itens.findByCobrancaIdOrderByDataLancamentoAscIdAsc(10L)).thenReturn(List.of(item));
+
+        service.editarValorMensalidade(52L, new BigDecimal("150.00"), "Bomba sem funcionar");
+
+        assertEquals(new BigDecimal("150.00"), item.getValorOriginal());
+        assertTrue(item.isValorAjustado());
+        assertEquals("Bomba sem funcionar", item.getObservacao());
     }
 
     @Test
