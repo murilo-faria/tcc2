@@ -12,7 +12,6 @@ import br.com.adminpool.repository.ValeColaboradorRepository;
 import br.com.adminpool.model.ValeColaborador;
 import br.com.adminpool.model.CobrancaMensal;
 import br.com.adminpool.model.TipoLancamentoCobranca;
-import br.com.adminpool.service.CobrancaService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -41,17 +40,15 @@ public class SalarioController {
     private final ReembolsoColaboradorRepository reembolsos;
     private final ValeColaboradorRepository vales;
     private final CobrancaRepository cobrancas;
-    private final CobrancaService cobrancaService;
 
     public SalarioController(FuncionarioRepository funcionarios, PiscinaRepository piscinas,
                              ReembolsoColaboradorRepository reembolsos, ValeColaboradorRepository vales,
-                             CobrancaRepository cobrancas, CobrancaService cobrancaService) {
+                             CobrancaRepository cobrancas) {
         this.funcionarios = funcionarios;
         this.piscinas = piscinas;
         this.reembolsos = reembolsos;
         this.vales = vales;
         this.cobrancas = cobrancas;
-        this.cobrancaService = cobrancaService;
     }
 
     @GetMapping("/vales") public List<ValeColaborador> listarVales(@RequestParam(required = false) Long funcionarioId, @RequestParam(required = false) String referencia, Authentication auth) { YearMonth mes=referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia); return vales.findAll().stream().filter(v -> !v.getDataLancamento().isBefore(mes.atDay(1)) && !v.getDataLancamento().isAfter(mes.atEndOfMonth())).filter(v -> gestor(auth) ? funcionarioId == null || v.getFuncionario().getId().equals(funcionarioId) : v.getFuncionario().getUsuario().getLogin().equalsIgnoreCase(auth.getName())).toList(); }
@@ -170,7 +167,6 @@ public class SalarioController {
 
     /** A comissão usa o lançamento do mês, e não o preço que foi alterado hoje no cadastro. */
     private Map<Long, BigDecimal> mensalidadesPorCliente(YearMonth mes) {
-        cobrancaService.gerarMes(mes);
         return cobrancas.findComClienteEItensPorReferencia(mes.toString()).stream()
                 .collect(Collectors.toMap(c -> c.getCliente().getId(), this::valorMensalidade,
                         (primeiro, segundo) -> primeiro));
@@ -191,7 +187,16 @@ public class SalarioController {
                 .allMatch(piscina -> piscina.getResponsavel() != null
                         && piscina.getResponsavel().getId().equals(funcionario.getId()));
         if (clienteTodoDoFuncionario) {
-            return mensalidadeDoMesPorCliente.getOrDefault(cliente.getId(), BigDecimal.ZERO);
+            BigDecimal valorLancado = mensalidadeDoMesPorCliente.get(cliente.getId());
+            if (valorLancado != null) {
+                return valorLancado;
+            }
+            // Consulta de mês futuro é somente uma prévia: usa o valor cadastrado,
+            // sem criar uma cobrança antecipada.
+            return todasDoCliente.stream()
+                    .map(piscina -> piscina.getValorMensalidade() == null
+                            ? BigDecimal.ZERO : piscina.getValorMensalidade())
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
         // Caso raro de piscinas do mesmo cliente divididas entre colaboradores:
         // mantém apenas a parcela das piscinas deste colaborador.
