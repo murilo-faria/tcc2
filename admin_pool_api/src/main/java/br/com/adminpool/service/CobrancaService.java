@@ -21,6 +21,8 @@ import br.com.adminpool.repository.PiscinaRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -248,6 +250,22 @@ public class CobrancaService {
     @Scheduled(cron = "0 0 0 L * *", zone = "America/Sao_Paulo")
     public void gerarCobrancasNoUltimoDiaDoMes() {
         gerarMes(YearMonth.now(ZoneId.of("America/Sao_Paulo")).plusMonths(1));
+    }
+
+    /** Correção pontual autorizada para lançamentos antecipados de novembro. */
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void removerMensalidadesPendentesDeNovembro() {
+        if (!LocalDate.now(ZoneId.of("America/Sao_Paulo")).equals(LocalDate.of(2026, 10, 19))) {
+            return;
+        }
+        List<ItemCobranca> mensaisPendentes = itens.findByTipo(TipoLancamentoCobranca.MENSALIDADE).stream()
+                .filter(item -> "2026-11".equals(item.getReferencia()))
+                .filter(item -> item.getStatus() == StatusItemCobranca.PENDENTE)
+                .filter(item -> item.getValorPago() == null || item.getValorPago().compareTo(BigDecimal.ZERO) == 0)
+                .toList();
+        mensaisPendentes.forEach(this::removerLancamento);
+        log.info("Correção pontual: {} mensalidades pendentes de 2026-11 removidas.", mensaisPendentes.size());
     }
 
     @Transactional
