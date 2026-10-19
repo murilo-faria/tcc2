@@ -21,6 +21,8 @@ import br.com.adminpool.repository.PiscinaRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,7 +85,6 @@ public class CobrancaService {
 
     public List<CobrancaMensal> listarMesAtual() {
         YearMonth mesAtual = YearMonth.now();
-        gerarMes(mesAtual);
         atualizarAtrasos();
         return cobrancas.findMesAtualComAtrasos(mesAtual.toString(), mesAtual.atDay(1));
     }
@@ -94,7 +95,6 @@ public class CobrancaService {
      */
     public ResumoVisaoGeral resumirVisaoGeral() {
         YearMonth mesAtual = YearMonth.now();
-        gerarMes(mesAtual);
         atualizarAtrasos();
         Object[] resumo = cobrancas.resumirPendenciasDoMes(mesAtual.toString(), StatusCobranca.PAGO);
         long quantidade = ((Number) resumo[0]).longValue();
@@ -131,7 +131,6 @@ public class CobrancaService {
     public List<ItemCobranca> listarItensCliente(Long clienteId) {
         limparCobrancasOrfasDeOrdemServico();
         limparLancamentosDePedidosExcluidos();
-        gerarMes(YearMonth.now());
         atualizarAtrasos();
         return itens.findByCobrancaClienteIdOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(clienteId);
     }
@@ -196,7 +195,6 @@ public class CobrancaService {
     }
 
     public List<ItemCobranca> listarItensPendentesCliente(Long clienteId) {
-        gerarMes(YearMonth.now());
         atualizarAtrasos();
         return itens.findByCobrancaClienteIdAndStatusInOrderByCobrancaReferenciaAscDataLancamentoAscIdAsc(
                 clienteId, STATUS_EM_ABERTO);
@@ -205,7 +203,6 @@ public class CobrancaService {
     @Transactional
     public List<ResumoCobrancaCliente> listarResumoClientes() {
         limparCobrancasOrfasDeOrdemServico();
-        gerarMes(YearMonth.now());
         atualizarAtrasos();
         // Clientes inativos continuam aparecendo caso ainda tenham débitos antigos.
         return clientes.findAll().stream().map(cliente -> {
@@ -248,6 +245,20 @@ public class CobrancaService {
     @Scheduled(cron = "0 0 0 L * *", zone = "America/Sao_Paulo")
     public void gerarCobrancasNoUltimoDiaDoMes() {
         gerarMes(YearMonth.now(ZoneId.of("America/Sao_Paulo")).plusMonths(1));
+    }
+
+    /** Correção pontual autorizada: retira novembro lançado antes do horário. */
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void removerMensalidadesPendentesDeNovembro() {
+        if (!LocalDate.now(ZoneId.of("America/Sao_Paulo")).equals(LocalDate.of(2026, 10, 19))) return;
+        List<ItemCobranca> mensaisPendentes = itens.findByTipo(TipoLancamentoCobranca.MENSALIDADE).stream()
+                .filter(item -> "2026-11".equals(item.getReferencia()))
+                .filter(item -> item.getStatus() == StatusItemCobranca.PENDENTE)
+                .filter(item -> item.getValorPago() == null || item.getValorPago().compareTo(BigDecimal.ZERO) == 0)
+                .toList();
+        mensaisPendentes.forEach(this::removerLancamento);
+        log.info("Correção pontual: {} mensalidades pendentes de 2026-11 removidas.", mensaisPendentes.size());
     }
 
     @Transactional
