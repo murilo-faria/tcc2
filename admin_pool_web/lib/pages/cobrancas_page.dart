@@ -531,6 +531,18 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                       (primeiro['clienteNome'] ?? '').toString();
                   final nomeSegundo =
                       (segundo['clienteNome'] ?? '').toString();
+                  // Débitos precisam ficar visíveis antes dos clientes sem saldo.
+                  // Ordem: atrasado, a vencer e, por último, em dia.
+                  int prioridade(Map<String, dynamic> cliente) {
+                    if (cliente['possuiAtraso'] == true) return 0;
+                    final total = (cliente['totalPendente'] as num?) ?? 0;
+                    return total > 0 ? 1 : 2;
+                  }
+
+                  final porSituacao = prioridade(primeiro).compareTo(
+                    prioridade(segundo),
+                  );
+                  if (porSituacao != 0) return porSituacao;
                   if (_ordenacao != _OrdenacaoCobrancas.alfabetica) {
                     final totalPrimeiro =
                         (primeiro['totalPendente'] as num?) ?? 0;
