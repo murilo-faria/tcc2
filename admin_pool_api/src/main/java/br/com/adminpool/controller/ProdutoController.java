@@ -7,6 +7,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Locale;
+import java.text.Collator;
 
 @RestController
 @RequestMapping("/api/produtos")
@@ -21,7 +25,11 @@ public class ProdutoController {
 
     @GetMapping
     public List<Produto> listar() {
-        return produtos.findAll();
+        Collator ordem = Collator.getInstance(Locale.forLanguageTag("pt-BR"));
+        ordem.setStrength(Collator.PRIMARY);
+        List<Produto> lista = new ArrayList<>(produtos.findAll());
+        lista.sort(Comparator.comparing(Produto::getNome, ordem));
+        return lista;
     }
 
     @PostMapping
