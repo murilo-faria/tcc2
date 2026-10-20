@@ -784,10 +784,9 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
   }
 
   Future<void> _excluirCobrancaDeOrigem(Map<String, dynamic> item) async {
-    final origem = item['tipo'] == 'ORDEM_SERVICO' ? 'a OS' : 'o pedido';
     final confirmar = await _confirmar(
-      'Excluir $origem e cobrança?',
-      'Deseja excluir $origem ${item['descricao']}? A cobrança e qualquer pagamento vinculado serão apagados do histórico e do fluxo de caixa.',
+      'Excluir cobrança?',
+      'Deseja excluir ${item['descricao']}? A cobrança, os pagamentos vinculados e os saldos transferidos serão apagados. Se houver pedido ou OS de origem, também será excluído. Esta ação é definitiva.',
       'Excluir',
     );
     if (!confirmar) return;
@@ -894,7 +893,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
   Future<void> _excluirMensalidade(Map<String, dynamic> item) async {
     final confirmar = await _confirmar(
       'Excluir mensalidade deste mês?',
-      'A mensalidade de ${item['descricao']} será removida somente deste mês. As próximas mensalidades continuarão sendo geradas normalmente.',
+      'A mensalidade de ${item['descricao']} será removida somente deste mês, junto com os pagamentos vinculados e saldos transferidos. Ela não será gerada novamente neste mês. As próximas mensalidades continuarão normalmente. Esta ação é definitiva.',
       'Excluir mensalidade',
     );
     if (!confirmar) return;
@@ -1138,13 +1137,10 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                       final item = estado.data![indice] as Map<String, dynamic>;
                       final aberto = _aberto(item);
                       final registroPagamento = item['registroPagamento'] == true;
-                      final podeExcluirOrigem = item['status'] == 'PENDENTE' &&
-                          !registroPagamento &&
-                          (item['tipo'] == 'PEDIDO' ||
-                              item['tipo'] == 'ORDEM_SERVICO');
+                      final podeExcluirOrigem = !registroPagamento && item['tipo'] != 'MENSALIDADE';
                       final podeEditarMensalidade = item['status'] == 'PENDENTE' &&
                           !registroPagamento && item['tipo'] == 'MENSALIDADE';
-                      final podeExcluirMensalidade = podeEditarMensalidade;
+                      final podeExcluirMensalidade = !registroPagamento && item['tipo'] == 'MENSALIDADE';
                       final observacao = (item['observacao'] ?? '').toString().trim();
                       final id = item['id'] as int;
                       final valor = formatarMoeda(
@@ -1242,7 +1238,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                   if (podeExcluirOrigem)
                                     const PopupMenuItem(
                                       value: 'excluirPedido',
-                                      child: Text('Excluir pedido/OS e cobrança'),
+                                      child: Text('Excluir cobrança'),
                                     ),
                                   if (podeEditarMensalidade)
                                     const PopupMenuItem(
@@ -1288,7 +1284,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                   ),
                                   if (podeExcluirOrigem)
                                     IconButton(
-                                      tooltip: 'Excluir pedido/OS e cobrança',
+                                      tooltip: 'Excluir cobrança',
                                       onPressed: () => _excluirCobrancaDeOrigem(item),
                                       icon: const Icon(
                                         Icons.delete_outline,

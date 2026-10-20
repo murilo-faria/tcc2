@@ -431,24 +431,33 @@ public class CobrancaService {
         return salvo;
     }
 
-    /** Exclui somente a mensalidade pendente deste mês; as próximas continuam automáticas. */
+    /** Cancela a mensalidade nesta referência e remove os pagamentos vinculados. */
     @Transactional
     public void excluirMensalidadePendente(Long itemId) {
         ItemCobranca item = itens.findById(itemId).orElseThrow();
         if (item.getTipo() != TipoLancamentoCobranca.MENSALIDADE) {
             throw new IllegalArgumentException("Somente mensalidades podem ser excluídas aqui.");
         }
-        if (item.getValorPago() != null && item.getValorPago().compareTo(BigDecimal.ZERO) > 0) {
-            throw new IllegalStateException("Desfaça a baixa antes de excluir uma mensalidade já paga.");
-        }
-        // Não removemos a linha física: ao abrir Cobranças a rotina automática
-        // enxergaria a ausência e criaria a mensalidade de novo. Cancelada, ela
-        // fica fora das pendências e bloqueia a recriação só nesta referência.
+        itens.findAllByTipoAndOrigemId(TipoLancamentoCobranca.SALDO_ANTERIOR, item.getId())
+                .forEach(this::removerLancamentoEmCascata);
+        baixas.deleteByItemId(item.getId());
+        // A linha cancelada impede a geração automática da mesma mensalidade.
         item.setStatus(StatusItemCobranca.CANCELADO);
         item.setValorPago(BigDecimal.ZERO);
+        item.setDataUltimoPagamento(null);
         item.setObservacao("[MENSALIDADE_CANCELADA]");
-        itens.save(item);
+        itens.saveAndFlush(item);
         recalcular(item.getCobranca());
+    }
+
+    @Transactional
+    public void excluirItem(Long itemId) {
+        ItemCobranca item = detalharItem(itemId);
+        if (item.getTipo() == TipoLancamentoCobranca.MENSALIDADE) {
+            excluirMensalidadePendente(itemId);
+        } else {
+            removerLancamentoEmCascata(item);
+        }
     }
 
     /** Retorna o código do pedido inclusive para lançamentos antigos sem vínculo preenchido. */
@@ -510,6 +519,8 @@ public class CobrancaService {
     }
 
     private void removerLancamentoEmCascata(ItemCobranca item) {
+        itens.findAllByTipoAndOrigemId(TipoLancamentoCobranca.SALDO_ANTERIOR, item.getId())
+                .forEach(this::removerLancamentoEmCascata);
         CobrancaMensal cobranca = item.getCobranca();
         baixas.deleteByItemId(item.getId());
         itens.delete(item);

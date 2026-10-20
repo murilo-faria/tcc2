@@ -190,6 +190,7 @@ public class CobrancaController {
      * Pedido e OS não devem deixar cobranças órfãs. Assim, excluir pela tela de
      * cobranças remove a origem e todos os lançamentos pendentes dela juntos.
      */
+    @jakarta.transaction.Transactional
     @DeleteMapping({"/itens/{itemId}/origem", "/itens/{itemId}/pedido", "/itens/{itemId}/pedido-excluido"})
     public ResponseEntity<Void> excluirOrigemECobranca(@PathVariable Long itemId) {
         ItemCobranca item = cobrancaService.detalharItem(itemId);
@@ -208,7 +209,7 @@ public class CobrancaController {
                 ordensService.excluir(item.getOrigemId());
             }
         } else {
-            throw new IllegalArgumentException("Somente cobranças de pedido ou OS podem ser excluídas aqui.");
+            cobrancaService.excluirItem(itemId);
         }
         return ResponseEntity.noContent().build();
     }
