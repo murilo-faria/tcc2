@@ -523,6 +523,7 @@ public class CobrancaService {
                 .forEach(this::removerLancamentoEmCascata);
         CobrancaMensal cobranca = item.getCobranca();
         baixas.deleteByItemId(item.getId());
+        cobranca.getItens().removeIf(vinculado -> item.getId().equals(vinculado.getId()));
         itens.delete(item);
         itens.flush();
         recalcular(cobranca);
@@ -533,6 +534,7 @@ public class CobrancaService {
             throw new IllegalStateException("Não é possível desfazer um lançamento que já possui pagamento recebido.");
         }
         CobrancaMensal cobranca = item.getCobranca();
+        cobranca.getItens().removeIf(vinculado -> item.getId().equals(vinculado.getId()));
         itens.delete(item);
         itens.flush();
         recalcular(cobranca);
