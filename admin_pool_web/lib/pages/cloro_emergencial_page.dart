@@ -97,7 +97,7 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
       content: SizedBox(width: 560, height: 360, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('${_numero(_totalKg(lista))} kg usados • ${_status(lista)}', style: const TextStyle(fontWeight: FontWeight.bold)), const Divider(),
         Expanded(child: usos.isEmpty ? const Center(child: Text('Nenhum uso registrado.')) : ListView.separated(itemCount: usos.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final uso = usos[i]; return ListTile(contentPadding: EdgeInsets.zero, title: Text('${_numero(((uso['quantidadeKg'] as num?) ?? 0).toDouble())} kg'), subtitle: Text('${uso['dataUso']} • ${uso['descricao'] ?? ''}')); })),
-      ]),
+      ])),
       actions: [
         if (lista['status'] == 'ABERTA') TextButton.icon(onPressed: () => _adicionarUso(lista), icon: const Icon(Icons.add), label: const Text('Adicionar uso')),
         if (widget.gestor && lista['status'] == 'ABERTA' && usos.isNotEmpty) FilledButton(onPressed: () => _finalizar(lista), child: const Text('Finalizar')),
