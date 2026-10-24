@@ -62,10 +62,11 @@ public class OrdemServicoService {
         ordem.setPiscina(piscina);
         ordem.setDescricao(requisicao.descricao());
         ordem.setDataServico(requisicao.dataServico() == null ? LocalDate.now() : requisicao.dataServico());
-        BigDecimal valorSugerido = requisicao.valorAdicional() == null
-                ? BigDecimal.ZERO : requisicao.valorAdicional();
-        ordem.setValorAdicional(valorSugerido);
-        ordem.setValorCobrado(valorSugerido);
+        // Quem abre a OS informa o gasto. O valor a cobrar só é definido pelo
+        // gestor na conclusão, depois de conferir o serviço.
+        ordem.setValorCusto(positivoOuZero(requisicao.valorCusto(), "custo"));
+        ordem.setValorAdicional(BigDecimal.ZERO);
+        ordem.setValorCobrado(BigDecimal.ZERO);
         ordem.setCriadoPor(funcionarios.findByUsuarioLoginIgnoreCase(auth.getName()).orElse(null));
         ordem.setStatus("ABERTA");
         return ordens.save(ordem);

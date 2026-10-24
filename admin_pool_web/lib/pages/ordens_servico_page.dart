@@ -208,6 +208,35 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
   }
 
   Future<void> _novaOrdem() async {
+    final tipo = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Novo lançamento'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.build_outlined),
+              title: const Text('Serviço'),
+              subtitle: const Text('Bomba, filtro, placa, vazamento ou outro serviço.'),
+              onTap: () => Navigator.pop(context, 'SERVICO'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.science_outlined),
+              title: const Text('Cloro emergencial'),
+              subtitle: const Text('Registra quantidade e descrição; o valor é definido no fechamento.'),
+              onTap: () => Navigator.pop(context, 'CLORO'),
+            ),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar'))],
+      ),
+    );
+    if (tipo == 'CLORO') {
+      await _novoCloroEmergencial();
+      return;
+    }
+    if (tipo != 'SERVICO') return;
     final clientes = await _buscar('/api/clientes');
     if (clientes.isEmpty || !mounted) return;
     clientes.sort(
@@ -219,8 +248,9 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
     int clienteId = clientes.first['id'] as int;
     List<dynamic> piscinas = await _buscar('/api/piscinas/cliente/$clienteId');
     int? piscinaId = piscinas.length == 1 ? piscinas.first['id'] as int : null;
+    String tipoServico = 'Bomba';
     final descricao = TextEditingController();
-    final valorCobrado = TextEditingController();
+    final valorCusto = TextEditingController();
     final salvar = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -270,23 +300,32 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                         .toList(),
                     onChanged: (id) => setLocal(() => piscinaId = id),
                   ),
+                  DropdownButtonFormField<String>(
+                    value: tipoServico,
+                    decoration: const InputDecoration(labelText: 'Tipo de serviço *'),
+                    items: const ['Bomba', 'Filtro', 'Placa', 'Vazamento', 'Outro']
+                        .map((tipo) => DropdownMenuItem(value: tipo, child: Text(tipo)))
+                        .toList(),
+                    onChanged: (tipo) => setLocal(() => tipoServico = tipo!),
+                  ),
                   TextField(
                     controller: descricao,
                     maxLines: 4,
                     decoration: const InputDecoration(
                       labelText: 'Descrição do serviço *',
+                      helperText: 'Em “Outro”, informe aqui o serviço, como cópia de chave.',
                     ),
                   ),
                   TextField(
-                    controller: valorCobrado,
+                    controller: valorCusto,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     decoration: const InputDecoration(
-                      labelText: 'Valor sugerido para cobrar do cliente',
+                      labelText: 'Valor gasto',
                       prefixText: 'R\$ ',
                       helperText:
-                          'O gestor poderá confirmar ou alterar este valor ao concluir.',
+                          'O gestor definirá o valor cobrado ao concluir.',
                     ),
                   ),
                 ],
@@ -315,13 +354,52 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
       body: {
         'clienteId': clienteId,
         'piscinaId': piscinaId,
-        'descricao': descricao.text.trim(),
+        'descricao': tipoServico == 'Outro'
+            ? descricao.text.trim()
+            : '$tipoServico — ${descricao.text.trim()}',
         'dataServico': DateTime.now().toIso8601String().substring(0, 10),
-        'valorAdicional':
-            double.tryParse(valorCobrado.text.replaceAll(',', '.')) ?? 0,
+        'valorCusto':
+            double.tryParse(valorCusto.text.replaceAll(',', '.')) ?? 0,
       },
     );
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) _recarregar();
+  }
+
+  Future<void> _novoCloroEmergencial() async {
+    final clientes = await _buscar('/api/clientes');
+    if (clientes.isEmpty || !mounted) return;
+    clientes.sort((a, b) => '${a['nome']}'.toLowerCase().compareTo('${b['nome']}'.toLowerCase()));
+    int clienteId = clientes.first['id'] as int;
+    final criar = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (_, setLocal) => AlertDialog(
+          title: const Text('Cloro emergencial'),
+          content: DropdownButtonFormField<int>(
+            value: clienteId,
+            decoration: const InputDecoration(labelText: 'Cliente *'),
+            items: clientes.map<DropdownMenuItem<int>>((cliente) => DropdownMenuItem(
+              value: cliente['id'] as int, child: Text('${cliente['nome']}'),
+            )).toList(),
+            onChanged: (id) => setLocal(() => clienteId = id!),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Abrir lista')),
+          ],
+        ),
+      ),
+    );
+    if (criar != true) return;
+    final resposta = await apiService.post('/api/cloro-emergencial', body: {'clienteId': clienteId});
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      _recarregar();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Lista de cloro emergencial aberta. Use o menu Cloro emergencial para adicionar os usos.'),
+        ));
+      }
+    }
   }
 
   Future<void> _editar(Map<String, dynamic> ordem) async {
@@ -435,7 +513,9 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
       text: (ordem['valorCusto'] ?? 0).toString(),
     );
     final cobrado = TextEditingController(
-      text: (ordem['valorCobrado'] ?? ordem['valorAdicional'] ?? 0).toString(),
+      text: ((ordem['valorCobrado'] as num?) ?? 0) > 0
+          ? ordem['valorCobrado'].toString()
+          : (ordem['valorCusto'] ?? 0).toString(),
     );
     String pagador = 'EMPRESA';
     int? funcionarioSelecionado;

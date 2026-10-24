@@ -19,6 +19,7 @@ part 'pages/funcionarios_page.dart';
 part 'pages/cobrancas_page.dart';
 part 'pages/pedidos_page.dart';
 part 'pages/ordens_servico_page.dart';
+part 'pages/cloro_emergencial_page.dart';
 part 'pages/salarios_page.dart';
 
 void main() => runApp(const AdminPoolApp());
@@ -160,6 +161,7 @@ class _HomePageState extends State<HomePage> {
           _MenuItem('Produtos', Icons.inventory_2_outlined),
           _MenuItem('Pedidos', Icons.shopping_cart_outlined),
           _MenuItem('Ordens de serviço', Icons.build_outlined),
+          _MenuItem('Cloro emergencial', Icons.science_outlined),
           _MenuItem('Cobranças', Icons.receipt_long_outlined),
           _MenuItem('Salários', Icons.payments_outlined),
         ]
@@ -169,6 +171,7 @@ class _HomePageState extends State<HomePage> {
           _MenuItem('Produtos', Icons.inventory_2_outlined),
           _MenuItem('Pedidos', Icons.shopping_cart_outlined),
           _MenuItem('Ordens de serviço', Icons.build_outlined),
+          _MenuItem('Cloro emergencial', Icons.science_outlined),
           _MenuItem('Meu salário', Icons.payments_outlined),
         ];
 
@@ -605,6 +608,8 @@ class _PageContent extends StatelessWidget {
       return _PedidosPageNova(gestor: perfil == Perfil.gestor);
     if (titulo == 'Ordens de serviço')
       return _OrdensServicoPageNova(gestor: perfil == Perfil.gestor);
+    if (titulo == 'Cloro emergencial')
+      return _CloroEmergencialPage(gestor: perfil == Perfil.gestor);
     return Padding(
       padding: EdgeInsets.all(
         MediaQuery.of(context).size.width < 600 ? 16 : 28,
