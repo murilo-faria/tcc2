@@ -690,6 +690,48 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
     return jsonDecode(resposta.body) as List<dynamic>;
   }
 
+  Future<void> _compararComProximoMes() async {
+    final resposta = await apiService.get(
+      '/api/salarios/${widget.funcionario['id']}/comparativo?referencia=${widget.referencia}',
+    );
+    if (resposta.statusCode != 200 || !mounted) return;
+    final itens = jsonDecode(resposta.body) as List<dynamic>;
+    final data = DateTime.parse('${widget.referencia}-01');
+    final proximo = DateTime(data.year, data.month + 1);
+    final nomeProximo = '${proximo.month.toString().padLeft(2, '0')}/${proximo.year}';
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Comparação de mensalidades'),
+        content: SizedBox(
+          width: 620,
+          child: itens.isEmpty
+              ? const Text('Nenhum cliente mudou de valor entre esses meses.')
+              : ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: itens.length,
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemBuilder: (_, indice) {
+                    final item = itens[indice] as Map<String, dynamic>;
+                    final diferenca = (item['diferenca'] as num?) ?? 0;
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('${item['cliente']}'),
+                      subtitle: Text('${item['piscinas']}\n${widget.referencia}: ${formatarMoeda((item['valorAtual'] as num?) ?? 0)} • $nomeProximo: ${formatarMoeda((item['valorProximo'] as num?) ?? 0)}'),
+                      isThreeLine: true,
+                      trailing: Text(
+                        '${diferenca >= 0 ? '+' : ''}${formatarMoeda(diferenca)}',
+                        style: TextStyle(color: diferenca < 0 ? Colors.red : Colors.green, fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar'))],
+      ),
+    );
+  }
+
   Future<void> _pagar(Map<String, dynamic> reembolso) async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -760,6 +802,11 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
                   Text(
                     'Base: ${formatarMoeda(base)}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextButton.icon(
+                    onPressed: _compararComProximoMes,
+                    icon: const Icon(Icons.compare_arrows_outlined, size: 18),
+                    label: const Text('Comparar com o próximo mês'),
                   ),
                   const SizedBox(height: 4),
                   ...piscinas.map((item) {

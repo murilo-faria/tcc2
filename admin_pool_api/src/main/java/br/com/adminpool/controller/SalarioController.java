@@ -143,6 +143,47 @@ public class SalarioController {
                 .toList();
     }
 
+    /** Compara a base já lançada de um mês com a projeção do mês seguinte. */
+    @GetMapping("/{funcionarioId}/comparativo")
+    public List<Map<String, Object>> compararMeses(@PathVariable Long funcionarioId,
+                                                    @RequestParam String referencia,
+                                                    Authentication auth) {
+        if (!gestor(auth)) {
+            throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem comparar comissões.");
+        }
+        Funcionario funcionario = funcionarios.findById(funcionarioId).orElseThrow();
+        YearMonth mesAtual = YearMonth.parse(referencia);
+        YearMonth proximoMes = mesAtual.plusMonths(1);
+        Map<Long, BigDecimal> valoresAtuais = mensalidadesPorCliente(mesAtual);
+        Map<Long, BigDecimal> valoresProximos = mensalidadesPorCliente(proximoMes);
+        List<br.com.adminpool.model.Piscina> piscinasDoFuncionario = piscinas.findByResponsavelId(funcionarioId).stream()
+                .filter(piscina -> elegivelNoMes(piscina.getCliente(), proximoMes))
+                .toList();
+        return piscinasDoFuncionario.stream()
+                .map(br.com.adminpool.model.Piscina::getCliente)
+                .collect(Collectors.toMap(Cliente::getId, cliente -> cliente, (primeiro, segundo) -> primeiro))
+                .values().stream()
+                .map(cliente -> {
+                    BigDecimal atual = elegivelNoMes(cliente, mesAtual)
+                            ? valorDoClienteNoMes(funcionario, cliente, piscinasDoFuncionario, valoresAtuais)
+                            : BigDecimal.ZERO;
+                    BigDecimal proximo = valorDoClienteNoMes(funcionario, cliente, piscinasDoFuncionario, valoresProximos);
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("cliente", cliente.getNome());
+                    item.put("piscinas", piscinasDoFuncionario.stream()
+                            .filter(piscina -> piscina.getCliente().getId().equals(cliente.getId()))
+                            .map(br.com.adminpool.model.Piscina::getNome).collect(Collectors.joining(", ")));
+                    item.put("valorAtual", atual);
+                    item.put("valorProximo", proximo);
+                    item.put("diferenca", proximo.subtract(atual));
+                    return item;
+                })
+                .filter(item -> ((BigDecimal) item.get("diferenca")).compareTo(BigDecimal.ZERO) != 0)
+                .sorted((a, b) -> ((BigDecimal) b.get("diferenca")).abs()
+                        .compareTo(((BigDecimal) a.get("diferenca")).abs()))
+                .toList();
+    }
+
     @PutMapping("/reembolsos/{id}/pagar")
     public ResponseEntity<Void> pagarReembolso(@PathVariable Long id, Authentication auth) {
         if (!gestor(auth)) {
@@ -195,6 +236,11 @@ public class SalarioController {
         resultado.put("totalPagar", salario.add(totalReembolsos).subtract(totalVales).max(BigDecimal.ZERO));
         resultado.put("referencia", mes.toString());
         return resultado;
+    }
+
+    private boolean elegivelNoMes(Cliente cliente, YearMonth mes) {
+        return cliente.isAtivo() && (cliente.getPrimeiroVencimento() == null
+                || !cliente.getPrimeiroVencimento().isAfter(mes.atEndOfMonth()));
     }
 
     /** A comissão usa o lançamento do mês, e não o preço que foi alterado hoje no cadastro. */
