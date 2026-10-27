@@ -8,4 +8,5 @@ public interface RoteiroAtendimentoRepository extends JpaRepository<RoteiroAtend
     List<RoteiroAtendimento> findAllByOrderByIdAsc();
     List<RoteiroAtendimento> findByClienteFuncionarioUsuarioLoginIgnoreCaseOrderByIdAsc(String login);
     boolean existsByClienteIdAndDiaAtendimento(Long clienteId, String diaAtendimento);
+    void deleteByClienteId(Long clienteId);
 }

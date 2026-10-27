@@ -188,8 +188,16 @@ public class ClienteController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> excluir(@PathVariable Long id) {
-        clientes.deleteById(id);
+        Cliente cliente = clientes.findById(id).orElseThrow();
+        if (!piscinas.findByClienteIdOrderByNome(id).isEmpty()) {
+            throw new IllegalStateException("Exclua as piscinas vinculadas antes de excluir o cliente.");
+        }
+        // Ao excluir uma piscina antiga, o roteiro podia ficar sem cliente visível.
+        // Ele é um vínculo operacional vazio e precisa sair antes do cadastro.
+        roteiro.deleteByClienteId(id);
+        clientes.delete(cliente);
         return ResponseEntity.noContent().build();
     }
 
