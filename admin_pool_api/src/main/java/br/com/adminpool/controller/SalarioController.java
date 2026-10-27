@@ -126,6 +126,16 @@ public class SalarioController {
             throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem ver a composição da comissão.");
         }
         YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
+        if (!mes.isAfter(YearMonth.now())) {
+            Map<Long, ItemCobranca> mensalidades = itensMensalidadePorCliente(mes);
+            List<Map<String, Object>> fotografia = mensalidades.values().stream()
+                    .filter(item -> item.getResponsavelReferencia() != null
+                            && item.getResponsavelReferencia().getId().equals(funcionarioId)
+                            && item.getStatus() != StatusItemCobranca.CANCELADO)
+                    .map(item -> linhaDaComissao(item.getCobranca().getCliente(), item.getValorOriginal()))
+                    .toList();
+            if (!fotografia.isEmpty()) return fotografia;
+        }
         return piscinas.findByResponsavelId(funcionarioId).stream()
                 .filter(piscina -> {
                     Cliente cliente = piscina.getCliente();
@@ -135,15 +145,19 @@ public class SalarioController {
                     LocalDate primeiroVencimento = cliente.getPrimeiroVencimento();
                     return primeiroVencimento == null || !primeiroVencimento.isAfter(mes.atEndOfMonth());
                 })
-                .map(piscina -> {
-                    Map<String, Object> item = new LinkedHashMap<>();
-                    item.put("id", piscina.getId());
-                    item.put("cliente", piscina.getCliente().getNome());
-                    item.put("piscina", piscina.getNome());
-                    item.put("valor", piscina.getValorMensalidade() == null ? BigDecimal.ZERO : piscina.getValorMensalidade());
-                    return item;
-                })
+                .map(piscina -> linhaDaComissao(piscina.getCliente(),
+                        piscina.getValorMensalidade() == null ? BigDecimal.ZERO : piscina.getValorMensalidade()))
                 .toList();
+    }
+
+    private Map<String, Object> linhaDaComissao(Cliente cliente, BigDecimal valor) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("id", cliente.getId());
+        item.put("cliente", cliente.getNome());
+        item.put("piscina", piscinas.findByClienteIdOrderByNome(cliente.getId()).stream()
+                .map(br.com.adminpool.model.Piscina::getNome).collect(Collectors.joining(", ")));
+        item.put("valor", valor == null ? BigDecimal.ZERO : valor);
+        return item;
     }
 
     /** Compara a base já lançada de um mês com a projeção do mês seguinte. */
@@ -159,22 +173,39 @@ public class SalarioController {
         YearMonth proximoMes = mesAtual.plusMonths(1);
         Map<Long, BigDecimal> valoresAtuais = mensalidadesPorCliente(mesAtual);
         Map<Long, BigDecimal> valoresProximos = mensalidadesPorCliente(proximoMes);
-        List<br.com.adminpool.model.Piscina> piscinasDoFuncionario = piscinas.findByResponsavelId(funcionarioId).stream()
+        Map<Long, ItemCobranca> mensalidadesAtuais = itensMensalidadePorCliente(mesAtual);
+        List<br.com.adminpool.model.Piscina> piscinasNoProximoMes = piscinas.findByResponsavelId(funcionarioId).stream()
                 .filter(piscina -> elegivelNoMes(piscina.getCliente(), proximoMes))
                 .toList();
-        return piscinasDoFuncionario.stream()
-                .map(br.com.adminpool.model.Piscina::getCliente)
-                .collect(Collectors.toMap(Cliente::getId, cliente -> cliente, (primeiro, segundo) -> primeiro))
-                .values().stream()
+        Map<Long, Cliente> clientesComparados = new LinkedHashMap<>();
+        // Outubro usa quem estava registrado na mensalidade; novembro usa o
+        // responsável atual da piscina. Assim uma transferência aparece dos dois lados.
+        mensalidadesAtuais.values().stream()
+                .filter(item -> item.getResponsavelReferencia() != null
+                        && item.getResponsavelReferencia().getId().equals(funcionarioId))
+                .forEach(item -> clientesComparados.put(item.getCobranca().getCliente().getId(),
+                        item.getCobranca().getCliente()));
+        piscinasNoProximoMes.forEach(piscina -> clientesComparados.put(piscina.getCliente().getId(), piscina.getCliente()));
+        List<br.com.adminpool.model.Piscina> piscinasNoMesAtual = piscinas.findByResponsavelId(funcionarioId).stream()
+                .filter(piscina -> elegivelNoMes(piscina.getCliente(), mesAtual))
+                .toList();
+        return clientesComparados.values().stream()
                 .map(cliente -> {
-                    BigDecimal atual = elegivelNoMes(cliente, mesAtual)
-                            ? valorDoClienteNoMes(funcionario, cliente, piscinasDoFuncionario, valoresAtuais)
-                            : BigDecimal.ZERO;
-                    BigDecimal proximo = valorDoClienteNoMes(funcionario, cliente, piscinasDoFuncionario, valoresProximos);
+                    ItemCobranca mensalidadeAtual = mensalidadesAtuais.get(cliente.getId());
+                    BigDecimal atual;
+                    if (mensalidadeAtual != null && mensalidadeAtual.getResponsavelReferencia() != null) {
+                        atual = mensalidadeAtual.getResponsavelReferencia().getId().equals(funcionarioId)
+                                && mensalidadeAtual.getStatus() != StatusItemCobranca.CANCELADO
+                                ? mensalidadeAtual.getValorOriginal() : BigDecimal.ZERO;
+                    } else {
+                        atual = elegivelNoMes(cliente, mesAtual)
+                                ? valorDoClienteNoMes(funcionario, cliente, piscinasNoMesAtual, valoresAtuais)
+                                : BigDecimal.ZERO;
+                    }
+                    BigDecimal proximo = valorDoClienteNoMes(funcionario, cliente, piscinasNoProximoMes, valoresProximos);
                     Map<String, Object> item = new LinkedHashMap<>();
                     item.put("cliente", cliente.getNome());
-                    item.put("piscinas", piscinasDoFuncionario.stream()
-                            .filter(piscina -> piscina.getCliente().getId().equals(cliente.getId()))
+                    item.put("piscinas", piscinas.findByClienteIdOrderByNome(cliente.getId()).stream()
                             .map(br.com.adminpool.model.Piscina::getNome).collect(Collectors.joining(", ")));
                     item.put("valorAtual", atual);
                     item.put("valorProximo", proximo);
