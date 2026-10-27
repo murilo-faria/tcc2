@@ -21,6 +21,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
   }
 
   DateTime get _proximoMes => DateTime(_mesAtual.year, _mesAtual.month + 1);
+  DateTime get _mesAnterior => DateTime(_mesAtual.year, _mesAtual.month - 1);
   bool _mesIgual(DateTime primeiro, DateTime segundo) =>
       primeiro.year == segundo.year && primeiro.month == segundo.month;
 
@@ -102,9 +103,18 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
     await showDialog<void>(
       context: context,
       builder: (_) => _DialogoVales(
+        referencia: _referencia,
         aoAtualizar: () => setState(() => _salarios = _carregar()),
       ),
     );
+  }
+
+  void _selecionarMes(DateTime mes) {
+    setState(() {
+      _mesSelecionado = mes;
+      _salarios = _carregar();
+      _produtos = _carregarProdutos();
+    });
   }
 
   Widget _cartaoResumo(Map<String, dynamic> resumo) {
@@ -116,6 +126,7 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
     final colaborador = usuario['perfil'] != 'GESTOR';
     final reembolsos = (resumo['reembolsos'] as num?) ?? 0;
     final total = (resumo['totalPagar'] as num?) ?? salario + reembolsos;
+    final saldoNegativo = (resumo['saldoNegativo'] as num?) ?? 0;
     return Card(
       child: InkWell(
         onTap: () => _abrirReembolsos(resumo),
@@ -164,6 +175,16 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
                   color: Colors.blue,
                 ),
               ),
+              if (saldoNegativo > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Saldo a descontar no próximo mês: ${formatarMoeda(saldoNegativo)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
               const SizedBox(height: 6),
               Text(
                 '${resumo['piscinas']} piscina(s) • ${resumo['clientes']} cliente(s)',
@@ -222,22 +243,19 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
             spacing: 8,
             children: [
               ChoiceChip(
+                label: Text('Mês anterior — ${_nomeMes(_mesAnterior)}'),
+                selected: _mesIgual(_mesSelecionado, _mesAnterior),
+                onSelected: (_) => _selecionarMes(_mesAnterior),
+              ),
+              ChoiceChip(
                 label: Text('Mês atual — ${_nomeMes(_mesAtual)}'),
                 selected: _mesIgual(_mesSelecionado, _mesAtual),
-                onSelected: (_) => setState(() {
-                  _mesSelecionado = _mesAtual;
-                  _salarios = _carregar();
-                  _produtos = _carregarProdutos();
-                }),
+                onSelected: (_) => _selecionarMes(_mesAtual),
               ),
               ChoiceChip(
                 label: Text('Próximo mês — ${_nomeMes(_proximoMes)}'),
                 selected: _mesIgual(_mesSelecionado, _proximoMes),
-                onSelected: (_) => setState(() {
-                  _mesSelecionado = _proximoMes;
-                  _salarios = _carregar();
-                  _produtos = _carregarProdutos();
-                }),
+                onSelected: (_) => _selecionarMes(_proximoMes),
               ),
             ],
           ),
@@ -389,7 +407,8 @@ class _CartaoCaixaMensal extends StatelessWidget {
 }
 
 class _DialogoVales extends StatefulWidget {
-  const _DialogoVales({required this.aoAtualizar});
+  const _DialogoVales({required this.referencia, required this.aoAtualizar});
+  final String referencia;
   final VoidCallback aoAtualizar;
 
   @override
@@ -398,15 +417,28 @@ class _DialogoVales extends StatefulWidget {
 
 class _DialogoValesState extends State<_DialogoVales> {
   late Future<List<dynamic>> vales;
+  late DateTime _mesSelecionado;
+
+  String get _referencia =>
+      '${_mesSelecionado.year}-${_mesSelecionado.month.toString().padLeft(2, '0')}';
+
+  String _nomeMes(DateTime mes) {
+    const nomes = [
+      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+    ];
+    return '${nomes[mes.month - 1]} de ${mes.year}';
+  }
 
   @override
   void initState() {
     super.initState();
+    _mesSelecionado = DateTime.parse('${widget.referencia}-01');
     vales = carregar();
   }
 
   Future<List<dynamic>> carregar() async {
-    final resposta = await apiService.get('/api/salarios/vales');
+    final resposta = await apiService.get('/api/salarios/vales?referencia=$_referencia');
     if (resposta.statusCode != 200)
       throw Exception('Não foi possível carregar os vales.');
     return jsonDecode(resposta.body) as List<dynamic>;
@@ -415,6 +447,16 @@ class _DialogoValesState extends State<_DialogoVales> {
   void recarregar() {
     widget.aoAtualizar();
     setState(() => vales = carregar());
+  }
+
+  void _alterarMes(int diferenca) {
+    setState(() {
+      _mesSelecionado = DateTime(
+        _mesSelecionado.year,
+        _mesSelecionado.month + diferenca,
+      );
+      vales = carregar();
+    });
   }
 
   Future<void> formulario([Map<String, dynamic>? vale]) async {
@@ -427,6 +469,9 @@ class _DialogoValesState extends State<_DialogoVales> {
       text: (vale?['valor'] ?? '').toString(),
     );
     final observacao = TextEditingController(text: vale?['observacao'] ?? '');
+    DateTime mesLancamento = vale?['dataLancamento'] == null
+        ? _mesSelecionado
+        : DateTime.parse('${vale!['dataLancamento']}');
     final salvar = await showDialog<bool>(
       context: context,
       builder: (contexto) => StatefulBuilder(
@@ -479,6 +524,26 @@ class _DialogoValesState extends State<_DialogoVales> {
                 controller: observacao,
                 decoration: const InputDecoration(labelText: 'Observação'),
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final escolhido = await showDatePicker(
+                    context: contexto,
+                    initialDate: mesLancamento,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(DateTime.now().year + 2, 12),
+                    helpText: 'MÊS DE LANÇAMENTO DO VALE',
+                  );
+                  if (escolhido != null) {
+                    setDialogState(() => mesLancamento = DateTime(
+                          escolhido.year,
+                          escolhido.month,
+                        ));
+                  }
+                },
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: Text('Mês de lançamento — ${_nomeMes(mesLancamento)}'),
+              ),
             ],
           ),
           actions: [
@@ -500,6 +565,7 @@ class _DialogoValesState extends State<_DialogoVales> {
       'tipo': tipo,
       'valor': double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
       'observacao': observacao.text.trim(),
+      'referencia': '${mesLancamento.year}-${mesLancamento.month.toString().padLeft(2, '0')}',
     };
     final resposta = vale == null
         ? await apiService.post('/api/salarios/vales', body: dados)
@@ -526,12 +592,40 @@ class _DialogoValesState extends State<_DialogoVales> {
       content: SizedBox(
         width: celular ? double.maxFinite : 650,
         height: celular ? 390 : 420,
-        child: FutureBuilder<List<dynamic>>(
-          future: vales,
-          builder: (_, estado) {
+        child: Column(
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  tooltip: 'Mês anterior',
+                  onPressed: () => _alterarMes(-1),
+                  icon: const Icon(Icons.chevron_left),
+                ),
+                Expanded(
+                  child: Text(
+                    _nomeMes(_mesSelecionado),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Próximo mês',
+                  onPressed: () => _alterarMes(1),
+                  icon: const Icon(Icons.chevron_right),
+                ),
+              ],
+            ),
+            const Divider(),
+            Expanded(
+              child: FutureBuilder<List<dynamic>>(
+                future: vales,
+                builder: (_, estado) {
             if (!estado.hasData)
               return const Center(child: CircularProgressIndicator());
             if (estado.hasError) return Center(child: Text('${estado.error}'));
+            if (estado.data!.isEmpty) {
+              return const Center(child: Text('Nenhum vale lançado neste mês.'));
+            }
             return ListView.separated(
               itemCount: estado.data!.length,
               separatorBuilder: (_, __) => const Divider(),
@@ -609,7 +703,10 @@ class _DialogoValesState extends State<_DialogoVales> {
                 );
               },
             );
-          },
+                },
+              ),
+            ),
+          ],
         ),
       ),
       actionsAlignment: MainAxisAlignment.spaceBetween,

@@ -53,8 +53,8 @@ public class SalarioController {
     }
 
     @GetMapping("/vales") public List<ValeColaborador> listarVales(@RequestParam(required = false) Long funcionarioId, @RequestParam(required = false) String referencia, Authentication auth) { YearMonth mes=referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia); return vales.findAll().stream().filter(v -> !v.getDataLancamento().isBefore(mes.atDay(1)) && !v.getDataLancamento().isAfter(mes.atEndOfMonth())).filter(v -> gestor(auth) ? funcionarioId == null || v.getFuncionario().getId().equals(funcionarioId) : v.getFuncionario().getUsuario().getLogin().equalsIgnoreCase(auth.getName())).toList(); }
-    @PostMapping("/vales") public ValeColaborador criarVale(@RequestBody Map<String,Object> dados, Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem lançar vales."); ValeColaborador v=new ValeColaborador(); v.setFuncionario(funcionarios.findById(Long.valueOf(dados.get("funcionarioId").toString())).orElseThrow()); v.setTipo(dados.get("tipo").toString()); v.setValor(new BigDecimal(dados.get("valor").toString())); v.setObservacao(String.valueOf(dados.getOrDefault("observacao", ""))); v.setDataLancamento(LocalDate.now()); return vales.save(v); }
-    @PutMapping("/vales/{id}") public ValeColaborador editarVale(@PathVariable Long id, @RequestBody Map<String,Object> dados, Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar vales."); ValeColaborador v=vales.findById(id).orElseThrow(); v.setTipo(dados.get("tipo").toString()); v.setValor(new BigDecimal(dados.get("valor").toString())); v.setObservacao(String.valueOf(dados.getOrDefault("observacao", ""))); return vales.save(v); }
+    @PostMapping("/vales") public ValeColaborador criarVale(@RequestBody Map<String,Object> dados, Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem lançar vales."); ValeColaborador v=new ValeColaborador(); v.setFuncionario(funcionarios.findById(Long.valueOf(dados.get("funcionarioId").toString())).orElseThrow()); v.setTipo(dados.get("tipo").toString()); v.setValor(new BigDecimal(dados.get("valor").toString())); v.setObservacao(String.valueOf(dados.getOrDefault("observacao", ""))); v.setDataLancamento(mesDoVale(dados)); return vales.save(v); }
+    @PutMapping("/vales/{id}") public ValeColaborador editarVale(@PathVariable Long id, @RequestBody Map<String,Object> dados, Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar vales."); ValeColaborador v=vales.findById(id).orElseThrow(); v.setTipo(dados.get("tipo").toString()); v.setValor(new BigDecimal(dados.get("valor").toString())); v.setObservacao(String.valueOf(dados.getOrDefault("observacao", ""))); v.setDataLancamento(mesDoVale(dados)); return vales.save(v); }
     @DeleteMapping("/vales/{id}") public ResponseEntity<Void> excluirVale(@PathVariable Long id, Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem excluir vales."); vales.deleteById(id); return ResponseEntity.noContent().build(); }
 
     @GetMapping
@@ -234,7 +234,11 @@ public class SalarioController {
         resultado.put("salario", salario);
         resultado.put("reembolsos", totalReembolsos);
         resultado.put("vales", totalVales);
-        resultado.put("totalPagar", salario.add(totalReembolsos).subtract(totalVales).max(BigDecimal.ZERO));
+        BigDecimal saldoDaFolha = salario.add(totalReembolsos).subtract(totalVales);
+        resultado.put("totalPagar", saldoDaFolha.max(BigDecimal.ZERO));
+        // Não apaga o excedente de vale: ele precisa ficar visível para ser
+        // compensado manualmente no pagamento seguinte.
+        resultado.put("saldoNegativo", saldoDaFolha.min(BigDecimal.ZERO).abs());
         resultado.put("referencia", mes.toString());
         return resultado;
     }
@@ -301,5 +305,16 @@ public class SalarioController {
 
     private boolean gestor(Authentication auth) {
         return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_GESTOR"));
+    }
+
+    /** Um vale pertence ao mês escolhido na folha; o dia é apenas técnico. */
+    private LocalDate mesDoVale(Map<String, Object> dados) {
+        Object referencia = dados.get("referencia");
+        if (referencia == null || referencia.toString().isBlank()) return LocalDate.now();
+        try {
+            return YearMonth.parse(referencia.toString()).atDay(1);
+        } catch (java.time.format.DateTimeParseException erro) {
+            throw new IllegalArgumentException("Informe um mês válido para o vale.");
+        }
     }
 }
