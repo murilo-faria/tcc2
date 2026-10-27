@@ -11,6 +11,7 @@ import br.com.adminpool.repository.ReembolsoColaboradorRepository;
 import br.com.adminpool.repository.ValeColaboradorRepository;
 import br.com.adminpool.model.ValeColaborador;
 import br.com.adminpool.model.CobrancaMensal;
+import br.com.adminpool.model.StatusItemCobranca;
 import br.com.adminpool.model.TipoLancamentoCobranca;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -245,13 +246,22 @@ public class SalarioController {
 
     /** A comissão usa o lançamento do mês, e não o preço que foi alterado hoje no cadastro. */
     private Map<Long, BigDecimal> mensalidadesPorCliente(YearMonth mes) {
+        boolean mesFuturo = mes.isAfter(YearMonth.now());
         return cobrancas.findComClienteEItensPorReferencia(mes.toString()).stream()
                 // Uma cobrança pode existir sem mensalidade (por exemplo, depois de
                 // remover uma mensalidade lançada antes da hora). Isso não é valor
                 // zero: para a prévia, deve valer o preço cadastrado na piscina.
-                .filter(cobranca -> cobranca.getItens().stream()
-                        .anyMatch(item -> item.getTipo() == TipoLancamentoCobranca.MENSALIDADE))
-                .collect(Collectors.toMap(c -> c.getCliente().getId(), this::valorMensalidade,
+                .filter(cobranca -> cobranca.getItens().stream().anyMatch(item ->
+                        item.getTipo() == TipoLancamentoCobranca.MENSALIDADE
+                                && (!mesFuturo || item.getStatus() != StatusItemCobranca.CANCELADO)))
+                .collect(Collectors.toMap(c -> c.getCliente().getId(), cobranca -> {
+                    var mensalidade = cobranca.getItens().stream()
+                            .filter(item -> item.getTipo() == TipoLancamentoCobranca.MENSALIDADE)
+                            .findFirst().orElseThrow();
+                    return mensalidade.getStatus() == StatusItemCobranca.CANCELADO
+                            ? BigDecimal.ZERO
+                            : mensalidade.getValorOriginal() == null ? BigDecimal.ZERO : mensalidade.getValorOriginal();
+                },
                         (primeiro, segundo) -> primeiro));
     }
 
