@@ -10,6 +10,8 @@ import java.time.LocalDate;
 public class ItemCobranca {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @JsonIgnore @ManyToOne(optional = false) @JoinColumn(name = "cobranca_id") private CobrancaMensal cobranca;
+    /** Responsável quando a mensalidade foi lançada; não acompanha mudanças futuras. */
+    @JsonIgnore @ManyToOne @JoinColumn(name = "responsavel_referencia_id") private Funcionario responsavelReferencia;
     @Enumerated(EnumType.STRING) @Column(nullable = false) private TipoLancamentoCobranca tipo;
     @Column(nullable = false) private String descricao;
     private Long origemId;
@@ -30,6 +32,7 @@ public class ItemCobranca {
     public Long getClienteId(){return cobranca == null ? null : cobranca.getCliente().getId();}
     public Long getId(){return id;} public void setId(Long v){id=v;}
     public CobrancaMensal getCobranca(){return cobranca;} public void setCobranca(CobrancaMensal v){cobranca=v;}
+    public Funcionario getResponsavelReferencia(){return responsavelReferencia;} public void setResponsavelReferencia(Funcionario v){responsavelReferencia=v;}
     public TipoLancamentoCobranca getTipo(){return tipo;} public void setTipo(TipoLancamentoCobranca v){tipo=v;}
     public String getDescricao(){return descricao;} public void setDescricao(String v){descricao=v;}
     public Long getOrigemId(){return origemId;} public void setOrigemId(Long v){origemId=v;}

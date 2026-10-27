@@ -11,6 +11,7 @@ import br.com.adminpool.repository.PiscinaRepository;
 import br.com.adminpool.repository.RoteiroAtendimentoRepository;
 import br.com.adminpool.model.RoteiroAtendimento;
 import br.com.adminpool.service.RelatorioPdfService;
+import br.com.adminpool.service.CobrancaService;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
 import jakarta.transaction.Transactional;
 import org.springframework.http.HttpStatus;
@@ -34,13 +35,15 @@ public class ClienteController {
     private final FuncionarioRepository funcionarios;
     private final RoteiroAtendimentoRepository roteiro;
     private final RelatorioPdfService relatorios;
+    private final CobrancaService cobrancas;
 
-    public ClienteController(ClienteRepository clientes, PiscinaRepository piscinas, FuncionarioRepository funcionarios, RoteiroAtendimentoRepository roteiro, RelatorioPdfService relatorios) {
+    public ClienteController(ClienteRepository clientes, PiscinaRepository piscinas, FuncionarioRepository funcionarios, RoteiroAtendimentoRepository roteiro, RelatorioPdfService relatorios, CobrancaService cobrancas) {
         this.clientes = clientes;
         this.piscinas = piscinas;
         this.funcionarios = funcionarios;
         this.roteiro = roteiro;
         this.relatorios = relatorios;
+        this.cobrancas = cobrancas;
     }
 
     @GetMapping
@@ -173,6 +176,9 @@ public class ClienteController {
             throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem inativar clientes.");
         }
         Cliente cliente = clientes.findById(id).orElseThrow();
+        if (!requisicao.ativo() && cliente.isAtivo()) {
+            cobrancas.congelarResponsavelDaMensalidadeAtual(cliente, null);
+        }
         cliente.setAtivo(requisicao.ativo());
         if (requisicao.ativo()) {
             // A volta do cliente reinicia o ciclo: a primeira mensalidade é em 30 dias

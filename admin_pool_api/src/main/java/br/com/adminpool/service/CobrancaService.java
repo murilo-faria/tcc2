@@ -8,6 +8,7 @@ import br.com.adminpool.model.BaixaItemCobranca;
 import br.com.adminpool.model.Cliente;
 import br.com.adminpool.model.CobrancaMensal;
 import br.com.adminpool.model.ItemCobranca;
+import br.com.adminpool.model.Funcionario;
 import br.com.adminpool.model.StatusCobranca;
 import br.com.adminpool.model.StatusItemCobranca;
 import br.com.adminpool.model.TipoLancamentoCobranca;
@@ -268,6 +269,29 @@ public class CobrancaService {
         }
         sincronizarMensalidadesDoMes(clientesElegiveis, cobrancasPorCliente, mes);
         return new ArrayList<>(cobrancasPorCliente.values());
+    }
+
+    /**
+     * Antes de mover uma piscina ou inativar o cliente, preserva quem era o
+     * responsável pela mensalidade já aberta no mês atual.
+     */
+    @Transactional
+    public void congelarResponsavelDaMensalidadeAtual(Cliente cliente, Funcionario responsavelAtual) {
+        CobrancaMensal cobranca = cobrancas.findByClienteIdAndReferencia(
+                cliente.getId(), YearMonth.now().toString()).orElse(null);
+        if (cobranca == null) return;
+        Funcionario responsavel = responsavelAtual;
+        if (responsavel == null) {
+            var responsaveis = piscinas.findByClienteIdOrderByNome(cliente.getId()).stream()
+                    .map(piscina -> piscina.getResponsavel())
+                    .filter(java.util.Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toSet());
+            if (responsaveis.size() == 1) responsavel = responsaveis.iterator().next();
+        }
+        if (responsavel == null) return;
+        itens.findByCobrancaIdAndTipo(cobranca.getId(), TipoLancamentoCobranca.MENSALIDADE).stream()
+                .filter(item -> item.getResponsavelReferencia() == null)
+                .forEach(item -> item.setResponsavelReferencia(responsavel));
     }
 
     @Transactional
@@ -751,7 +775,7 @@ public class CobrancaService {
             BigDecimal valorAtual = valorPorCliente.getOrDefault(cliente.getId(), BigDecimal.ZERO);
             ItemCobranca mensalidade = mensalidadePorCobranca.get(cobranca.getId());
             if (mensalidade == null) {
-                mensalidade = novaMensalidade(cobranca, valorAtual);
+                mensalidade = novaMensalidade(cobranca, cliente, valorAtual);
                 novosOuAlterados.add(mensalidade);
                 cobrancasParaRecalcular.add(cobranca);
             // Depois que o mês começou, o lançamento vira uma fotografia daquele
@@ -770,10 +794,19 @@ public class CobrancaService {
         cobrancasParaRecalcular.forEach(this::recalcular);
     }
 
-    private ItemCobranca novaMensalidade(CobrancaMensal cobranca, BigDecimal valor) {
+    private ItemCobranca novaMensalidade(CobrancaMensal cobranca, Cliente cliente, BigDecimal valor) {
         ItemCobranca item = new ItemCobranca();
         item.setCobranca(cobranca);
         item.setTipo(TipoLancamentoCobranca.MENSALIDADE);
+        // A folha do mês não pode mudar quando a piscina troca de responsável.
+        // Grava o responsável na própria mensalidade no instante do lançamento.
+        var responsaveis = piscinas.findByClienteIdOrderByNome(cliente.getId()).stream()
+                .map(piscina -> piscina.getResponsavel())
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (responsaveis.size() == 1) {
+            item.setResponsavelReferencia(responsaveis.iterator().next());
+        }
         item.setDescricao("Mensalidade " + cobranca.getReferencia());
         item.setDataLancamento(cobranca.getVencimento());
         item.setValorOriginal(valor);

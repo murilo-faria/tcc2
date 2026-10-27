@@ -7,6 +7,7 @@ import br.com.adminpool.model.Piscina;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.PiscinaRepository;
 import br.com.adminpool.repository.FuncionarioRepository;
+import br.com.adminpool.service.CobrancaService;
 import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,11 +32,13 @@ public class PiscinaController {
     private final PiscinaRepository piscinas;
     private final ClienteRepository clientes;
     private final FuncionarioRepository funcionarios;
+    private final CobrancaService cobrancas;
 
-    public PiscinaController(PiscinaRepository piscinas, ClienteRepository clientes, FuncionarioRepository funcionarios) {
+    public PiscinaController(PiscinaRepository piscinas, ClienteRepository clientes, FuncionarioRepository funcionarios, CobrancaService cobrancas) {
         this.piscinas = piscinas;
         this.clientes = clientes;
         this.funcionarios = funcionarios;
+        this.cobrancas = cobrancas;
     }
 
     @GetMapping
@@ -68,6 +71,11 @@ public class PiscinaController {
     public Piscina atualizar(@PathVariable Long id, @RequestBody NovaPiscinaRequest requisicao, Authentication auth) {
         if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem editar piscinas.");
         Piscina piscina = piscinas.findById(id).orElseThrow();
+        Long responsavelNovoId = requisicao.responsavelId();
+        Long responsavelAtualId = piscina.getResponsavel() == null ? null : piscina.getResponsavel().getId();
+        if (!java.util.Objects.equals(responsavelAtualId, responsavelNovoId)) {
+            cobrancas.congelarResponsavelDaMensalidadeAtual(piscina.getCliente(), piscina.getResponsavel());
+        }
         piscina.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
         piscina.setNome(requisicao.nome()); piscina.setTipo(requisicao.tipo()); aplicarMedidas(piscina, requisicao, false); piscina.setEndereco(requisicao.endereco()); piscina.setDiaAtendimento(requisicao.diaAtendimento()); piscina.setObservacoes(requisicao.observacoes());
         piscina.setResponsavel(requisicao.responsavelId()==null ? null : funcionarios.findById(requisicao.responsavelId()).orElseThrow());

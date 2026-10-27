@@ -11,6 +11,7 @@ import br.com.adminpool.repository.ReembolsoColaboradorRepository;
 import br.com.adminpool.repository.ValeColaboradorRepository;
 import br.com.adminpool.model.ValeColaborador;
 import br.com.adminpool.model.CobrancaMensal;
+import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.model.StatusItemCobranca;
 import br.com.adminpool.model.TipoLancamentoCobranca;
 import java.math.BigDecimal;
@@ -61,8 +62,9 @@ public class SalarioController {
     public List<Map<String, Object>> listar(@RequestParam(required = false) String referencia) {
         YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
         Map<Long, BigDecimal> mensalidadeDoMesPorCliente = mensalidadesPorCliente(mes);
+        Map<Long, ItemCobranca> mensalidadesDaReferencia = itensMensalidadePorCliente(mes);
         return funcionarios.findAll().stream()
-                .map(f -> resumo(f, mes, mensalidadeDoMesPorCliente))
+                .map(f -> resumo(f, mes, mensalidadeDoMesPorCliente, mensalidadesDaReferencia))
                 .toList();
     }
 
@@ -74,7 +76,7 @@ public class SalarioController {
         Funcionario funcionario = funcionarios.findByUsuarioLoginIgnoreCase(auth.getName())
                 .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
                         "Colaborador não encontrado."));
-        return List.of(resumo(funcionario, mes, mensalidadesPorCliente(mes)));
+        return List.of(resumo(funcionario, mes, mensalidadesPorCliente(mes), itensMensalidadePorCliente(mes)));
     }
 
     /** Detalhes de reembolso do próprio colaborador, sem aceitar identificador externo. */
@@ -198,7 +200,8 @@ public class SalarioController {
     }
 
     private Map<String, Object> resumo(Funcionario funcionario, YearMonth mes,
-                                       Map<Long, BigDecimal> mensalidadeDoMesPorCliente) {
+                                       Map<Long, BigDecimal> mensalidadeDoMesPorCliente,
+                                       Map<Long, ItemCobranca> mensalidadesDaReferencia) {
         var piscinasVinculadas = piscinas.findByResponsavelId(funcionario.getId()).stream()
                 .filter(piscina -> {
                     Cliente cliente = piscina.getCliente();
@@ -213,10 +216,32 @@ public class SalarioController {
                 .map(p -> p.getCliente())
                 .collect(Collectors.toMap(Cliente::getId, cliente -> cliente, (a, b) -> a))
                 .values();
-        BigDecimal baseMensal = clientes.stream()
-                .map(cliente -> valorDoClienteNoMes(funcionario, cliente, piscinasVinculadas,
-                        mensalidadeDoMesPorCliente))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        boolean mesAtualOuPassado = !mes.isAfter(YearMonth.now());
+        Map<Long, BigDecimal> valoresFotografados = mensalidadesDaReferencia.values().stream()
+                .filter(item -> item.getResponsavelReferencia() != null
+                        && item.getResponsavelReferencia().getId().equals(funcionario.getId()))
+                .collect(Collectors.toMap(item -> item.getCobranca().getCliente().getId(), item ->
+                                item.getStatus() == StatusItemCobranca.CANCELADO
+                                        ? BigDecimal.ZERO
+                                        : item.getValorOriginal() == null ? BigDecimal.ZERO : item.getValorOriginal(),
+                        (primeiro, segundo) -> primeiro));
+        BigDecimal baseMensal = valoresFotografados.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (!mesAtualOuPassado) {
+            baseMensal = clientes.stream()
+                    .map(cliente -> valorDoClienteNoMes(funcionario, cliente, piscinasVinculadas,
+                            mensalidadeDoMesPorCliente))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        } else {
+            // Mensalidades antigas (sem a nova fotografia) continuam pelo
+            // comportamento anterior para não perder registros já existentes.
+            BigDecimal legado = clientes.stream()
+                    .filter(cliente -> !mensalidadesDaReferencia.containsKey(cliente.getId())
+                            || mensalidadesDaReferencia.get(cliente.getId()).getResponsavelReferencia() == null)
+                    .map(cliente -> valorDoClienteNoMes(funcionario, cliente, piscinasVinculadas,
+                            mensalidadeDoMesPorCliente))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            baseMensal = baseMensal.add(legado);
+        }
         BigDecimal salario = baseMensal.multiply(funcionario.getPercentualMensalidade())
                 .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
         BigDecimal totalReembolsos = reembolsos
@@ -267,6 +292,15 @@ public class SalarioController {
                             : mensalidade.getValorOriginal() == null ? BigDecimal.ZERO : mensalidade.getValorOriginal();
                 },
                         (primeiro, segundo) -> primeiro));
+    }
+
+    /** Mensalidade com o responsável fotografado na data do lançamento. */
+    private Map<Long, ItemCobranca> itensMensalidadePorCliente(YearMonth mes) {
+        Map<Long, ItemCobranca> resultado = new LinkedHashMap<>();
+        cobrancas.findComClienteEItensPorReferencia(mes.toString()).forEach(cobranca -> cobranca.getItens().stream()
+                .filter(item -> item.getTipo() == TipoLancamentoCobranca.MENSALIDADE)
+                .findFirst().ifPresent(item -> resultado.put(cobranca.getCliente().getId(), item)));
+        return resultado;
     }
 
     private BigDecimal valorMensalidade(CobrancaMensal cobranca) {
