@@ -5,6 +5,7 @@ import br.com.adminpool.model.Piscina;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.FuncionarioRepository;
 import br.com.adminpool.repository.PiscinaRepository;
+import br.com.adminpool.service.CobrancaService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 
@@ -23,7 +24,7 @@ class PiscinaControllerTest {
     void cadastraMedidasAusentesSemAlterarOsOutrosDadosDaPiscina() {
         PiscinaRepository piscinas = mock(PiscinaRepository.class);
         PiscinaController controller = new PiscinaController(piscinas,
-                mock(ClienteRepository.class), mock(FuncionarioRepository.class));
+                mock(ClienteRepository.class), mock(FuncionarioRepository.class), mock(CobrancaService.class));
         Piscina piscina = new Piscina();
         piscina.setNome("Piscina Goiás");
         piscina.setProfundidade(new BigDecimal("1.40"));
@@ -46,7 +47,7 @@ class PiscinaControllerTest {
     void naoPermiteSobrescreverMedidasExistentesPeloPedidoDeCapa() {
         PiscinaRepository piscinas = mock(PiscinaRepository.class);
         PiscinaController controller = new PiscinaController(piscinas,
-                mock(ClienteRepository.class), mock(FuncionarioRepository.class));
+                mock(ClienteRepository.class), mock(FuncionarioRepository.class), mock(CobrancaService.class));
         Piscina piscina = new Piscina();
         piscina.setComprimento(new BigDecimal("4"));
         piscina.setLargura(new BigDecimal("3"));

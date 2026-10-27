@@ -289,9 +289,10 @@ public class CobrancaService {
             if (responsaveis.size() == 1) responsavel = responsaveis.iterator().next();
         }
         if (responsavel == null) return;
+        Funcionario responsavelDaReferencia = responsavel;
         itens.findByCobrancaIdAndTipo(cobranca.getId(), TipoLancamentoCobranca.MENSALIDADE).stream()
                 .filter(item -> item.getResponsavelReferencia() == null)
-                .forEach(item -> item.setResponsavelReferencia(responsavel));
+                .forEach(item -> item.setResponsavelReferencia(responsavelDaReferencia));
     }
 
     @Transactional

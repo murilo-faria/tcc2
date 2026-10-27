@@ -9,6 +9,7 @@ import br.com.adminpool.repository.FuncionarioRepository;
 import br.com.adminpool.repository.PiscinaRepository;
 import br.com.adminpool.repository.RoteiroAtendimentoRepository;
 import br.com.adminpool.service.RelatorioPdfService;
+import br.com.adminpool.service.CobrancaService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.authentication.TestingAuthenticationToken;
@@ -31,7 +32,8 @@ class ClienteControllerTest {
         PiscinaRepository piscinas = mock(PiscinaRepository.class);
         RoteiroAtendimentoRepository roteiro = mock(RoteiroAtendimentoRepository.class);
         ClienteController controller = new ClienteController(clientes, piscinas,
-                mock(FuncionarioRepository.class), roteiro, new RelatorioPdfService());
+                mock(FuncionarioRepository.class), roteiro, new RelatorioPdfService(),
+                mock(CobrancaService.class));
         when(clientes.save(any(Cliente.class))).thenAnswer(invocacao -> {
             Cliente cliente = invocacao.getArgument(0);
             cliente.setId(25L);
