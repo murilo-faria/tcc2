@@ -58,6 +58,15 @@ class SecurityConfigTest {
         mvc.perform(get("/api/cobrancas").header("X-Requested-With","AdminPool").header("Authorization",auth))
             .andExpect(status().isForbidden());
     }
+    @Test void employeeCannotReadGeneralPayrollButCanReachOwnRoute() throws Exception {
+        String auth = basic("funcionario1", "test-worker-password-123");
+        mvc.perform(get("/api/salarios").header("X-Requested-With","AdminPool").header("Authorization",auth))
+            .andExpect(status().isForbidden());
+        // O controller de salários não faz parte deste recorte MVC; 404 prova que
+        // a rota passou pela autorização, em vez de ser bloqueada por perfil.
+        mvc.perform(get("/api/salarios/meu").header("X-Requested-With","AdminPool").header("Authorization",auth))
+            .andExpect(status().isNotFound());
+    }
     @Test void simpleBrowserRequestsCannotUseCredentials() throws Exception {
         mvc.perform(post("/api/clientes").header("Authorization",basic("gestorMurilo","test-gestor-password-123")))
             .andExpect(status().isForbidden());

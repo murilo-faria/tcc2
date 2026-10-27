@@ -69,9 +69,8 @@ class _SalariosPageNovaState extends State<_SalariosPageNova> {
   }
 
   Future<List<dynamic>> _carregar() async {
-    final resposta = await apiService.get(
-      '/api/salarios?referencia=$_referencia',
-    );
+    final rota = widget.gestor ? '/api/salarios' : '/api/salarios/meu';
+    final resposta = await apiService.get('$rota?referencia=$_referencia');
     if (resposta.statusCode != 200)
       throw Exception('Não foi possível carregar os salários.');
     return jsonDecode(resposta.body) as List<dynamic>;
@@ -671,18 +670,21 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
   }
 
   Future<List<dynamic>> _carregar() async {
-    final resposta = await apiService.get(
-      '/api/salarios/${widget.funcionario['id']}/reembolsos?referencia=${widget.referencia}',
-    );
+    final rota = widget.gestor
+        ? '/api/salarios/${widget.funcionario['id']}/reembolsos'
+        : '/api/salarios/meu/reembolsos';
+    final resposta = await apiService.get('$rota?referencia=${widget.referencia}');
     if (resposta.statusCode != 200)
       throw Exception('Não foi possível carregar os reembolsos.');
     return jsonDecode(resposta.body) as List<dynamic>;
   }
 
   Future<List<dynamic>> _carregarVales() async {
-    final resposta = await apiService.get(
-      '/api/salarios/vales?funcionarioId=${widget.funcionario['id']}&referencia=${widget.referencia}',
-    );
+    final rota = widget.gestor
+        ? '/api/salarios/vales?funcionarioId=${widget.funcionario['id']}'
+        : '/api/salarios/meu/vales';
+    final separador = rota.contains('?') ? '&' : '?';
+    final resposta = await apiService.get('$rota${separador}referencia=${widget.referencia}');
     if (resposta.statusCode != 200)
       throw Exception('Não foi possível carregar os vales.');
     return jsonDecode(resposta.body) as List<dynamic>;

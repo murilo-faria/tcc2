@@ -57,15 +57,47 @@ public class SalarioController {
     @DeleteMapping("/vales/{id}") public ResponseEntity<Void> excluirVale(@PathVariable Long id, Authentication auth) { if (!gestor(auth)) throw new org.springframework.security.access.AccessDeniedException("Apenas gestores podem excluir vales."); vales.deleteById(id); return ResponseEntity.noContent().build(); }
 
     @GetMapping
-    public List<Map<String, Object>> listar(@RequestParam(required = false) String referencia, Authentication auth) {
-        boolean gestor = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_GESTOR"));
+    public List<Map<String, Object>> listar(@RequestParam(required = false) String referencia) {
         YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
         Map<Long, BigDecimal> mensalidadeDoMesPorCliente = mensalidadesPorCliente(mes);
         return funcionarios.findAll().stream()
-                .filter(f -> gestor || f.getUsuario().getLogin().equalsIgnoreCase(auth.getName()))
                 .map(f -> resumo(f, mes, mensalidadeDoMesPorCliente))
                 .toList();
+    }
+
+    /** Rota exclusiva do colaborador: nunca retorna a folha de outras pessoas. */
+    @GetMapping("/meu")
+    public List<Map<String, Object>> meuSalario(@RequestParam(required = false) String referencia,
+                                                Authentication auth) {
+        YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
+        Funcionario funcionario = funcionarios.findByUsuarioLoginIgnoreCase(auth.getName())
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
+                        "Colaborador não encontrado."));
+        return List.of(resumo(funcionario, mes, mensalidadesPorCliente(mes)));
+    }
+
+    /** Detalhes de reembolso do próprio colaborador, sem aceitar identificador externo. */
+    @GetMapping("/meu/reembolsos")
+    public List<ReembolsoColaborador> meusReembolsos(@RequestParam(required = false) String referencia,
+                                                     Authentication auth) {
+        YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
+        Funcionario funcionario = funcionarios.findByUsuarioLoginIgnoreCase(auth.getName())
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
+                        "Colaborador não encontrado."));
+        return reembolsos.findByFuncionarioIdAndDataLancamentoBetweenOrderByDataLancamentoDesc(
+                funcionario.getId(), mes.atDay(1), mes.atEndOfMonth());
+    }
+
+    /** Vales do próprio colaborador, sem filtro que permita consultar outra pessoa. */
+    @GetMapping("/meu/vales")
+    public List<ValeColaborador> meusVales(@RequestParam(required = false) String referencia,
+                                           Authentication auth) {
+        YearMonth mes = referencia == null || referencia.isBlank() ? YearMonth.now() : YearMonth.parse(referencia);
+        Funcionario funcionario = funcionarios.findByUsuarioLoginIgnoreCase(auth.getName())
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException(
+                        "Colaborador não encontrado."));
+        return vales.findByFuncionarioIdAndDataLancamentoBetweenOrderByDataLancamentoDesc(
+                funcionario.getId(), mes.atDay(1), mes.atEndOfMonth());
     }
 
     @GetMapping("/{funcionarioId}/reembolsos")
