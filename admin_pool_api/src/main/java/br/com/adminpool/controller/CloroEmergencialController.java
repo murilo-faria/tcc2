@@ -15,16 +15,18 @@ public class CloroEmergencialController {
     private final CloroEmergencialService servico;
     public CloroEmergencialController(CloroEmergencialService servico) { this.servico = servico; }
 
-    @GetMapping public List<CloroEmergencial> listar(@RequestParam(required = false) String referencia) {
-        return servico.listar(referencia);
+    @GetMapping public List<CloroEmergencial> listar(@RequestParam(required = false) String referencia,
+                                                       Authentication auth) {
+        return servico.listar(referencia, auth);
     }
     @PostMapping public ResponseEntity<CloroEmergencial> criar(@RequestBody NovoCloroEmergencialRequest r,
                                                                  Authentication auth) {
         return ResponseEntity.status(HttpStatus.CREATED).body(servico.criarOuAbrir(r, auth));
     }
     @PostMapping("/{id}/usos") public CloroEmergencial adicionarUso(@PathVariable Long id,
-                                                                        @RequestBody NovoUsoCloroEmergencialRequest r) {
-        return servico.adicionarUso(id, r);
+                                                                        @RequestBody NovoUsoCloroEmergencialRequest r,
+                                                                        Authentication auth) {
+        return servico.adicionarUso(id, r, auth);
     }
     @PutMapping("/{id}/finalizar") public CloroEmergencial finalizar(@PathVariable Long id,
                                                                         @RequestBody FinalizarCloroEmergencialRequest r,
@@ -34,6 +36,9 @@ public class CloroEmergencialController {
     @PutMapping("/{id}/confirmar-reposicao") public CloroEmergencial confirmarReposicao(@PathVariable Long id,
                                                                                             Authentication auth) {
         gestor(auth); return servico.confirmarReposicao(id);
+    }
+    @DeleteMapping("/{id}") public ResponseEntity<Void> excluir(@PathVariable Long id, Authentication auth) {
+        gestor(auth); servico.excluir(id); return ResponseEntity.noContent().build();
     }
     private void gestor(Authentication auth) {
         if (auth.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_GESTOR")))

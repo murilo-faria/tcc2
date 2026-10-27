@@ -28,6 +28,15 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
   double _totalKg(Map<String, dynamic> lista) => ((lista['usos'] as List<dynamic>? ?? const [])
       .fold<num>(0, (soma, uso) => soma + ((uso['quantidadeKg'] as num?) ?? 0))).toDouble();
   String _numero(double valor) => valor == valor.roundToDouble() ? valor.toInt().toString() : valor.toStringAsFixed(2).replaceAll('.', ',');
+  String _peso(double kg) {
+    final gramas = (kg * 1000).round();
+    if (gramas < 1000) return '$gramas g';
+    return '${_numero(gramas / 1000)} kg';
+  }
+  double _gramasParaKg(String texto) {
+    final limpo = texto.trim().replaceAll('.', '').replaceAll(',', '.');
+    return (double.tryParse(limpo) ?? 0) / 1000;
+  }
   String _status(Map<String, dynamic> lista) => switch (lista['status']) {
     'COBRADA' => 'Cobrado', 'AGUARDANDO_REPOSICAO' => 'Aguardando reposição', 'REPOSTA' => 'Reposto', _ => 'Em aberto',
   };
@@ -58,14 +67,15 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
     final salvar = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
       title: const Text('Adicionar uso de cloro'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: quantidade, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Quantidade (kg) *', suffixText: 'kg')),
+        TextField(controller: quantidade, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Quantidade *', hintText: 'Ex.: 999 ou 1.200', suffixText: 'g')),
+        const Padding(padding: EdgeInsets.only(top: 8), child: Text('Até 999 aparece em gramas. A partir de 1.000, aparece em kg.')),
         TextField(controller: descricao, maxLines: 3, decoration: const InputDecoration(labelText: 'Descrição')),
         const Padding(padding: EdgeInsets.only(top: 12), child: Text('A data será registrada como hoje.')),
       ]),
       actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Adicionar'))],
     ));
     if (salvar != true) return;
-    final r = await apiService.post('/api/cloro-emergencial/${lista['id']}/usos', body: {'quantidadeKg': double.tryParse(quantidade.text.replaceAll(',', '.')) ?? 0, 'descricao': descricao.text.trim()});
+    final r = await apiService.post('/api/cloro-emergencial/${lista['id']}/usos', body: {'quantidadeKg': _gramasParaKg(quantidade.text), 'descricao': descricao.text.trim()});
     if (r.statusCode >= 200 && r.statusCode < 300) { _recarregar(); if (mounted) { Navigator.pop(context); await _detalhar(jsonDecode(r.body) as Map<String, dynamic>); } }
   }
 
@@ -90,18 +100,33 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
     if (r.statusCode >= 200 && r.statusCode < 300) { _recarregar(); if (mounted) Navigator.pop(context); }
   }
 
+  Future<void> _excluir(Map<String, dynamic> lista) async {
+    final confirmar = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+      title: const Text('Excluir cloro emergencial?'),
+      content: const Text('A lista, os usos e qualquer cobrança gerada serão removidos.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir'))],
+    ));
+    if (confirmar != true) return;
+    final r = await apiService.delete('/api/cloro-emergencial/${lista['id']}');
+    if (r.statusCode >= 200 && r.statusCode < 300) {
+      _recarregar();
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
   Future<void> _detalhar(Map<String, dynamic> lista) async {
     final usos = (lista['usos'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
     await showDialog<void>(context: context, builder: (_) => AlertDialog(
       title: Text('Cloro — ${(lista['cliente'] ?? {})['nome'] ?? ''}'),
       content: SizedBox(width: 560, height: 360, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('${_numero(_totalKg(lista))} kg usados • ${_status(lista)}', style: const TextStyle(fontWeight: FontWeight.bold)), const Divider(),
-        Expanded(child: usos.isEmpty ? const Center(child: Text('Nenhum uso registrado.')) : ListView.separated(itemCount: usos.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final uso = usos[i]; return ListTile(contentPadding: EdgeInsets.zero, title: Text('${_numero(((uso['quantidadeKg'] as num?) ?? 0).toDouble())} kg'), subtitle: Text('${uso['dataUso']} • ${uso['descricao'] ?? ''}')); })),
+        Text('${_peso(_totalKg(lista))} usados • ${_status(lista)}', style: const TextStyle(fontWeight: FontWeight.bold)), const Divider(),
+        Expanded(child: usos.isEmpty ? const Center(child: Text('Nenhum uso registrado.')) : ListView.separated(itemCount: usos.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final uso = usos[i]; return ListTile(contentPadding: EdgeInsets.zero, title: Text(_peso(((uso['quantidadeKg'] as num?) ?? 0).toDouble())), subtitle: Text('${uso['dataUso']} • ${uso['descricao'] ?? ''}')); })),
       ])),
       actions: [
         if (lista['status'] == 'ABERTA') TextButton.icon(onPressed: () => _adicionarUso(lista), icon: const Icon(Icons.add), label: const Text('Adicionar uso')),
         if (widget.gestor && lista['status'] == 'ABERTA' && usos.isNotEmpty) FilledButton(onPressed: () => _finalizar(lista), child: const Text('Finalizar')),
         if (widget.gestor && lista['status'] == 'AGUARDANDO_REPOSICAO') FilledButton(onPressed: () => _confirmarReposicao(lista), child: const Text('Confirmar reposição')),
+        if (widget.gestor) TextButton.icon(onPressed: () => _excluir(lista), icon: const Icon(Icons.delete_outline, color: Colors.red), label: const Text('Excluir', style: TextStyle(color: Colors.red))),
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar')),
       ],
     ));
@@ -113,7 +138,7 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _CabecalhoResponsivo(titulo: 'Cloro emergencial', subtitulo: 'Controle o cloro usado fora da manutenção normal.', acao: FilledButton.icon(onPressed: _novaLista, icon: const Icon(Icons.add), label: const Text('Novo cloro emergencial'))),
       const SizedBox(height: 12), Row(children: [IconButton(onPressed: () { setState(() { _mes = DateTime(_mes.year, _mes.month - 1); _listas = _carregar(); }); }, icon: const Icon(Icons.chevron_left)), Text(_tituloMes, style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: () { setState(() { _mes = DateTime(_mes.year, _mes.month + 1); _listas = _carregar(); }); }, icon: const Icon(Icons.chevron_right))]),
-      const SizedBox(height: 12), Expanded(child: FutureBuilder<List<dynamic>>(future: _listas, builder: (_, s) { if (s.hasError) return Center(child: Text('${s.error}')); if (!s.hasData) return const Center(child: CircularProgressIndicator()); final listas = s.data!; if (listas.isEmpty) return const Center(child: Text('Nenhum cloro emergencial neste mês.')); return ListView.separated(itemCount: listas.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final lista = listas[i] as Map<String, dynamic>; final usos = (lista['usos'] as List<dynamic>? ?? const []).length; return ListTile(leading: const Icon(Icons.science_outlined), title: Text('${(lista['cliente'] ?? {})['nome'] ?? ''}'), subtitle: Text('$usos registro(s) • ${_status(lista)}'), trailing: Text('${_numero(_totalKg(lista))} kg', style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () => _detalhar(lista)); }); }))
+      const SizedBox(height: 12), Expanded(child: FutureBuilder<List<dynamic>>(future: _listas, builder: (_, s) { if (s.hasError) return Center(child: Text('${s.error}')); if (!s.hasData) return const Center(child: CircularProgressIndicator()); final listas = s.data!; if (listas.isEmpty) return const Center(child: Text('Nenhum cloro emergencial neste mês.')); return ListView.separated(itemCount: listas.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final lista = listas[i] as Map<String, dynamic>; final usos = (lista['usos'] as List<dynamic>? ?? const []).length; return ListTile(leading: const Icon(Icons.science_outlined), title: Text('${(lista['cliente'] ?? {})['nome'] ?? ''}'), subtitle: Text('$usos registro(s) • ${_status(lista)}'), trailing: Text(_peso(_totalKg(lista)), style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () => _detalhar(lista)); }); }))
     ]),
   );
 }
