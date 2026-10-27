@@ -61,6 +61,7 @@ public class SecurityConfig {
                     && request.getRequestURI().matches("/api/cobrancas/clientes/\\d+/historico\\.pdf")).hasRole("GESTOR")
                 .requestMatchers(req -> !"AdminPool".equals(req.getHeader("X-Requested-With"))).denyAll()
                 .requestMatchers("/api/auth/me").authenticated()
+                .requestMatchers("/api/auditoria/**").hasRole("GESTOR")
                 .requestMatchers("/api/piscinas/**", "/api/funcionarios/**").authenticated()
                 .requestMatchers("/api/salarios/meu/**").hasRole("FUNCIONARIO")
                 .requestMatchers("/api/salarios/**").hasRole("GESTOR")
