@@ -246,6 +246,11 @@ public class SalarioController {
     /** A comissão usa o lançamento do mês, e não o preço que foi alterado hoje no cadastro. */
     private Map<Long, BigDecimal> mensalidadesPorCliente(YearMonth mes) {
         return cobrancas.findComClienteEItensPorReferencia(mes.toString()).stream()
+                // Uma cobrança pode existir sem mensalidade (por exemplo, depois de
+                // remover uma mensalidade lançada antes da hora). Isso não é valor
+                // zero: para a prévia, deve valer o preço cadastrado na piscina.
+                .filter(cobranca -> cobranca.getItens().stream()
+                        .anyMatch(item -> item.getTipo() == TipoLancamentoCobranca.MENSALIDADE))
                 .collect(Collectors.toMap(c -> c.getCliente().getId(), this::valorMensalidade,
                         (primeiro, segundo) -> primeiro));
     }

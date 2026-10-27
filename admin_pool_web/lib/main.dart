@@ -1594,10 +1594,51 @@ class _ListaClientesState extends State<_ListaClientes> {
     }
   }
 
-  Future<void> excluir(int id) async {
-    await apiService.delete('/api/clientes/$id');
-    atualizacaoClientes.value++;
-    setState(() => clientes = carregar());
+  Future<void> excluir(Map<String, dynamic> cliente) async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        title: const Text('Excluir cliente?'),
+        content: Text(
+          'Deseja excluir ${cliente['nome']}? Esta ação remove somente este cadastro, desde que ele não tenha piscinas ou histórico financeiro vinculado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(contexto, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmou != true) return;
+
+    final resposta = await apiService.delete('/api/clientes/${cliente['id']}');
+    if (!mounted) return;
+    if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
+      atualizacaoClientes.value++;
+      setState(() => clientes = carregar());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${cliente['nome']} foi excluído.')),
+      );
+      return;
+    }
+
+    String mensagem = 'Não foi possível excluir o cliente.';
+    try {
+      final corpo = jsonDecode(resposta.body);
+      if (corpo is Map && corpo['message'] != null) {
+        mensagem = corpo['message'].toString();
+      } else if (corpo is Map && corpo['error'] != null) {
+        mensagem = corpo['error'].toString();
+      }
+    } catch (_) {
+      if (resposta.body.trim().isNotEmpty) mensagem = resposta.body.trim();
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   Future<void> alternarAtivo(Map<String, dynamic> cliente) async {
@@ -2843,8 +2884,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                                     Icons.delete_outline,
                                     color: Colors.red,
                                   ),
-                                  onPressed: () =>
-                                      excluir(cliente['id'] as int),
+                                  onPressed: () => excluir(cliente),
                                 ),
                               ],
                             ),
@@ -2953,8 +2993,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                                     Icons.delete_outline,
                                     color: Colors.red,
                                   ),
-                                  onPressed: () =>
-                                      excluir(cliente['id'] as int),
+                                  onPressed: () => excluir(cliente),
                                 ),
                               ],
                             ),
@@ -3274,8 +3313,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                                           onSelected: (acao) {
                                             if (acao == 'editar')
                                               editar(cliente);
-                                            if (acao == 'excluir')
-                                              excluir(cliente['id'] as int);
+                                            if (acao == 'excluir') excluir(cliente);
                                           },
                                           itemBuilder: (_) => const [
                                             PopupMenuItem(
@@ -3325,8 +3363,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                                           Icons.delete_outline,
                                           color: Colors.red,
                                         ),
-                                        onPressed: () =>
-                                            excluir(cliente['id'] as int),
+                                        onPressed: () => excluir(cliente),
                                       ),
                                     Icon(
                                       selecionado
