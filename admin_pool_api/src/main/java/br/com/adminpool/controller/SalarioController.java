@@ -283,7 +283,10 @@ public class SalarioController {
                 .map(ReembolsoColaborador::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalVales = vales.findByFuncionarioIdAndDataLancamentoBetweenOrderByDataLancamentoDesc(funcionario.getId(), mes.atDay(1), mes.atEndOfMonth()).stream().map(ValeColaborador::getValor).reduce(BigDecimal.ZERO, BigDecimal::add);
         Map<String, Object> resultado = new LinkedHashMap<>();
-        resultado.put("funcionario", funcionario);
+        // A folha não expõe a entidade JPA diretamente: quando uma
+        // mensalidade traz o responsável fotografado, ele pode estar como
+        // proxy do Hibernate e quebrar a resposta JSON do mês inteiro.
+        resultado.put("funcionario", dadosDoFuncionario(funcionario));
         resultado.put("piscinas", piscinasVinculadas.size());
         resultado.put("clientes", clientes.size());
         resultado.put("baseMensal", baseMensal);
@@ -296,6 +299,18 @@ public class SalarioController {
         // compensado manualmente no pagamento seguinte.
         resultado.put("saldoNegativo", saldoDaFolha.min(BigDecimal.ZERO).abs());
         resultado.put("referencia", mes.toString());
+        return resultado;
+    }
+
+    private Map<String, Object> dadosDoFuncionario(Funcionario funcionario) {
+        Map<String, Object> usuario = new LinkedHashMap<>();
+        usuario.put("id", funcionario.getUsuario().getId());
+        usuario.put("nome", funcionario.getUsuario().getNome());
+        usuario.put("perfil", funcionario.getUsuario().getPerfil().name());
+        Map<String, Object> resultado = new LinkedHashMap<>();
+        resultado.put("id", funcionario.getId());
+        resultado.put("percentualMensalidade", funcionario.getPercentualMensalidade());
+        resultado.put("usuario", usuario);
         return resultado;
     }
 
