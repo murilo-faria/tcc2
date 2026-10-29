@@ -98,6 +98,9 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     final grupos = _agrupar(linhas).entries.where((grupo) {
       final primeiro = grupo.value.first;
       final cliente = _destinatario(primeiro);
+      final numeroPedido = grupo.key.toString();
+      // Aceita tanto "55" quanto "#55", como o número aparece na lista.
+      final busca = _filtro.startsWith('#') ? _filtro.substring(1) : _filtro;
       final produtos = grupo.value
           .map(
             (item) =>
@@ -111,7 +114,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           (_statusSelecionado == null ||
               primeiro['status']?.toString() == _statusSelecionado) &&
           _noPeriodo(primeiro['dataPedido']) &&
-          (cliente.toLowerCase().contains(_filtro) ||
+          (numeroPedido.contains(busca) ||
+              cliente.toLowerCase().contains(_filtro) ||
               produtos.contains(_filtro));
     }).toList();
     grupos.sort((primeiro, segundo) {
@@ -124,6 +128,19 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
     });
     return grupos;
   }
+
+  double _totalCompra(
+    List<MapEntry<int, List<Map<String, dynamic>>>> grupos,
+  ) => grupos.fold<double>(
+    0,
+    (soma, grupo) =>
+        soma +
+        grupo.value.fold<double>(
+          0,
+          (subtotal, item) =>
+              subtotal + ((item['totalCompra'] as num?) ?? 0).toDouble(),
+        ),
+  );
 
   String _destinatario(Map<String, dynamic> pedido) {
     final cliente = (pedido['cliente'] ?? {})['nome']?.toString();
@@ -788,7 +805,7 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
           TextField(
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search),
-              labelText: 'Pesquisar cliente ou produto',
+              labelText: 'Pesquisar nº do pedido, cliente ou produto',
               isDense: true,
               contentPadding: EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(),
@@ -915,6 +932,21 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
             ),
           ],
           const SizedBox(height: 12),
+          FutureBuilder<List<dynamic>>(
+            future: _pedidos,
+            builder: (_, estado) {
+              if (!estado.hasData) return const SizedBox.shrink();
+              final grupos = _filtrarGrupos(estado.data!);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  '${grupos.length} pedido(s) encontrado(s) • '
+                  'Total de compra: ${formatarMoeda(_totalCompra(grupos))}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              );
+            },
+          ),
           Expanded(
             child: FutureBuilder<List<dynamic>>(
               future: _pedidos,
