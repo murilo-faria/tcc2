@@ -14,6 +14,7 @@ import br.com.adminpool.model.ItemCobranca;
 import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.OrdemServicoRepository;
 import br.com.adminpool.repository.PedidoProdutoRepository;
+import br.com.adminpool.repository.CloroEmergencialRepository;
 import br.com.adminpool.service.CobrancaService;
 import br.com.adminpool.service.OrdemServicoService;
 import br.com.adminpool.service.PedidoProdutoService;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.math.BigDecimal;
 import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,11 +42,12 @@ public class CobrancaController {
     private final OrdemServicoRepository ordens;
     private final PedidoProdutoService pedidosService;
     private final OrdemServicoService ordensService;
+    private final CloroEmergencialRepository cloros;
 
     public CobrancaController(CobrancaService cobrancaService, RelatorioPdfService relatorios,
                               ClienteRepository clientes, PedidoProdutoRepository pedidos,
                               OrdemServicoRepository ordens, PedidoProdutoService pedidosService,
-                              OrdemServicoService ordensService) {
+                              OrdemServicoService ordensService, CloroEmergencialRepository cloros) {
         this.cobrancaService = cobrancaService;
         this.relatorios = relatorios;
         this.clientes = clientes;
@@ -52,6 +55,7 @@ public class CobrancaController {
         this.ordens = ordens;
         this.pedidosService = pedidosService;
         this.ordensService = ordensService;
+        this.cloros = cloros;
     }
 
     @GetMapping
@@ -143,6 +147,19 @@ public class CobrancaController {
     /** Identifica no PDF se o pedido cobrado era uma capa ou um produto comum. */
     private String descricaoDoHistorico(LinhaHistoricoCobranca item) {
         String descricao = item.descricao();
+        if (item.tipo() == br.com.adminpool.model.TipoLancamentoCobranca.CLORO_EMERGENCIAL
+                && item.origemId() != null) {
+            return cloros.findById(item.origemId()).map(lista -> {
+                String usos = lista.getUsos().stream()
+                        .map(uso -> uso.getDataUso().format(DateTimeFormatter.ofPattern("dd/MM/uuuu"))
+                                + " - " + uso.getQuantidadeKg().stripTrailingZeros().toPlainString() + " kg"
+                                + (uso.getDescricao() == null || uso.getDescricao().isBlank()
+                                ? "" : " - " + uso.getDescricao()))
+                        .collect(java.util.stream.Collectors.joining("\n- "));
+                return "Cloro emergencial"
+                        + (usos.isBlank() ? "" : "\n- " + usos);
+            }).orElse(descricao);
+        }
         if (descricao == null || !descricao.startsWith("Pedido #")) return descricao;
         try {
             String codigoTexto = descricao.substring("Pedido #".length()).trim().split("\\s+")[0];
