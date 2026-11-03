@@ -1346,7 +1346,7 @@ class _OrdensServicoPageState extends State<_OrdensServicoPage> {
                       ),
                       title: Text(cliente['nome']),
                       subtitle: Text(
-                        '${o['descricao']}\n${piscina == null ? 'Sem piscina' : piscina['nome']} • ${o['dataServico']}\nEndereço: ${(piscina?['endereco'] ?? cliente['endereco'] ?? 'A informar')}',
+                        '${o['descricao']}\n${piscina == null ? 'Sem piscina' : piscina['nome']} • ${formatarData(o['dataServico'])}\nEndereço: ${(piscina?['endereco'] ?? cliente['endereco'] ?? 'A informar')}',
                       ),
                       isThreeLine: true,
                       trailing: Row(
@@ -2059,7 +2059,7 @@ class _ListaClientesState extends State<_ListaClientes> {
                       Padding(
                         padding: const EdgeInsets.only(top: 10),
                         child: Text(
-                          'Primeiro vencimento: ${dataApi(vencimentoCalculado())}',
+                          'Primeiro vencimento: ${formatarData(dataApi(vencimentoCalculado()))}',
                         ),
                       ),
                     const SizedBox(height: 18),

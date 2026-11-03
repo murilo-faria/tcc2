@@ -814,7 +814,7 @@ class _DialogoReembolsosState extends State<_DialogoReembolsos> {
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text('${item['cliente']}'),
-                      subtitle: Text('${item['piscinas']}\n${widget.referencia}: ${formatarMoeda((item['valorAtual'] as num?) ?? 0)} • $nomeProximo: ${formatarMoeda((item['valorProximo'] as num?) ?? 0)}'),
+                      subtitle: Text('${item['piscinas']}\n${formatarReferencia(widget.referencia)}: ${formatarMoeda((item['valorAtual'] as num?) ?? 0)} • $nomeProximo: ${formatarMoeda((item['valorProximo'] as num?) ?? 0)}'),
                       isThreeLine: true,
                       trailing: Text(
                         '${diferenca >= 0 ? '+' : ''}${formatarMoeda(diferenca)}',

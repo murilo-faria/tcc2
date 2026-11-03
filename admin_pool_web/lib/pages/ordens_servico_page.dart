@@ -129,7 +129,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                               'OS #${os['id']} — ${(os['cliente'] ?? {})['nome'] ?? ''}',
                             ),
                             subtitle: Text(
-                              '${os['dataServico']} • ${os['descricao']}',
+                              '${formatarData(os['dataServico'])} • ${os['descricao']}',
                             ),
                             trailing: Text(
                               formatarMoeda((os['valorCobrado'] as num?) ?? 0),
@@ -758,7 +758,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
               const Divider(),
               Text('Cliente: ${(ordem['cliente'] ?? {})['nome'] ?? ''}'),
               Text('Piscina: ${(ordem['piscina'] ?? {})['nome'] ?? ''}'),
-              Text('Data: ${ordem['dataServico'] ?? '-'}'),
+              Text('Data: ${formatarData(ordem['dataServico'])}'),
               Text(
                 'Custo: ${formatarMoeda((ordem['valorCusto'] as num?) ?? 0)}',
               ),
@@ -904,7 +904,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
                         ),
                         title: Text((ordem['cliente'] ?? {})['nome'] ?? ''),
                         subtitle: Text(
-                          '${ordem['descricao']}\n${ordem['dataServico']} • ${ordem['status']}',
+                          '${ordem['descricao']}\n${formatarData(ordem['dataServico'])} • ${ordem['status']}',
                         ),
                         isThreeLine: true,
                         trailing: PopupMenuButton<String>(

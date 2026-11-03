@@ -96,7 +96,7 @@ class _ProximosServicosFuncionario extends StatelessWidget {
               title: Text(
                 '${(o['cliente'] ?? {})['nome'] ?? ''} — ${p['nome'] ?? 'Piscina'}',
               ),
-              subtitle: Text('${o['dataServico']} • ${o['descricao']}'),
+              subtitle: Text('${formatarData(o['dataServico'])} • ${o['descricao']}'),
             );
           },
         ),
@@ -947,7 +947,7 @@ class _CobrancasPageState extends State<_CobrancasPage> {
           color: pago ? Colors.green : Colors.orange,
         ),
         title: Text((x['cliente'] ?? {})['nome'] ?? ''),
-        subtitle: Text('Vencimento: ${x['vencimento']} • ${x['status']}'),
+        subtitle: Text('Vencimento: ${formatarData(x['vencimento'])} • ${x['status']}'),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

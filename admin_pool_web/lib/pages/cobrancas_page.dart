@@ -208,7 +208,7 @@ class _CobrancasPageNovaState extends State<_CobrancasPageNova> {
                           return ListTile(
                             title: Text((c['cliente'] ?? {})['nome'] ?? ''),
                             subtitle: Text(
-                              '${c['referencia']} • vence ${c['vencimento']} • ${c['status']}',
+                              '${formatarReferencia(c['referencia'])} • vence ${formatarData(c['vencimento'])} • ${c['status']}',
                             ),
                             trailing: Text(
                               formatarMoeda((c['total'] as num?) ?? 0),
@@ -1166,7 +1166,7 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                                     : null,
                               ),
                         title: Text(
-                          item['descricao'] ?? item['tipo'] ?? '',
+                          formatarDescricaoComReferencia(item['descricao'] ?? item['tipo'] ?? ''),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -1177,8 +1177,8 @@ class _PainelCobrancaClienteState extends State<_PainelCobrancaCliente> {
                               registroPagamento
                                   ? 'Referente a: ${_referenciaLegivel(item['referencia'])} • Pago em: ${_dataLegivel(item['data'])}'
                                   : celular
-                                  ? '${item['referencia']} • vence ${item['vencimento']}\n$valor • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}'
-                                  : '${item['referencia']} • vence ${item['vencimento']} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
+                                  ? '${formatarReferencia(item['referencia'])} • vence ${formatarData(item['vencimento'])}\n$valor • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}'
+                                  : '${formatarReferencia(item['referencia'])} • vence ${formatarData(item['vencimento'])} • ${item['atrasado'] == true ? 'ATRASADO' : item['status']}',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1361,7 +1361,7 @@ class _ConteudoDetalheCobranca extends StatelessWidget {
         children: [
           Text(os['descricao'] ?? ''),
           const SizedBox(height: 12),
-          Text('Data do serviço: ${os['dataServico'] ?? '-'}'),
+          Text('Data do serviço: ${formatarData(os['dataServico'])}'),
           Text('Custo: ${formatarMoeda((os['valorCusto'] as num?) ?? 0)}'),
           Text(
             'Cobrado do cliente: ${formatarMoeda((os['valorCobrado'] as num?) ?? 0)}',
@@ -1375,7 +1375,7 @@ class _ConteudoDetalheCobranca extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (item['vencimento'] != null) Text('Vencimento: ${item['vencimento']}'),
+        if (item['vencimento'] != null) Text('Vencimento: ${formatarData(item['vencimento'])}'),
         Text(
           'Valor original: ${formatarMoeda((item['valorOriginal'] as num?) ?? 0)}',
         ),
