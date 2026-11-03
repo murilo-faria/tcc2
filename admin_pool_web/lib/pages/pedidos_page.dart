@@ -940,8 +940,8 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Text(
-                  '${grupos.length} pedido(s) encontrado(s) • '
-                  'Total de compra: ${formatarMoeda(_totalCompra(grupos))}',
+                  '${grupos.length} pedido(s) encontrado(s)'
+                  '${widget.gestor ? ' • Total de compra: ${formatarMoeda(_totalCompra(grupos))}' : ''}',
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               );
