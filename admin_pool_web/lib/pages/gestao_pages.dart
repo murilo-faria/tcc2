@@ -731,6 +731,7 @@ class _PiscinasPageState extends State<_PiscinasPage> {
         body: {
           'clienteId': (p['cliente'] ?? {})['id'],
           'responsavelId': responsavel,
+          'diaAtendimento': p['diaAtendimento'],
           'nome': nome.text.trim(),
           'endereco': endereco.text.trim(),
           'tipo': tipoSelecionado ?? '',
@@ -743,8 +744,20 @@ class _PiscinasPageState extends State<_PiscinasPage> {
               double.tryParse(valor.text.replaceAll(',', '.')) ?? 0,
         },
       );
-      if (r.statusCode >= 200 && r.statusCode < 300)
+      if (r.statusCode >= 200 && r.statusCode < 300) {
         setState(() => dados = carregar());
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Piscina atualizada.')),
+          );
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Não foi possível atualizar a piscina (${r.statusCode}).'),
+          ),
+        );
+      }
     }
   }
 

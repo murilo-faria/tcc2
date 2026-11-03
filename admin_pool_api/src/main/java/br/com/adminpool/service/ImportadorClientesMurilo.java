@@ -65,6 +65,12 @@ public class ImportadorClientesMurilo implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        // Esta carga serviu apenas para popular a primeira versão do sistema.
+        // Depois que há qualquer cliente cadastrado, os dados passam a ser
+        // administrados exclusivamente pelas telas. Sem esta guarda, todo
+        // reinício do Railway voltava a atribuir a carteira abaixo ao Murilo.
+        if (clientes.count() > 0) return;
+
         Funcionario murilo = funcionarios.findByUsuarioLoginIgnoreCase("funcionario1").orElse(null);
         if (murilo == null) return;
 
