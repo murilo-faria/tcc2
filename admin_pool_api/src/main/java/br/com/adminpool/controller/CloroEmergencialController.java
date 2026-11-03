@@ -28,6 +28,12 @@ public class CloroEmergencialController {
                                                                         Authentication auth) {
         return servico.adicionarUso(id, r, auth);
     }
+    @PutMapping("/{id}/usos/{usoId}") public CloroEmergencial editarUso(@PathVariable Long id,
+                                                                            @PathVariable Long usoId,
+                                                                            @RequestBody EditarUsoCloroEmergencialRequest r,
+                                                                            Authentication auth) {
+        gestor(auth); return servico.editarUso(id, usoId, r);
+    }
     @PutMapping("/{id}/finalizar") public CloroEmergencial finalizar(@PathVariable Long id,
                                                                         @RequestBody FinalizarCloroEmergencialRequest r,
                                                                         Authentication auth) {

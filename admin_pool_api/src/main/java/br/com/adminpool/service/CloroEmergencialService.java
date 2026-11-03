@@ -1,6 +1,7 @@
 package br.com.adminpool.service;
 
 import br.com.adminpool.dto.FinalizarCloroEmergencialRequest;
+import br.com.adminpool.dto.EditarUsoCloroEmergencialRequest;
 import br.com.adminpool.dto.NovoCloroEmergencialRequest;
 import br.com.adminpool.dto.NovoUsoCloroEmergencialRequest;
 import br.com.adminpool.model.*;
@@ -68,6 +69,22 @@ public class CloroEmergencialService {
         uso.setDescricao(requisicao.descricao() == null ? null : requisicao.descricao().trim());
         uso.setDataUso(LocalDate.now());
         lista.getUsos().add(uso);
+        return listas.save(lista);
+    }
+
+    /** Permite ao gestor corrigir peso ou descrição sem perder a data do lançamento. */
+    @Transactional
+    public CloroEmergencial editarUso(Long id, Long usoId, EditarUsoCloroEmergencialRequest requisicao) {
+        CloroEmergencial lista = aberta(id);
+        if (requisicao.quantidadeKg() == null || requisicao.quantidadeKg().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Informe uma quantidade de cloro maior que zero.");
+        }
+        UsoCloroEmergencial uso = lista.getUsos().stream()
+                .filter(item -> item.getId().equals(usoId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Uso de cloro não pertence a esta lista."));
+        uso.setQuantidadeKg(requisicao.quantidadeKg());
+        uso.setDescricao(requisicao.descricao() == null ? null : requisicao.descricao().trim());
         return listas.save(lista);
     }
 

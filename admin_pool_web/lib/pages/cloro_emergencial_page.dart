@@ -79,6 +79,24 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
     if (r.statusCode >= 200 && r.statusCode < 300) { _recarregar(); if (mounted) { Navigator.pop(context); await _detalhar(jsonDecode(r.body) as Map<String, dynamic>); } }
   }
 
+  Future<void> _editarUso(Map<String, dynamic> lista, Map<String, dynamic> uso) async {
+    final quantidade = TextEditingController(text: _numero(((uso['quantidadeKg'] as num?) ?? 0).toDouble() * 1000));
+    final descricao = TextEditingController(text: '${uso['descricao'] ?? ''}');
+    final salvar = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+      title: const Text('Editar uso de cloro'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        TextField(controller: quantidade, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Quantidade *', hintText: 'Ex.: 999 ou 1.200', suffixText: 'g')),
+        const Padding(padding: EdgeInsets.only(top: 8), child: Text('Até 999 aparece em gramas. A partir de 1.000, aparece em kg.')),
+        TextField(controller: descricao, maxLines: 3, decoration: const InputDecoration(labelText: 'Descrição')),
+        const Padding(padding: EdgeInsets.only(top: 12), child: Text('A data original do lançamento será preservada.')),
+      ]),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Salvar'))],
+    ));
+    if (salvar != true) return;
+    final r = await apiService.put('/api/cloro-emergencial/${lista['id']}/usos/${uso['id']}', body: {'quantidadeKg': _gramasParaKg(quantidade.text), 'descricao': descricao.text.trim()});
+    if (r.statusCode >= 200 && r.statusCode < 300) { _recarregar(); if (mounted) { Navigator.pop(context); await _detalhar(jsonDecode(r.body) as Map<String, dynamic>); } }
+  }
+
   Future<void> _finalizar(Map<String, dynamic> lista) async {
     String destino = 'COBRANCA'; final valor = TextEditingController();
     final confirmar = await showDialog<bool>(context: context, builder: (_) => StatefulBuilder(builder: (_, setLocal) => AlertDialog(
@@ -120,7 +138,7 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
       title: Text('Cloro — ${(lista['cliente'] ?? {})['nome'] ?? ''}'),
       content: SizedBox(width: 560, height: 360, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('${_peso(_totalKg(lista))} usados • ${_status(lista)}', style: const TextStyle(fontWeight: FontWeight.bold)), const Divider(),
-        Expanded(child: usos.isEmpty ? const Center(child: Text('Nenhum uso registrado.')) : ListView.separated(itemCount: usos.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final uso = usos[i]; return ListTile(contentPadding: EdgeInsets.zero, title: Text(_peso(((uso['quantidadeKg'] as num?) ?? 0).toDouble())), subtitle: Text('${uso['dataUso']} • ${uso['descricao'] ?? ''}')); })),
+        Expanded(child: usos.isEmpty ? const Center(child: Text('Nenhum uso registrado.')) : ListView.separated(itemCount: usos.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final uso = usos[i]; return ListTile(contentPadding: EdgeInsets.zero, title: Text(_peso(((uso['quantidadeKg'] as num?) ?? 0).toDouble())), subtitle: Text('${uso['dataUso']} • ${uso['descricao'] ?? ''}'), trailing: widget.gestor && lista['status'] == 'ABERTA' ? IconButton(tooltip: 'Editar uso', icon: const Icon(Icons.edit_outlined), onPressed: () => _editarUso(lista, uso)) : null); })),
       ])),
       actions: [
         if (lista['status'] == 'ABERTA') TextButton.icon(onPressed: () => _adicionarUso(lista), icon: const Icon(Icons.add), label: const Text('Adicionar uso')),
