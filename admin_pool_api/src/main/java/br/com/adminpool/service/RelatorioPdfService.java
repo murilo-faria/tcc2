@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.awt.Color;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.text.NumberFormat;
 import java.util.List;
 import java.util.Locale;
@@ -30,6 +33,7 @@ public class RelatorioPdfService {
     private static final Color AZUL = new Color(21, 101, 192);
     private static final Color CINZA_CLARO = new Color(238, 242, 247);
     private static final Locale BRASIL = Locale.of("pt", "BR");
+    private static final DateTimeFormatter DATA_BRASIL = DateTimeFormatter.ofPattern("dd/MM/uuuu");
 
     public byte[] gerar(String titulo, String filtros, List<LinhaRelatorioPdf> linhas) {
         return gerarComTabela(titulo, filtros, linhas, new float[]{1.45f, 2.55f, 1.05f, 1.15f});
@@ -56,7 +60,7 @@ public class RelatorioPdfService {
             for (LinhaRelatorioPdf linha : linhas) {
                 adicionarCelula(tabela, linha.getCliente(), Element.ALIGN_LEFT);
                 adicionarCelula(tabela, linha.getDescricao(), Element.ALIGN_LEFT);
-                adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, formatarData(linha.getData()), Element.ALIGN_LEFT);
                 adicionarCelula(tabela, formatarValor(linha.getValor()), Element.ALIGN_RIGHT);
             }
             documento.add(tabela);
@@ -88,7 +92,7 @@ public class RelatorioPdfService {
             adicionarCabecalho(tabela, "DATA", Element.ALIGN_LEFT);
             for (LinhaRelatorioPdf linha : linhas) {
                 adicionarCelula(tabela, linha.getDescricao(), Element.ALIGN_LEFT);
-                adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, formatarData(linha.getData()), Element.ALIGN_LEFT);
             }
             documento.add(tabela);
             documento.close();
@@ -118,7 +122,7 @@ public class RelatorioPdfService {
             for (LinhaRelatorioPdf linha : linhas) {
                 adicionarCelula(tabela, linha.getCliente(), Element.ALIGN_LEFT);
                 adicionarCelula(tabela, linha.getDescricao(), Element.ALIGN_LEFT);
-                adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, formatarData(linha.getData()), Element.ALIGN_LEFT);
                 adicionarCelula(tabela, linha.getValor().signum() == 0 ? "" : formatarValor(linha.getValor()), Element.ALIGN_RIGHT);
             }
             documento.add(tabela);
@@ -157,7 +161,7 @@ public class RelatorioPdfService {
             for (LinhaRelatorioPdf linha : linhas) {
                 adicionarCelula(tabela, linha.getCliente(), Element.ALIGN_LEFT);
                 adicionarCelula(tabela, linha.getDescricao(), Element.ALIGN_LEFT);
-                adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, formatarData(linha.getData()), Element.ALIGN_LEFT);
                 adicionarCelula(tabela, formatarValor(linha.getValor()), Element.ALIGN_RIGHT);
             }
 
@@ -239,7 +243,7 @@ public class RelatorioPdfService {
             for (LinhaRelatorioPdf linha : linhas) {
                 adicionarCelula(tabela, linha.getCliente(), Element.ALIGN_LEFT);
                 adicionarCelula(tabela, linha.getDescricao(), Element.ALIGN_LEFT);
-                adicionarCelula(tabela, linha.getData(), Element.ALIGN_LEFT);
+                adicionarCelula(tabela, formatarData(linha.getData()), Element.ALIGN_LEFT);
                 adicionarCelula(tabela, formatarValor(linha.getValor()), Element.ALIGN_RIGHT);
             }
             documento.add(tabela);
@@ -287,6 +291,16 @@ public class RelatorioPdfService {
 
     private String formatarValor(BigDecimal valor) {
         return NumberFormat.getCurrencyInstance(BRASIL).format(valor == null ? BigDecimal.ZERO : valor);
+    }
+
+    /** Datas persistidas pela API usam ISO; no PDF, a apresentação é brasileira. */
+    private String formatarData(String data) {
+        if (data == null || data.isBlank()) return "";
+        try {
+            return LocalDate.parse(data).format(DATA_BRASIL);
+        } catch (DateTimeParseException e) {
+            return data;
+        }
     }
 
     private BigDecimal total(List<LinhaRelatorioPdf> linhas) {
