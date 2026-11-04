@@ -361,7 +361,9 @@ class _PedidosPageNovaState extends State<_PedidosPageNova> {
       piscinas: resultados[2],
       funcionarios: widget.gestor ? resultados[3] : [colaboradorAtual],
       funcionarioFixo: colaboradorAtual?['id'] as int?,
-      usoInternoInicial: widget.gestor ? null : true,
+      // Pedido para cliente é o fluxo usual para gestor e colaborador. O uso
+      // interno continua disponível, mas não deve ser selecionado por padrão.
+      usoInternoInicial: null,
       permitirAlternarUsoInterno: !widget.gestor,
       ocultarValoresInternos: !widget.gestor,
       permitirCapa: widget.gestor,
