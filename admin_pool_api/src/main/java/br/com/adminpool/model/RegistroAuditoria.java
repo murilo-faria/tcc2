@@ -15,6 +15,9 @@ public class RegistroAuditoria {
     private String acao;
     @Column(nullable = false, length = 100)
     private String modulo;
+    /** Resumo legível para a consulta diária da auditoria. */
+    @Column(length = 500)
+    private String descricao;
     @Column(nullable = false, length = 500)
     private String recurso;
     @Column(nullable = false)
@@ -28,6 +31,7 @@ public class RegistroAuditoria {
     public String getUsuarioLogin(){ return usuarioLogin; } public void setUsuarioLogin(String valor){ usuarioLogin=valor; }
     public String getAcao(){ return acao; } public void setAcao(String valor){ acao=valor; }
     public String getModulo(){ return modulo; } public void setModulo(String valor){ modulo=valor; }
+    public String getDescricao(){ return descricao; } public void setDescricao(String valor){ descricao=valor; }
     public String getRecurso(){ return recurso; } public void setRecurso(String valor){ recurso=valor; }
     public LocalDateTime getDataHora(){ return dataHora; } public void setDataHora(LocalDateTime valor){ dataHora=valor; }
     public String getDadosInformados(){ return dadosInformados; } public void setDadosInformados(String valor){ dadosInformados=valor; }

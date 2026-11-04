@@ -1,6 +1,9 @@
 package br.com.adminpool.service;
 
 import br.com.adminpool.model.RegistroAuditoria;
+import br.com.adminpool.model.ItemCobranca;
+import br.com.adminpool.repository.ClienteRepository;
+import br.com.adminpool.repository.ItemCobrancaRepository;
 import br.com.adminpool.repository.RegistroAuditoriaRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,10 +18,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuditoriaService {
     private final RegistroAuditoriaRepository registros;
+    private final ItemCobrancaRepository itensCobranca;
+    private final ClienteRepository clientes;
     private final ObjectMapper json;
 
-    public AuditoriaService(RegistroAuditoriaRepository registros, ObjectMapper json) {
+    public AuditoriaService(RegistroAuditoriaRepository registros,
+                            ItemCobrancaRepository itensCobranca,
+                            ClienteRepository clientes,
+                            ObjectMapper json) {
         this.registros = registros;
+        this.itensCobranca = itensCobranca;
+        this.clientes = clientes;
         this.json = json;
     }
 
@@ -33,9 +43,67 @@ public class AuditoriaService {
         registro.setAcao(acao);
         registro.setRecurso(limitar(recurso, 500));
         registro.setModulo(modulo(recurso));
+        registro.setDescricao(limitar(descricao(acao, recurso), 500));
         registro.setDadosInformados(limitar(serializar(argumentos), 4000));
         registro.setResultado(limitar(resumo(retorno), 1000));
         registros.save(registro);
+    }
+
+    /**
+     * Mantém a tela de auditoria compreensível sem retirar o registro técnico
+     * disponível nos detalhes. Cobranças são tratadas explicitamente porque a
+     * identificação do cliente e do lançamento é essencial para conferência.
+     */
+    private String descricao(String acao, String recurso) {
+        String verbo = switch (acao) {
+            case "POST" -> "Criou";
+            case "PUT", "PATCH" -> "Alterou";
+            case "DELETE" -> "Excluiu";
+            default -> "Realizou alteração em";
+        };
+        if (!recurso.startsWith("/api/cobrancas/")) return verbo + " em " + nomeModulo(modulo(recurso));
+
+        String[] partes = recurso.split("/");
+        Long itemId = idApos(partes, "itens");
+        if (itemId != null) {
+            ItemCobranca item = itensCobranca.findById(itemId).orElse(null);
+            if (item != null) {
+                String cliente = item.getCobranca().getCliente().getNome();
+                String lancamento = item.getDescricao();
+                if (recurso.endsWith("/baixar")) return "Deu baixa em " + lancamento + " de " + cliente;
+                if (recurso.endsWith("/estornar-baixa")) return "Estornou baixa de " + lancamento + " de " + cliente;
+                if (recurso.endsWith("/valor")) return "Alterou valor de " + lancamento + " de " + cliente;
+                return verbo + " " + lancamento + " de " + cliente;
+            }
+        }
+        Long clienteId = idApos(partes, "clientes");
+        if (clienteId != null) {
+            String cliente = clientes.findById(clienteId).map(c -> c.getNome()).orElse("cliente removido");
+            if (recurso.endsWith("/baixar-total")) return "Deu baixa total nas cobranças de " + cliente;
+            if (recurso.endsWith("/baixar-parcial")) return "Deu baixa parcial nas cobranças de " + cliente;
+            return verbo + " cobranças de " + cliente;
+        }
+        if (recurso.endsWith("/baixar")) return "Deu baixa em cobranças selecionadas";
+        if (recurso.endsWith("/baixar-total")) return "Deu baixa total em cobranças selecionadas";
+        return verbo + " em cobranças";
+    }
+
+    private Long idApos(String[] partes, String marcador) {
+        for (int i = 0; i + 1 < partes.length; i++) {
+            if (!marcador.equals(partes[i])) continue;
+            try { return Long.valueOf(partes[i + 1]); }
+            catch (NumberFormatException ignored) { return null; }
+        }
+        return null;
+    }
+
+    private String nomeModulo(String modulo) {
+        return switch (modulo) {
+            case "pedidos-produto" -> "pedidos";
+            case "ordens-servico" -> "ordens de serviço";
+            case "cloro-emergencial" -> "cloro emergencial";
+            default -> modulo;
+        };
     }
 
     private String modulo(String recurso) {

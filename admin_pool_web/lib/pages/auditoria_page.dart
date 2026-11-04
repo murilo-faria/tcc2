@@ -79,7 +79,7 @@ class _AuditoriaPageState extends State<_AuditoriaPage> {
                   return Center(child: Text('${resultado.error}'));
                 }
                 final registros = resultado.data!.where((registro) {
-                  final texto = '${registro['usuarioLogin']} ${registro['modulo']} ${registro['acao']} ${registro['recurso']}'.toLowerCase();
+                  final texto = '${registro['usuarioLogin']} ${registro['descricao']} ${registro['modulo']} ${registro['acao']} ${registro['recurso']}'.toLowerCase();
                   return texto.contains(_busca);
                 }).toList();
                 if (registros.isEmpty) {
@@ -111,13 +111,13 @@ class _AuditoriaPageState extends State<_AuditoriaPage> {
                           },
                         ),
                       ),
-                      title: Text('${_acao('${registro['acao']}')} em ${registro['modulo']}'),
+                      title: Text('${registro['descricao'] ?? '${_acao('${registro['acao']}')} em ${registro['modulo']}'}'),
                       subtitle: Text('${registro['usuarioLogin']} • ${_dataHora(registro['dataHora']?.toString())}'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => showDialog<void>(
                         context: context,
                         builder: (_) => AlertDialog(
-                          title: Text('${_acao('${registro['acao']}')} em ${registro['modulo']}'),
+                          title: Text('${registro['descricao'] ?? '${_acao('${registro['acao']}')} em ${registro['modulo']}'}'),
                           content: SingleChildScrollView(
                             child: SelectableText(
                               'Usuário: ${registro['usuarioLogin']}\n'
