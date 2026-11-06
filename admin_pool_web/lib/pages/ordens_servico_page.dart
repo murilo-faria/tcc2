@@ -208,35 +208,6 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
   }
 
   Future<void> _novaOrdem() async {
-    final tipo = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Novo lançamento'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.build_outlined),
-              title: const Text('Serviço'),
-              subtitle: const Text('Bomba, filtro, placa, vazamento ou outro serviço.'),
-              onTap: () => Navigator.pop(context, 'SERVICO'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.science_outlined),
-              title: const Text('Cloro emergencial'),
-              subtitle: const Text('Registra quantidade e descrição; o valor é definido no fechamento.'),
-              onTap: () => Navigator.pop(context, 'CLORO'),
-            ),
-          ],
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar'))],
-      ),
-    );
-    if (tipo == 'CLORO') {
-      await _novoCloroEmergencial();
-      return;
-    }
-    if (tipo != 'SERVICO') return;
     final clientes = await _buscar('/api/clientes');
     if (clientes.isEmpty || !mounted) return;
     clientes.sort(
@@ -366,22 +337,31 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
   }
 
   Future<void> _novoCloroEmergencial() async {
-    final clientes = await _buscar('/api/clientes');
-    if (clientes.isEmpty || !mounted) return;
-    clientes.sort((a, b) => '${a['nome']}'.toLowerCase().compareTo('${b['nome']}'.toLowerCase()));
-    int clienteId = clientes.first['id'] as int;
+    final piscinas = await _buscar('/api/piscinas');
+    if (piscinas.isEmpty || !mounted) return;
+    String rotulo(Map<String, dynamic> piscina) {
+      final cliente = piscina['cliente'] as Map<String, dynamic>? ?? const {};
+      final quantidade = (piscina['quantidadePiscinasDoCliente'] as num?) ?? 1;
+      if (quantidade <= 1) return '${cliente['nome'] ?? ''}';
+      final nomePiscina = '${piscina['nome'] ?? ''}'
+          .replaceFirst(RegExp(r'^piscina\\s+', caseSensitive: false), '')
+          .trim();
+      return nomePiscina.isEmpty ? '${cliente['nome'] ?? ''}' : '${cliente['nome'] ?? ''} — $nomePiscina';
+    }
+    piscinas.sort((a, b) => rotulo(a as Map<String, dynamic>).toLowerCase().compareTo(rotulo(b as Map<String, dynamic>).toLowerCase()));
+    int piscinaId = piscinas.first['id'] as int;
     final criar = await showDialog<bool>(
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (_, setLocal) => AlertDialog(
           title: const Text('Cloro emergencial'),
           content: DropdownButtonFormField<int>(
-            value: clienteId,
-            decoration: const InputDecoration(labelText: 'Cliente *'),
-            items: clientes.map<DropdownMenuItem<int>>((cliente) => DropdownMenuItem(
-              value: cliente['id'] as int, child: Text('${cliente['nome']}'),
+            value: piscinaId,
+            decoration: const InputDecoration(labelText: 'Cliente e piscina *'),
+            items: piscinas.map<DropdownMenuItem<int>>((item) { final piscina = item as Map<String, dynamic>; return DropdownMenuItem(
+              value: piscina['id'] as int, child: Text(rotulo(piscina)),
             )).toList(),
-            onChanged: (id) => setLocal(() => clienteId = id!),
+            onChanged: (id) => setLocal(() => piscinaId = id!),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
@@ -391,7 +371,7 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
       ),
     );
     if (criar != true) return;
-    final resposta = await apiService.post('/api/cloro-emergencial', body: {'clienteId': clienteId});
+    final resposta = await apiService.post('/api/cloro-emergencial', body: {'piscinaId': piscinaId});
     if (resposta.statusCode >= 200 && resposta.statusCode < 300) {
       _recarregar();
       if (mounted) {

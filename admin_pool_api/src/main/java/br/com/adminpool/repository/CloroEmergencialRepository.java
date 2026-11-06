@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface CloroEmergencialRepository extends JpaRepository<CloroEmergencial, Long> {
-    Optional<CloroEmergencial> findByClienteIdAndReferencia(Long clienteId, String referencia);
+    Optional<CloroEmergencial> findByPiscinaIdAndReferencia(Long piscinaId, String referencia);
     List<CloroEmergencial> findByReferenciaOrderByClienteNomeAsc(String referencia);
-    List<CloroEmergencial> findByReferenciaAndClienteIdInOrderByClienteNomeAsc(String referencia, List<Long> clienteIds);
 }

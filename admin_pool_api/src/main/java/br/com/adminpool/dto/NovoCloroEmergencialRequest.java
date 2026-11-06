@@ -1,2 +1,4 @@
 package br.com.adminpool.dto;
-public record NovoCloroEmergencialRequest(Long clienteId) {}
+
+/** A lista pertence à piscina atendida, e não ao cliente inteiro. */
+public record NovoCloroEmergencialRequest(Long clienteId, Long piscinaId) {}

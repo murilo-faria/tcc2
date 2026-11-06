@@ -21,6 +21,8 @@ public class Piscina {
     @ManyToOne @JoinColumn(name = "responsavel_id") private Funcionario responsavel;
     @Column(length = 20) private String diaAtendimento;
     @Column(length = 2000) private String observacoes;
+    /** Usado na identificação de uma piscina quando o cliente possui mais de uma. */
+    @Transient private long quantidadePiscinasDoCliente = 1;
     public Long getId(){return id;} public void setId(Long v){id=v;}
     public Cliente getCliente(){return cliente;} public void setCliente(Cliente v){cliente=v;}
     public String getNome(){return nome;} public void setNome(String v){nome=v;}
@@ -43,4 +45,5 @@ public class Piscina {
     public Funcionario getResponsavel(){return responsavel;} public void setResponsavel(Funcionario v){responsavel=v;}
     public String getDiaAtendimento(){return diaAtendimento;} public void setDiaAtendimento(String v){diaAtendimento=v;}
     public String getObservacoes(){return observacoes;} public void setObservacoes(String v){observacoes=v;}
+    public long getQuantidadePiscinasDoCliente(){return quantidadePiscinasDoCliente;} public void setQuantidadePiscinasDoCliente(long v){quantidadePiscinasDoCliente=v;}
 }

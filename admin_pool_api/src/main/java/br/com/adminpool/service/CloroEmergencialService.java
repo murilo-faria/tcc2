@@ -5,9 +5,9 @@ import br.com.adminpool.dto.EditarUsoCloroEmergencialRequest;
 import br.com.adminpool.dto.NovoCloroEmergencialRequest;
 import br.com.adminpool.dto.NovoUsoCloroEmergencialRequest;
 import br.com.adminpool.model.*;
-import br.com.adminpool.repository.ClienteRepository;
 import br.com.adminpool.repository.CloroEmergencialRepository;
 import br.com.adminpool.repository.FuncionarioRepository;
+import br.com.adminpool.repository.PiscinaRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -19,38 +19,47 @@ import java.util.List;
 @Service
 public class CloroEmergencialService {
     private final CloroEmergencialRepository listas;
-    private final ClienteRepository clientes;
+    private final PiscinaRepository piscinas;
     private final FuncionarioRepository funcionarios;
     private final CobrancaService cobrancas;
 
-    public CloroEmergencialService(CloroEmergencialRepository listas, ClienteRepository clientes,
+    public CloroEmergencialService(CloroEmergencialRepository listas, PiscinaRepository piscinas,
                                    FuncionarioRepository funcionarios, CobrancaService cobrancas) {
-        this.listas = listas; this.clientes = clientes; this.funcionarios = funcionarios; this.cobrancas = cobrancas;
+        this.listas = listas; this.piscinas = piscinas; this.funcionarios = funcionarios; this.cobrancas = cobrancas;
     }
 
     public List<CloroEmergencial> listar(String referencia, Authentication auth) {
         String mes = referencia == null || referencia.isBlank() ? YearMonth.now().toString() : referencia;
-        if (gestor(auth)) return listas.findByReferenciaOrderByClienteNomeAsc(mes);
-        List<Long> clientesDoColaborador = clientes.findResponsaveisPorLogin(auth.getName()).stream()
-                .map(Cliente::getId).toList();
-        return clientesDoColaborador.isEmpty() ? List.of()
-                : listas.findByReferenciaAndClienteIdInOrderByClienteNomeAsc(mes, clientesDoColaborador);
+        List<CloroEmergencial> todas = listas.findByReferenciaOrderByClienteNomeAsc(mes);
+        List<CloroEmergencial> visiveis = gestor(auth) ? todas : todas.stream()
+                // Registros antigos, sem piscina, ficam apenas na visão do gestor.
+                .filter(lista -> lista.getPiscina() != null
+                        && pertenceAoColaborador(lista.getPiscina(), auth.getName()))
+                .toList();
+        visiveis.stream().map(CloroEmergencial::getPiscina)
+                .filter(java.util.Objects::nonNull)
+                .forEach(piscina -> piscina.setQuantidadePiscinasDoCliente(
+                        piscinas.countByClienteId(piscina.getCliente().getId())));
+        return visiveis;
     }
 
     @Transactional
     public CloroEmergencial criarOuAbrir(NovoCloroEmergencialRequest requisicao, Authentication auth) {
-        if (requisicao.clienteId() == null) throw new IllegalArgumentException("Selecione o cliente.");
-        validarClienteDoColaborador(requisicao.clienteId(), auth);
+        if (requisicao.piscinaId() == null) throw new IllegalArgumentException("Selecione a piscina.");
+        Piscina piscina = piscinas.findById(requisicao.piscinaId()).orElseThrow();
+        validarPiscinaDoColaborador(piscina, auth);
         String referencia = YearMonth.now().toString();
-        CloroEmergencial existente = listas.findByClienteIdAndReferencia(requisicao.clienteId(), referencia).orElse(null);
+        CloroEmergencial existente = listas.findByPiscinaIdAndReferencia(piscina.getId(), referencia).orElse(null);
         if (existente != null) {
             if (existente.getStatus() != StatusCloroEmergencial.ABERTA) {
-                throw new IllegalStateException("A lista de cloro deste cliente já foi finalizada neste mês.");
+                throw new IllegalStateException("A lista de cloro desta piscina já foi finalizada neste mês.");
             }
             return existente;
         }
         CloroEmergencial lista = new CloroEmergencial();
-        lista.setCliente(clientes.findById(requisicao.clienteId()).orElseThrow());
+        lista.setCliente(piscina.getCliente());
+        lista.setPiscina(piscina);
+        piscina.setQuantidadePiscinasDoCliente(piscinas.countByClienteId(piscina.getCliente().getId()));
         lista.setReferencia(referencia);
         lista.setCriadoPor(funcionarios.findByUsuarioLoginIgnoreCase(auth.getName()).orElse(null));
         return listas.save(lista);
@@ -59,7 +68,7 @@ public class CloroEmergencialService {
     @Transactional
     public CloroEmergencial adicionarUso(Long id, NovoUsoCloroEmergencialRequest requisicao, Authentication auth) {
         CloroEmergencial lista = aberta(id);
-        validarClienteDoColaborador(lista.getCliente().getId(), auth);
+        validarPiscinaDoColaborador(lista.getPiscina(), auth);
         if (requisicao.quantidadeKg() == null || requisicao.quantidadeKg().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Informe uma quantidade de cloro maior que zero.");
         }
@@ -129,14 +138,17 @@ public class CloroEmergencialService {
         listas.delete(lista);
     }
 
-    private void validarClienteDoColaborador(Long clienteId, Authentication auth) {
+    private void validarPiscinaDoColaborador(Piscina piscina, Authentication auth) {
         if (gestor(auth)) return;
-        boolean permitido = clientes.findResponsaveisPorLogin(auth.getName()).stream()
-                .anyMatch(cliente -> cliente.getId().equals(clienteId));
-        if (!permitido) {
+        if (!pertenceAoColaborador(piscina, auth.getName())) {
             throw new org.springframework.security.access.AccessDeniedException(
-                    "Cliente não vinculado ao colaborador.");
+                    "Piscina não vinculada ao colaborador.");
         }
+    }
+
+    private boolean pertenceAoColaborador(Piscina piscina, String login) {
+        return piscina != null && piscina.getResponsavel() != null
+                && piscina.getResponsavel().getUsuario().getLogin().equalsIgnoreCase(login);
     }
 
     private boolean gestor(Authentication auth) {

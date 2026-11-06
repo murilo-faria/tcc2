@@ -6,13 +6,14 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Lista mensal de cloro usado excepcionalmente para um cliente. */
+/** Lista mensal de cloro usado excepcionalmente em uma piscina. */
 @Entity
-@Table(name = "cloros_emergenciais", uniqueConstraints =
-        @UniqueConstraint(columnNames = {"cliente_id", "referencia"}))
+@Table(name = "cloros_emergenciais")
 public class CloroEmergencial {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(optional = false) @JoinColumn(name = "cliente_id") private Cliente cliente;
+    /** Vazio somente em registros antigos, anteriores ao vínculo por piscina. */
+    @ManyToOne @JoinColumn(name = "piscina_id") private Piscina piscina;
     @ManyToOne @JoinColumn(name = "criado_por_id") private Funcionario criadoPor;
     @Column(nullable = false, length = 7) private String referencia;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 30)
@@ -24,6 +25,7 @@ public class CloroEmergencial {
 
     public Long getId(){ return id; } public void setId(Long v){ id=v; }
     public Cliente getCliente(){ return cliente; } public void setCliente(Cliente v){ cliente=v; }
+    public Piscina getPiscina(){ return piscina; } public void setPiscina(Piscina v){ piscina=v; }
     public Funcionario getCriadoPor(){ return criadoPor; } public void setCriadoPor(Funcionario v){ criadoPor=v; }
     public String getReferencia(){ return referencia; } public void setReferencia(String v){ referencia=v; }
     public StatusCloroEmergencial getStatus(){ return status; } public void setStatus(StatusCloroEmergencial v){ status=v; }

@@ -41,24 +41,42 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
     'COBRADA' => 'Cobrado', 'AGUARDANDO_REPOSICAO' => 'Aguardando reposição', 'REPOSTA' => 'Reposto', _ => 'Em aberto',
   };
 
+  String _rotuloPiscina(Map<String, dynamic> piscina) {
+    final cliente = piscina['cliente'] as Map<String, dynamic>? ?? const {};
+    final nomeCliente = '${cliente['nome'] ?? ''}'.trim();
+    final quantidade = (piscina['quantidadePiscinasDoCliente'] as num?) ?? 1;
+    if (quantidade <= 1) return nomeCliente;
+    final nomePiscina = '${piscina['nome'] ?? ''}'
+        .replaceFirst(RegExp(r'^piscina\\s+', caseSensitive: false), '')
+        .trim();
+    return nomePiscina.isEmpty ? nomeCliente : '$nomeCliente — $nomePiscina';
+  }
+
+  String _rotuloLista(Map<String, dynamic> lista) {
+    final piscina = lista['piscina'] as Map<String, dynamic>?;
+    return piscina == null
+        ? '${(lista['cliente'] as Map<String, dynamic>? ?? const {})['nome'] ?? ''}'
+        : _rotuloPiscina(piscina);
+  }
+
   Future<void> _novaLista() async {
-    final r = await apiService.get('/api/clientes');
+    final r = await apiService.get('/api/piscinas');
     if (r.statusCode != 200 || !mounted) return;
-    final clientes = jsonDecode(r.body) as List<dynamic>;
-    clientes.sort((a, b) => '${a['nome']}'.toLowerCase().compareTo('${b['nome']}'.toLowerCase()));
-    if (clientes.isEmpty) return;
-    int clienteId = clientes.first['id'] as int;
+    final piscinas = jsonDecode(r.body) as List<dynamic>;
+    piscinas.sort((a, b) => _rotuloPiscina(a as Map<String, dynamic>).toLowerCase().compareTo(_rotuloPiscina(b as Map<String, dynamic>).toLowerCase()));
+    if (piscinas.isEmpty) return;
+    int piscinaId = piscinas.first['id'] as int;
     final confirmar = await showDialog<bool>(context: context, builder: (_) => StatefulBuilder(builder: (_, setLocal) => AlertDialog(
       title: const Text('Cloro emergencial'),
       content: DropdownButtonFormField<int>(
-        value: clienteId, decoration: const InputDecoration(labelText: 'Cliente *'),
-        items: clientes.map<DropdownMenuItem<int>>((c) => DropdownMenuItem(value: c['id'] as int, child: Text('${c['nome']}'))).toList(),
-        onChanged: (v) => setLocal(() => clienteId = v!),
+        value: piscinaId, decoration: const InputDecoration(labelText: 'Cliente e piscina *'),
+        items: piscinas.map<DropdownMenuItem<int>>((p) { final piscina = p as Map<String, dynamic>; return DropdownMenuItem(value: piscina['id'] as int, child: Text(_rotuloPiscina(piscina))); }).toList(),
+        onChanged: (v) => setLocal(() => piscinaId = v!),
       ),
       actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Abrir lista'))],
     )));
     if (confirmar != true) return;
-    final criar = await apiService.post('/api/cloro-emergencial', body: {'clienteId': clienteId});
+    final criar = await apiService.post('/api/cloro-emergencial', body: {'piscinaId': piscinaId});
     if (criar.statusCode >= 200 && criar.statusCode < 300) { _recarregar(); if (mounted) await _detalhar(jsonDecode(criar.body) as Map<String, dynamic>); }
   }
 
@@ -135,7 +153,7 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
   Future<void> _detalhar(Map<String, dynamic> lista) async {
     final usos = (lista['usos'] as List<dynamic>? ?? const []).cast<Map<String, dynamic>>();
     await showDialog<void>(context: context, builder: (_) => AlertDialog(
-      title: Text('Cloro — ${(lista['cliente'] ?? {})['nome'] ?? ''}'),
+      title: Text('Cloro — ${_rotuloLista(lista)}'),
       content: SizedBox(width: 560, height: 360, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('${_peso(_totalKg(lista))} usados • ${_status(lista)}', style: const TextStyle(fontWeight: FontWeight.bold)), const Divider(),
         Expanded(child: usos.isEmpty ? const Center(child: Text('Nenhum uso registrado.')) : ListView.separated(itemCount: usos.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final uso = usos[i]; return ListTile(contentPadding: EdgeInsets.zero, title: Text(_peso(((uso['quantidadeKg'] as num?) ?? 0).toDouble())), subtitle: Text('${formatarData(uso['dataUso'])} • ${uso['descricao'] ?? ''}'), trailing: widget.gestor && lista['status'] == 'ABERTA' ? IconButton(tooltip: 'Editar uso', icon: const Icon(Icons.edit_outlined), onPressed: () => _editarUso(lista, uso)) : null); })),
@@ -156,7 +174,7 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _CabecalhoResponsivo(titulo: 'Cloro emergencial', subtitulo: 'Controle o cloro usado fora da manutenção normal.', acao: FilledButton.icon(onPressed: _novaLista, icon: const Icon(Icons.add), label: const Text('Novo cloro emergencial'))),
       const SizedBox(height: 12), Row(children: [IconButton(onPressed: () { setState(() { _mes = DateTime(_mes.year, _mes.month - 1); _listas = _carregar(); }); }, icon: const Icon(Icons.chevron_left)), Text(_tituloMes, style: Theme.of(context).textTheme.titleMedium), IconButton(onPressed: () { setState(() { _mes = DateTime(_mes.year, _mes.month + 1); _listas = _carregar(); }); }, icon: const Icon(Icons.chevron_right))]),
-      const SizedBox(height: 12), Expanded(child: FutureBuilder<List<dynamic>>(future: _listas, builder: (_, s) { if (s.hasError) return Center(child: Text('${s.error}')); if (!s.hasData) return const Center(child: CircularProgressIndicator()); final listas = s.data!; if (listas.isEmpty) return const Center(child: Text('Nenhum cloro emergencial neste mês.')); return ListView.separated(itemCount: listas.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final lista = listas[i] as Map<String, dynamic>; final usos = (lista['usos'] as List<dynamic>? ?? const []).length; return ListTile(leading: const Icon(Icons.science_outlined), title: Text('${(lista['cliente'] ?? {})['nome'] ?? ''}'), subtitle: Text('$usos registro(s) • ${_status(lista)}'), trailing: Text(_peso(_totalKg(lista)), style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () => _detalhar(lista)); }); }))
+      const SizedBox(height: 12), Expanded(child: FutureBuilder<List<dynamic>>(future: _listas, builder: (_, s) { if (s.hasError) return Center(child: Text('${s.error}')); if (!s.hasData) return const Center(child: CircularProgressIndicator()); final listas = s.data!; if (listas.isEmpty) return const Center(child: Text('Nenhum cloro emergencial neste mês.')); return ListView.separated(itemCount: listas.length, separatorBuilder: (_, __) => const Divider(), itemBuilder: (_, i) { final lista = listas[i] as Map<String, dynamic>; final usos = (lista['usos'] as List<dynamic>? ?? const []).length; return ListTile(leading: const Icon(Icons.science_outlined), title: Text(_rotuloLista(lista)), subtitle: Text('$usos registro(s) • ${_status(lista)}'), trailing: Text(_peso(_totalKg(lista)), style: const TextStyle(fontWeight: FontWeight.bold)), onTap: () => _detalhar(lista)); }); }))
     ]),
   );
 }

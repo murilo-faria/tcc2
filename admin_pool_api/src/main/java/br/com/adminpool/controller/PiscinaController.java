@@ -42,7 +42,13 @@ public class PiscinaController {
     }
 
     @GetMapping
-    public List<Piscina> listar(Authentication auth) { return gestor(auth) ? piscinas.findAll() : piscinas.findByResponsavelUsuarioLoginIgnoreCaseOrderByNome(auth.getName()); }
+    public List<Piscina> listar(Authentication auth) {
+        List<Piscina> lista = gestor(auth) ? piscinas.findAll()
+                : piscinas.findByResponsavelUsuarioLoginIgnoreCaseOrderByNome(auth.getName());
+        lista.forEach(piscina -> piscina.setQuantidadePiscinasDoCliente(
+                piscinas.countByClienteId(piscina.getCliente().getId())));
+        return lista;
+    }
 
     @GetMapping("/cliente/{clienteId}")
     public List<Piscina> listarPorCliente(@PathVariable Long clienteId, Authentication auth) {
