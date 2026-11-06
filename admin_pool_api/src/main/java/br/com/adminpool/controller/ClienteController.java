@@ -65,7 +65,10 @@ public class ClienteController {
         cliente.setCpfCnpj(requisicao.cpfCnpj());
         cliente.setTelefone(requisicao.telefone());
         cliente.setEndereco(requisicao.endereco());
-        cliente.setValorMensalidade(BigDecimal.ZERO);
+        // A tela de clientes apresenta este total. A cobrança mensal continua
+        // sendo formada pelos valores das piscinas, mas o cadastro do cliente
+        // não pode nascer com R$ 0,00 quando uma mensalidade foi informada.
+        cliente.setValorMensalidade(valorMensalidadeTotal(requisicao));
         cliente.setDiaVencimento(requisicao.diaVencimento());
         cliente.setPrimeiroVencimento(requisicao.primeiroVencimento());
         cliente.setAtivo(true);
@@ -241,6 +244,15 @@ public class ClienteController {
             medidaDaPiscina(piscina.largura(), "largura", BigDecimal.ZERO);
             medidaDaPiscina(piscina.profundidade(), "profundidade", new BigDecimal("1.40"));
         }
+    }
+
+    private BigDecimal valorMensalidadeTotal(NovoClienteRequest requisicao) {
+        BigDecimal valorPrincipal = requisicao.piscinaValorMensalidade() == null
+                ? requisicao.valorMensalidade() : requisicao.piscinaValorMensalidade();
+        return (requisicao.piscinasAdicionais() == null ? List.<PiscinaCadastroRequest>of()
+                : requisicao.piscinasAdicionais()).stream()
+                .map(PiscinaCadastroRequest::valorMensalidade)
+                .reduce(valorPrincipal, BigDecimal::add);
     }
 
     private BigDecimal medidaDaPiscina(BigDecimal valor, String campo, BigDecimal padrao) {
