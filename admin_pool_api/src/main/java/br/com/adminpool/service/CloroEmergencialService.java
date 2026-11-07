@@ -49,13 +49,13 @@ public class CloroEmergencialService {
         Piscina piscina = piscinas.findById(requisicao.piscinaId()).orElseThrow();
         validarPiscinaDoColaborador(piscina, auth);
         String referencia = YearMonth.now().toString();
-        CloroEmergencial existente = listas.findByPiscinaIdAndReferencia(piscina.getId(), referencia).orElse(null);
-        if (existente != null) {
-            if (existente.getStatus() != StatusCloroEmergencial.ABERTA) {
-                throw new IllegalStateException("A lista de cloro desta piscina já foi finalizada neste mês.");
-            }
-            return existente;
-        }
+        // Uma piscina pode ter mais de uma lista no mês, desde que as listas
+        // anteriores tenham sido finalizadas. A aberta continua sendo retomada.
+        CloroEmergencial existente = listas
+                .findByPiscinaIdAndReferenciaOrderByIdDesc(piscina.getId(), referencia).stream()
+                .filter(lista -> lista.getStatus() == StatusCloroEmergencial.ABERTA)
+                .findFirst().orElse(null);
+        if (existente != null) return existente;
         CloroEmergencial lista = new CloroEmergencial();
         lista.setCliente(piscina.getCliente());
         lista.setPiscina(piscina);
