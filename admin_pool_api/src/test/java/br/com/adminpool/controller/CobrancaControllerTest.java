@@ -12,7 +12,11 @@ import br.com.adminpool.repository.ItemCobrancaRepository;
 import br.com.adminpool.repository.PedidoProdutoRepository;
 import br.com.adminpool.repository.PiscinaRepository;
 import br.com.adminpool.repository.BaixaItemCobrancaRepository;
+import br.com.adminpool.repository.OrdemServicoRepository;
+import br.com.adminpool.repository.CloroEmergencialRepository;
 import br.com.adminpool.service.CobrancaService;
+import br.com.adminpool.service.OrdemServicoService;
+import br.com.adminpool.service.PedidoProdutoService;
 import br.com.adminpool.service.RelatorioPdfService;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -45,7 +49,9 @@ class CobrancaControllerTest {
                 mock(PiscinaRepository.class), mock(PedidoProdutoRepository.class));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new CobrancaController(cobrancas,
                 new RelatorioPdfService(), mock(ClienteRepository.class),
-                mock(PedidoProdutoRepository.class), null, null, null)).build();
+                mock(PedidoProdutoRepository.class), mock(OrdemServicoRepository.class),
+                mock(PedidoProdutoService.class), mock(OrdemServicoService.class),
+                mock(CloroEmergencialRepository.class))).build();
 
         mvc.perform(get("/api/cobrancas").param("referencia", "2026-09"))
                 .andExpect(status().isOk())
@@ -82,7 +88,8 @@ class CobrancaControllerTest {
                 mock(PiscinaRepository.class), mock(PedidoProdutoRepository.class));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new CobrancaController(cobrancas,
                 new RelatorioPdfService(), clientes, mock(PedidoProdutoRepository.class),
-                null, null, null)).build();
+                mock(OrdemServicoRepository.class), mock(PedidoProdutoService.class),
+                mock(OrdemServicoService.class), mock(CloroEmergencialRepository.class))).build();
 
         mvc.perform(get("/api/cobrancas/resumo-visao-geral"))
                 .andExpect(status().isOk())
