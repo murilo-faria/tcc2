@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": null,
-  "installCommand": "git clone --depth 1 --branch stable https://github.com/flutter/flutter.git .flutter && ./.flutter/bin/flutter config --no-analytics && cd admin_pool_web && ../.flutter/bin/flutter pub get",
+  "installCommand": "git clone --depth 1 --branch 3.47.5 https://github.com/flutter/flutter.git .flutter && ./.flutter/bin/flutter config --no-analytics && cd admin_pool_web && ../.flutter/bin/flutter pub get",
   "buildCommand": "cd admin_pool_web && ../.flutter/bin/flutter build web --release",
   "outputDirectory": "admin_pool_web/build/web",
   "rewrites": [
