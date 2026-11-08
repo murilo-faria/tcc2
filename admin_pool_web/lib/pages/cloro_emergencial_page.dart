@@ -60,24 +60,63 @@ class _CloroEmergencialPageState extends State<_CloroEmergencialPage> {
   }
 
   Future<void> _novaLista() async {
-    final r = await apiService.get('/api/piscinas');
-    if (r.statusCode != 200 || !mounted) return;
-    final piscinas = jsonDecode(r.body) as List<dynamic>;
-    piscinas.sort((a, b) => _rotuloPiscina(a as Map<String, dynamic>).toLowerCase().compareTo(_rotuloPiscina(b as Map<String, dynamic>).toLowerCase()));
-    if (piscinas.isEmpty) return;
-    int piscinaId = piscinas.first['id'] as int;
-    final confirmar = await showDialog<bool>(context: context, builder: (_) => StatefulBuilder(builder: (_, setLocal) => AlertDialog(
-      title: const Text('Cloro emergencial'),
-      content: DropdownButtonFormField<int>(
-        value: piscinaId, decoration: const InputDecoration(labelText: 'Cliente e piscina *'),
-        items: piscinas.map<DropdownMenuItem<int>>((p) { final piscina = p as Map<String, dynamic>; return DropdownMenuItem(value: piscina['id'] as int, child: Text(_rotuloPiscina(piscina))); }).toList(),
-        onChanged: (v) => setLocal(() => piscinaId = v!),
-      ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Abrir lista'))],
-    )));
-    if (confirmar != true) return;
-    final criar = await apiService.post('/api/cloro-emergencial', body: {'piscinaId': piscinaId});
-    if (criar.statusCode >= 200 && criar.statusCode < 300) { _recarregar(); if (mounted) await _detalhar(jsonDecode(criar.body) as Map<String, dynamic>); }
+    try {
+      final r = await apiService.get('/api/piscinas');
+      if (!mounted) return;
+      if (r.statusCode != 200) {
+        _mostrarErro('Não foi possível carregar os clientes para abrir a lista.', r.body);
+        return;
+      }
+      final piscinas = jsonDecode(r.body) as List<dynamic>;
+      piscinas.sort((a, b) => _rotuloPiscina(a as Map<String, dynamic>).toLowerCase().compareTo(_rotuloPiscina(b as Map<String, dynamic>).toLowerCase()));
+      if (piscinas.isEmpty) {
+        _mostrarErro('Não há nenhuma piscina cadastrada para abrir uma lista.');
+        return;
+      }
+      int piscinaId = piscinas.first['id'] as int;
+      final confirmar = await showDialog<bool>(context: context, builder: (_) => StatefulBuilder(builder: (_, setLocal) => AlertDialog(
+        title: const Text('Cloro emergencial'),
+        content: DropdownButtonFormField<int>(
+          value: piscinaId, decoration: const InputDecoration(labelText: 'Cliente e piscina *'),
+          items: piscinas.map<DropdownMenuItem<int>>((p) { final piscina = p as Map<String, dynamic>; return DropdownMenuItem(value: piscina['id'] as int, child: Text(_rotuloPiscina(piscina))); }).toList(),
+          onChanged: (v) => setLocal(() => piscinaId = v!),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Abrir lista'))],
+      )));
+      if (confirmar != true) return;
+
+      final criar = await apiService.post('/api/cloro-emergencial', body: {'piscinaId': piscinaId});
+      if (!mounted) return;
+      if (criar.statusCode < 200 || criar.statusCode >= 300) {
+        _mostrarErro('Não foi possível abrir a lista de cloro.', criar.body);
+        return;
+      }
+      final lista = jsonDecode(criar.body) as Map<String, dynamic>;
+      _recarregar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lista aberta para ${_rotuloLista(lista)}.')),
+      );
+      await _detalhar(lista);
+    } catch (_) {
+      if (mounted) {
+        _mostrarErro('Não foi possível abrir a lista. Tente novamente.');
+      }
+    }
+  }
+
+  void _mostrarErro(String mensagem, [String? corpo]) {
+    String detalhe = '';
+    if (corpo != null && corpo.isNotEmpty) {
+      try {
+        final dados = jsonDecode(corpo);
+        if (dados is Map<String, dynamic>) {
+          detalhe = '${dados['message'] ?? dados['error'] ?? ''}'.trim();
+        }
+      } catch (_) {}
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(detalhe.isEmpty ? mensagem : '$mensagem $detalhe')),
+    );
   }
 
   Future<void> _adicionarUso(Map<String, dynamic> lista) async {
