@@ -358,9 +358,13 @@ class _OrdensServicoPageNovaState extends State<_OrdensServicoPageNova> {
           content: DropdownButtonFormField<int>(
             value: piscinaId,
             decoration: const InputDecoration(labelText: 'Cliente e piscina *'),
-            items: piscinas.map<DropdownMenuItem<int>>((item) { final piscina = item as Map<String, dynamic>; return DropdownMenuItem(
-              value: piscina['id'] as int, child: Text(rotulo(piscina)),
-            )).toList(),
+            items: piscinas.map<DropdownMenuItem<int>>((item) {
+              final piscina = item as Map<String, dynamic>;
+              return DropdownMenuItem(
+                value: piscina['id'] as int,
+                child: Text(rotulo(piscina)),
+              );
+            }).toList(),
             onChanged: (id) => setLocal(() => piscinaId = id!),
           ),
           actions: [
