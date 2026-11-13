@@ -157,6 +157,9 @@ public class PedidoProdutoController {
         }
         lista = lista.stream()
                 .filter(p -> p.getFuncionario() == null)
+                // Pedido pago diretamente pelo cliente é só um registro
+                // operacional: não gera cobrança, receita nem lucro da empresa.
+                .filter(p -> p.getPagador() != ResponsavelPagamento.CLIENTE)
                 .filter(p -> correspondeCategoria(p, categoria))
                 .toList();
         if ("COMPLETO".equals(relatorio)) {
@@ -165,11 +168,6 @@ public class PedidoProdutoController {
                             linhasCompletas(lista)));
         }
         boolean compras = "COMPRAS".equals(relatorio);
-        if (compras) {
-            lista = lista.stream()
-                    .filter(pedido -> pedido.getPagador() != ResponsavelPagamento.CLIENTE)
-                    .toList();
-        }
         var linhas = lista.stream().map(p -> new LinhaRelatorioPdf(destinatario(p),
                 descricaoItem(p), p.getDataPedido().toString(),
                 compras ? p.getTotalCompra() : (p.getTotalLiquido() == null ? p.getTotalVenda() : p.getTotalLiquido()))).toList();
