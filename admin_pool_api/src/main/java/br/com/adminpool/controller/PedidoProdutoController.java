@@ -8,6 +8,7 @@ import br.com.adminpool.dto.NovoPedidoCapaRequest;
 import br.com.adminpool.dto.EditarPedidoCapaRequest;
 import br.com.adminpool.dto.EditarPedidoRequest;
 import br.com.adminpool.dto.ResultadoProdutos;
+import br.com.adminpool.dto.ProdutoAReceber;
 import br.com.adminpool.dto.LinhaRelatorioPdf;
 import br.com.adminpool.dto.LinhaRelatorioPedidoCompleto;
 import br.com.adminpool.model.PedidoProduto;
@@ -114,6 +115,12 @@ public class PedidoProdutoController {
     @GetMapping("/resultado/itens")
     public List<PedidoProduto> produtosRecebidos(@RequestParam(required = false) String referencia) {
         return servico.produtosRecebidos(referencia == null || referencia.isBlank()
+                ? YearMonth.now() : YearMonth.parse(referencia));
+    }
+
+    @GetMapping("/resultado/a-receber")
+    public List<ProdutoAReceber> produtosAReceber(@RequestParam(required = false) String referencia) {
+        return servico.produtosAReceber(referencia == null || referencia.isBlank()
                 ? YearMonth.now() : YearMonth.parse(referencia));
     }
 

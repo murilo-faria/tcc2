@@ -1116,58 +1116,145 @@ class _ResultadoProdutosCard extends StatelessWidget {
   }
 
   Future<void> _detalhar(BuildContext context) async {
-    final resposta = await apiService.get(
-      '/api/pedidos-produto/resultado/itens?referencia=$referenciaAtual',
-    );
-    if (resposta.statusCode != 200 || !context.mounted) return;
-    final pedidos = jsonDecode(resposta.body) as List<dynamic>;
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Produtos vendidos no mês'),
-        content: SizedBox(
-          width: 600,
-          height: 420,
-          child: pedidos.isEmpty
-              ? const Center(child: Text('Nenhum produto vendido neste mês.'))
-              : ListView.separated(
-                  itemCount: pedidos.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, indice) {
-                    final pedido = pedidos[indice];
-                    final lucro =
-                        ((pedido['totalLiquido'] as num?) ??
-                            (pedido['totalVenda'] as num?) ??
-                            0) -
-                        ((pedido['totalCompra'] as num?) ?? 0);
-                    return ListTile(
-                      leading: const Icon(Icons.shopping_bag_outlined),
-                      title: Text(
-                        pedido['descricaoCapa'] ??
-                            (pedido['produto'] ?? {})['nome'] ??
-                            '',
+      builder: (context) {
+        String aba = 'VENDIDOS';
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            final aReceber = aba == 'RECEBER';
+            final rota = aReceber
+                ? '/api/pedidos-produto/resultado/a-receber?referencia=$referenciaAtual'
+                : '/api/pedidos-produto/resultado/itens?referencia=$referenciaAtual';
+            return AlertDialog(
+              title: const Text('Resultado de produtos'),
+              content: SizedBox(
+                width: 600,
+                height: 420,
+                child: Column(
+                  children: [
+                    ToggleButtons(
+                      isSelected: [!aReceber, aReceber],
+                      onPressed: (indice) => setLocal(
+                        () => aba = indice == 0 ? 'VENDIDOS' : 'RECEBER',
                       ),
-                      subtitle: Text(
-                        'Pedido #${pedido['codigoPedido']} • ${(pedido['cliente'] ?? {})['nome']}',
-                      ),
-                      trailing: Text(
-                        '+ ${formatarMoeda(lucro)}',
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
+                      children: const [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.sell_outlined),
+                              SizedBox(width: 8),
+                              Text('Vendidos no mês'),
+                            ],
+                          ),
                         ),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 14),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.payments_outlined),
+                              SizedBox(width: 8),
+                              Text('A receber'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: FutureBuilder<List<dynamic>>(
+                        future: apiService.get(rota).then((resposta) {
+                          if (resposta.statusCode != 200) {
+                            throw Exception('Resultado indisponível');
+                          }
+                          return jsonDecode(resposta.body) as List<dynamic>;
+                        }),
+                        builder: (_, estado) {
+                          if (estado.connectionState != ConnectionState.done) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          final pedidos = estado.data ?? const <dynamic>[];
+                          if (estado.hasError) {
+                            return const Center(
+                              child: Text('Não foi possível carregar os produtos.'),
+                            );
+                          }
+                          if (pedidos.isEmpty) {
+                            return Center(
+                              child: Text(
+                                aReceber
+                                    ? 'Nenhum produto a receber neste mês.'
+                                    : 'Nenhum produto vendido neste mês.',
+                              ),
+                            );
+                          }
+                          return ListView.separated(
+                            itemCount: pedidos.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (_, indice) {
+                              final pedido = pedidos[indice] as Map<String, dynamic>;
+                              if (aReceber) {
+                                final saldo = (pedido['saldoPendente'] as num?) ?? 0;
+                                final pago = (pedido['valorPago'] as num?) ?? 0;
+                                return ListTile(
+                                  leading: const Icon(Icons.payments_outlined),
+                                  title: Text(pedido['descricao']?.toString() ?? ''),
+                                  subtitle: Text(
+                                    'Pedido #${pedido['codigoPedido']} • ${pedido['cliente']}${pago > 0 ? ' • Pago: ${formatarMoeda(pago)}' : ''}',
+                                  ),
+                                  trailing: Text(
+                                    'Saldo: ${formatarMoeda(saldo)}',
+                                    style: const TextStyle(
+                                      color: Colors.deepOrange,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                );
+                              }
+                              final lucro =
+                                  ((pedido['totalLiquido'] as num?) ??
+                                      (pedido['totalVenda'] as num?) ??
+                                      0) -
+                                  ((pedido['totalCompra'] as num?) ?? 0);
+                              return ListTile(
+                                leading: const Icon(Icons.shopping_bag_outlined),
+                                title: Text(
+                                  pedido['descricaoCapa'] ??
+                                      (pedido['produto'] ?? {})['nome'] ??
+                                      '',
+                                ),
+                                subtitle: Text(
+                                  'Pedido #${pedido['codigoPedido']} • ${(pedido['cliente'] ?? {})['nome']}',
+                                ),
+                                trailing: Text(
+                                  '+ ${formatarMoeda(lucro)}',
+                                  style: const TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Fechar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

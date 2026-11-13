@@ -6,6 +6,7 @@ import br.com.adminpool.dto.NovoPedidoLoteRequest;
 import br.com.adminpool.dto.NovoPedidoCapaRequest;
 import br.com.adminpool.dto.EditarPedidoCapaRequest;
 import br.com.adminpool.dto.ResultadoProdutos;
+import br.com.adminpool.dto.ProdutoAReceber;
 import br.com.adminpool.model.Cliente;
 import br.com.adminpool.model.Funcionario;
 import br.com.adminpool.model.ItemCobranca;
@@ -32,6 +33,7 @@ import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class PedidoProdutoService {
@@ -386,6 +388,40 @@ public class PedidoProdutoService {
                 .filter(capa -> !codigosQuitados.contains(capa.getCodigoPedido()))
                 .toList();
         return java.util.stream.Stream.concat(produtosQuitados.stream(), capasConcluidas.stream()).toList();
+    }
+
+    /**
+     * Mantém a lista do cartão financeiro alinhada ao total "A receber":
+     * pedidos lançados naquele mês cujo item de cobrança ainda possui saldo.
+     */
+    public List<ProdutoAReceber> produtosAReceber(YearMonth mes) {
+        LocalDate inicio = mes.atDay(1);
+        LocalDate fim = mes.atEndOfMonth();
+        return itensCobranca.findByTipoAndDataLancamentoBetween(
+                        TipoLancamentoCobranca.PEDIDO, inicio, fim)
+                .stream()
+                .filter(item -> item.getOrigemId() != null)
+                .filter(item -> item.getSaldoPendente().compareTo(BigDecimal.ZERO) > 0)
+                .map(item -> {
+                    List<PedidoProduto> itensDoPedido = pedidos.findByCodigoPedidoOrderByIdAsc(item.getOrigemId());
+                    String descricao = itensDoPedido.stream()
+                            .map(this::descricaoDoProduto)
+                            .filter(nome -> nome != null && !nome.isBlank())
+                            .distinct()
+                            .collect(Collectors.joining(", "));
+                    if (descricao.isBlank()) descricao = item.getDescricao();
+                    String cliente = item.getCobranca().getCliente().getNome();
+                    return new ProdutoAReceber(item.getOrigemId(), cliente, descricao,
+                            item.getValorOriginal(), item.getValorPago(), item.getSaldoPendente());
+                })
+                .toList();
+    }
+
+    private String descricaoDoProduto(PedidoProduto pedido) {
+        if (pedido.getDescricaoCapa() != null && !pedido.getDescricaoCapa().isBlank()) {
+            return pedido.getDescricaoCapa();
+        }
+        return pedido.getProduto() == null ? null : pedido.getProduto().getNome();
     }
 
     private Piscina validarPiscina(Long piscinaId, Cliente cliente, Authentication auth) {
